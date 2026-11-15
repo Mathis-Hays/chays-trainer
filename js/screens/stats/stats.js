@@ -7,8 +7,9 @@
  *   « À faire » : trois constats au plus. Aujourd'hui (révisions dues ; seule action pleine de la page : Révision
  *      du jour, Points faibles quand tout est à jour), l'ouverture qui coûte le plus de points, ce que disent les parties.
  *   Puis quatre onglets, à toutes les largeurs (statsPane) :
- *   1. Maîtrise : part des positions maîtrisées et répartition par niveau (la barre et la légende filtrent la liste
- *      des ouvertures), prévision sur 7 jours, points faibles en miniature (la ligne ouvre l'aperçu).
+ *   1. Maîtrise : part des positions maîtrisées, sa courbe dans le temps (MasteryLog, atelier lot 4 ; la barre tant
+ *      qu'il n'y a qu'un relevé) et la légende qui filtre ; retard à part puis prévision sur 7 jours, constats des parties ;
+ *      points faibles en cartes « Trouver le coup » (la carte ouvre l'aperçu).
  *      « À confirmer » (trop peu d'essais) est un état à part, hors des barres de niveaux.
  *   2. Ouvertures : liste « miroir » (préparation à gauche, écart à l'attendu à droite) et une seule fiche
  *      (statsOpenings.js) ; chaque position s'affiche en aperçu ou se travaille seule (▶, seule action qui lance
@@ -29,7 +30,7 @@
 
 'use strict';
 
-const STATS_WEAK_CARDS    = 3;
+const STATS_WEAK_CARDS    = 4;      // cartes « Trouver le coup » de Progrès (deux par ligne sur téléphone)
 const STATS_DAYS          = 30;
 const STATS_HEAT_WEEKS    = 12;     // calendrier : une colonne par semaine, de largeur partagée
 const STATS_WEAK_PAGE     = 30;     // « Points faibles › Tout voir » : positions montrées avant « Afficher les autres »
@@ -209,6 +210,50 @@ function _regularityHTML() {
         ${bySide ? `<div class="st-cmps"><span class="st-sub">Maîtrise par couleur · ${escapeHtml(currentRepertoire)}</span>${bySide}</div>` : ''}</div>`;
 }
 
+// ─── COURBE DE MAÎTRISE (atelier « Ouvertures et Progrès », lot 4) ─────────────
+// Aires empilées sur 12 semaines, du plus sûr (en bas) au plus fragile (en haut), lues dans l'historique
+// MasteryLog (un relevé par jour d'utilisation). « À confirmer » reste hors de l'empilement, comme hors des barres.
+const STATS_CURVE_DAYS = 84;
+const _logDay = d => { const [y, m, j] = d.split('-').map(Number); return new Date(y, m - 1, j).getTime(); };
+
+// Série de la portée affichée ; le relevé du jour vient d'être écrit par initStats. Moins de deux jours : pas de courbe.
+function _masterySeries(now) {
+    const sides = statsColor === 'all' ? ['w', 'b'] : [statsColor];
+    const s = MasteryLog.series(currentRepertoire, sides, STATS_CURVE_DAYS, now);
+    return s.length >= 2 ? s : null;
+}
+
+// Part maîtrisée d'un relevé (À confirmer compris dans le total, comme le grand chiffre).
+const _masteredPct = c => { const n = c.reduce((a, b) => a + b, 0); return n ? 100 * c[MasteryLog.ORDER.indexOf('mastered')] / n : 0; };
+
+function _masteryCurveHTML(series, now) {
+    const W = 520, H = 170, P = { l: 30, r: 6, t: 8, b: 20 };
+    const ORDER = MasteryLog.ORDER, stack = ['mastered', 'solid', 'progress', 'fragile', 'weak'];
+    const t0 = _logDay(series[0].day), t1 = _dayStart(now), span = Math.max(1, t1 - t0);
+    const pts = series.map(x => ({ t: _logDay(x.day), c: x.counts }));
+    const total = p => stack.reduce((n, l) => n + p.c[ORDER.indexOf(l)], 0);
+    const max = Math.max(1, ...pts.map(total));
+    const step = max <= 10 ? 5 : max <= 50 ? 10 : max <= 200 ? 50 : max <= 500 ? 100 : 250;
+    const top = Math.ceil(max / step) * step;
+    const X = t => P.l + (t - t0) / span * (W - P.l - P.r), Y = v => P.t + (1 - v / top) * (H - P.t - P.b);
+    let grid = '';
+    for (let v = 0; v <= top; v += top / 2) grid += `<line class="g" x1="${P.l}" x2="${W - P.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/><text class="ax" x="${P.l - 5}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${Math.round(v)}</text>`;
+    const base = pts.map(() => 0);
+    const areas = stack.map(l => {
+        const lo = base.slice(), hi = pts.map((p, k) => lo[k] + p.c[ORDER.indexOf(l)]);
+        let d = pts.map((p, k) => `${k ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(hi[k]).toFixed(1)}`).join('');
+        for (let k = pts.length - 1; k >= 0; k--) d += `L${X(pts[k].t).toFixed(1)},${Y(lo[k]).toFixed(1)}`;
+        hi.forEach((v, k) => { base[k] = v; });
+        return `<path class="lv-${l}" d="${d}Z"/>`;
+    }).join('');
+    const fmt = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short' }));
+    const last = pts[pts.length - 1], m = last.c[ORDER.indexOf('mastered')];
+    return `<div class="st-curve"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${I18n.pair(I18n.t('Positions par niveau'), `${fmt(t0)} → ${fmt(last.t)}`)}">
+        ${grid}${areas}<circle class="end" cx="${X(last.t).toFixed(1)}" cy="${Y(m).toFixed(1)}" r="3.5"/>
+        <text class="ax" x="${P.l}" y="${H - 5}">${fmt(t0)}</text><text class="ax" x="${W - P.r}" y="${H - 5}" text-anchor="end">${I18n.t('aujourd\'hui')}</text>
+    </svg></div>`;
+}
+
 // ─── RENDU ────────────────────────────────────────────────────────────────────
 
 // Barre de contexte : répertoire et couleur ; période, site et cadence s'y ajoutent sur les onglets qui lisent
@@ -251,6 +296,18 @@ function _weakRowHTML(r) {
                     ${_miniBoardHTML(r, false, { cls: 'st-wmini' })}
                     <span class="st-wrow-txt"><b>${escapeHtml(mv)}</b><small>${statsColor === 'all' ? from : ''}${r.gHtml}</small></span>
                     <span class="st-errs"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, Math.round(masteryOf(r.e)))}%"></i></span><span class="st-n">${Math.round(masteryOf(r.e))} / 100</span>${ico('chevron-right')}</span>
+                </button>`;
+}
+
+// Carte de Progrès (lot 4) : la question posée (« Trouver le coup des Blancs ») sur un échiquier lisible, plutôt que
+// « 4. ? », qui se lisait comme une donnée perdue ; ouverture et maîtrise dessous ; la carte ouvre l'aperçu.
+function _weakCardHTML(r) {
+    const who = r.side === 'w' ? 'Blancs' : 'Noirs', m = Math.round(masteryOf(r.e)), q = `Trouver le coup des ${who}`;
+    return `
+                <button type="button" class="st-wcard lv-${r.lv}" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="weak">
+                    ${_miniBoardHTML(r, false, { cls: 'st-wcard-b' })}
+                    <b class="st-wcard-q">${q}</b>
+                    <span class="st-wcard-s"><small>${r.gHtml}</small><span>${_lvMark(r.lv)}${m} / 100</span></span>
                 </button>`;
 }
 
@@ -382,12 +439,16 @@ function initStats() {
     // « Aujourd’hui » (refonte « Chays sans détour », lot 2) : Progrès observe, sans bouton « réviser ».
     const rp = reviewPlan(currentRepertoire, now), inScope = c => statsColor === 'all' || c === statsColor;
 
-    // Prévision : un total par jour (la case du jour compte aussi les retards), sans détail par niveau.
-    const fc = rp.forecast(inScope, STATS_FORECAST_DAYS), fcMax = Math.max(1, ...fc), fcSum = fc.reduce((a, b) => a + b, 0);
+    // Prévision : un total par jour, sans détail par niveau. Le retard (échéances d'avant aujourd'hui) est à part, avec
+    // son propre chiffre (lot 4) : sur la même échelle, 551 en retard écrasaient les sept barres en traits.
+    const late = rp.overdue(inScope), fc = rp.forecast(inScope, STATS_FORECAST_DAYS);
+    fc[0] = Math.max(0, fc[0] - late);
+    const fcMax = Math.max(1, ...fc), fcSum = fc.reduce((a, b) => a + b, 0);
     const fcDay = i => i ? new Date(_dayStart(now, i)).toLocaleDateString(I18n.locale(), { weekday: 'long' }) : I18n.t('aujourd\'hui');
     const forecastCard = `
         <div class="st-card st-fcard edge-card">
             <div class="st-h"><h3>Révisions à venir</h3></div>
+            ${late ? `<div class="st-late"><span><small>En retard</small><b>${late}</b></span><span>à résorber avant la prévision</span></div>` : ''}
             <div class="st-fc-h"><span>${STATS_FORECAST_DAYS} prochains jours</span><b>${_plural(fcSum, 'position')}</b></div>
             <div class="st-fc" role="img" aria-label="${I18n.pair(I18n.t('Révisions prévues'), fc.map((n, i) => `${fcDay(i)} ${n}`).join(', '))}">${fc.map((n, i) =>
                 `<div title="${I18n.pair(fcDay(i), I18n.t(_plural(n, 'position')))}"><b>${n || ''}</b><i style="height:${n ? 4 + Math.round(56 * n / fcMax) : 2}px"${n ? '' : ' class="zero"'}></i><span>${new Date(_dayStart(now, i)).toLocaleDateString(I18n.locale(), { weekday: 'narrow' })}</span></div>`).join('')}</div>
@@ -396,14 +457,24 @@ function initStats() {
     // ── Maîtrise ── la barre filtre comme la légende ; la règle de chaque niveau est dans son title.
     const totA = rows.reduce((s, r) => s + r.e.attempts, 0), totF = rows.reduce((s, r) => s + r.e.failures, 0);
     const mastery = Math.round(100 * counts.mastered / rows.length);
+    // Courbe (lot 4) : dès deux jours de relevés ; elle remplace alors la barre, la légende garde le filtre et dit
+    // l'évolution de chaque niveau depuis le premier relevé (vert quand elle va dans le bon sens).
+    const series = _masterySeries(now), first = series && series[0].counts;
+    const gain = series ? Math.round(mastery - _masteredPct(first)) : 0;
+    const lvDelta = l => {
+        if (!series) return '';
+        const d = counts[l] - first[MasteryLog.ORDER.indexOf(l)], good = l === 'weak' || l === 'fragile' ? d < 0 : d > 0;
+        return d ? `<small class="st-lg-d${good ? ' up' : ''}">${d > 0 ? '+' : '−'}${Math.abs(d)}</small>` : '';
+    };
     const lg = (l, cls) => `<button type="button" class="st-lg ${cls || ''} ${statsFilter === l ? 'active' : ''}" aria-pressed="${statsFilter === l}" data-action="statsLegend" data-arg="${l}" title="${I18n.pair(I18n.t(STATS_LEVELS[l].one), I18n.t(STATS_LEVELS[l].rule))}" ${counts[l] ? '' : 'disabled'}>
-            ${_lvMark(l)}<span>${STATS_LEVELS[l].label}</span><b>${counts[l]}</b></button>`;
+            ${_lvMark(l)}<span>${STATS_LEVELS[l].label}</span><b>${counts[l]}</b>${l === STATS_STATE ? '' : lvDelta(l)}</button>`;
     const legend = STATS_MASTERY_LEVELS.map(l => lg(l)).join('');
     const masteryCard = `
         <div class="vel-card vel-light st-mastery edge-card">
             <span class="st-eyebrow">Maîtrise · ${_plural(rows.length, 'position')}</span>
-            <div class="st-big"><b>${mastery} %</b><span>maîtrisées</span></div>
-            ${levelBarHTML(counts, 'st-mbar', { buttons: true, active: statsFilter })}
+            <div class="st-big"><b>${mastery} %</b><span>maîtrisées</span>${series ? `<em class="st-gain${gain > 0 ? ' up' : gain < 0 ? ' down' : ''}">${I18n.mark(`${gain > 0 ? '+' : gain < 0 ? '−' : '±'}${Math.abs(gain)} %`)}</em><small class="st-since">depuis le ${I18n.mark(new Date(_logDay(series[0].day)).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'long' }))}</small>` : ''}</div>
+            ${series ? _masteryCurveHTML(series, now) : `${levelBarHTML(counts, 'st-mbar', { buttons: true, active: statsFilter })}
+            <span class="st-curve-note">La courbe commence avec ce relevé : un point par jour d'utilisation.</span>`}
             <div class="st-legend" role="group" aria-label="Filtrer la liste par niveau">${legend}</div>
             <div class="st-state">${lg(STATS_STATE, 'st-lg-state')}</div>
             <details class="st-rules"><summary>Comment chaque niveau est décidé</summary>
@@ -422,7 +493,7 @@ function initStats() {
     const weakHTML = !weakest.length ? '' : `
         <section class="st-sec st-card st-weak edge-card">
             <div class="st-h"><h3>Points faibles</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · ${relearnN} dans la file À revoir` : ''}</span>${weakN > weakest.length ? `<button type="button" class="st-link" data-action="statsWeakAll">Tout voir</button>` : ''}</div>
-            <div class="st-wlist">${weakest.map(_weakRowHTML).join('')}</div>
+            <div class="st-wcards">${weakest.map(_weakCardHTML).join('')}</div>
         </section>`;
 
     // ── Par ouverture ── la fiche vit dans l'onglet Ouvertures (lot 3) ; ici, seulement de quoi nourrir le constat « À faire ».
@@ -434,10 +505,10 @@ function initStats() {
 
     body.className = 'st-body pane-' + statsPane;
     body.innerHTML = `
-        <section class="st-todo" id="stats-todo" aria-label="À faire"></section>
         ${_tabsHTML(tabs, _tabCounts(rows))}
         <div class="st-main">
-            <section class="st-now" data-pane="overview">${masteryCard}${forecastCard}</section>
+            <section class="st-now" data-pane="overview">${masteryCard}<div class="st-side">${forecastCard}
+                <section class="st-todo" id="stats-todo" aria-label="À faire"></section></div></section>
             <div class="st-weak-wrap" data-pane="overview">${weakHTML}</div>
             ${_gamesSection()}
             ${reg}

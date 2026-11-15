@@ -42,7 +42,7 @@ function newPerDay() {
     return Math.max(1, (typeof appSettings !== 'undefined' && appSettings.dailyGoal) || 10);
 }
 
-// plan.dayOf(couleur, clé) : jour prévu (0 = aujourd'hui) ; plan.today(…) ; plan.forecast(filtre, jours) ;
+// plan.dayOf(couleur, clé) : jour prévu (0 = aujourd'hui) ; plan.today(…) ; plan.forecast(filtre, jours) ; plan.overdue(filtre) ;
 // plan.next(filtre) : instant de la prochaine révision après aujourd'hui (Infinity s'il n'y en a pas).
 // filtre(couleur, clé) facultatif : la portée affichée (une couleur, une ouverture).
 function reviewPlan(rep = currentRepertoire, now = Date.now()) {
@@ -75,6 +75,8 @@ function reviewPlan(rep = currentRepertoire, now = Date.now()) {
             scope(filter).forEach(x => { if (x.day < days) out[x.day]++; });
             return out;
         },
+        // Retard : échéances d'avant aujourd'hui (comptées aussi dans la case du jour de forecast) ; les nouvelles n'y sont jamais.
+        overdue: filter => scope(filter).filter(x => x.day === 0 && !x.fresh && x.at < start(0)).length,
         next: filter => scope(filter).filter(x => x.day > 0).reduce((m, x) => Math.min(m, x.at), Infinity)
     };
 }

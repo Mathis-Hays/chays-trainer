@@ -58,12 +58,38 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         assert(/3 positions/.test($('.st-fc-h b').textContent), 'trois échéances dans les 7 jours, la quatrième au-delà');
     });
 
+    await t('retard à part (atelier, lot 4) : son propre chiffre, hors de la case du jour de la prévision', () => {
+        seed(w, [-3, -1, 0, 2]);
+        assert.strictEqual($('.st-late b').textContent, '2', 'deux échéances d\'avant aujourd\'hui');
+        assert(/2 positions/.test($('.st-fc-h b').textContent), 'la prévision ne compte que le jour et après');
+        assert.strictEqual($$('.st-fc > div')[0].querySelector('b').textContent, '1');
+        seed(w, [2, 3, 1, 9]);
+        assert(!$('.st-late'), 'rien en retard : pas de cadre');
+    });
+
+    await t('courbe de maîtrise (atelier, lot 4) : un seul relevé, la barre et une note ; deux jours, aires empilées et écart', () => {
+        seed(w, [2, 3, 1, 9]);
+        w.eval(`dataStore.remove(MasteryLog.KEY); initStats()`);
+        assert(!$('.st-curve') && $('.st-mbar') && $('.st-curve-note'), 'un seul relevé : pas encore de courbe');
+        // Il y a dix jours : rien de maîtrisé, deux à retravailler (dont une position aujourd'hui fragile).
+        w.eval(`MasteryLog.put(currentRepertoire, { [MasteryLog.dayOf(Date.now() - 10 * 864e5)]: { w: [2, 0, 1, 0, 0, 1], b: [0, 0, 0, 0, 0, 0], at: 1 } }); initStats()`);
+        assert(!$('.st-mbar'), 'la courbe remplace la barre');
+        assert.strictEqual($$('.st-curve path').length, 5, 'cinq niveaux empilés, À confirmer à part');
+        assert(/^\+25 %$/.test($('.st-gain').textContent) && $('.st-gain').classList.contains('up'), 'une sur quatre maîtrisée, contre aucune');
+        assert(/depuis le/.test($('.st-since').textContent));
+        assert.strictEqual($('.st-lg[data-arg="weak"] .st-lg-d').textContent, '−1');
+        assert($('.st-lg[data-arg="weak"] .st-lg-d').classList.contains('up'), 'moins de positions à retravailler : bon sens');
+        $('.st-legend .st-lg[data-arg="weak"]').click();
+        assert.strictEqual(w.eval('statsFilter'), 'weak', 'la légende filtre toujours');
+        w.eval(`dataStore.remove(MasteryLog.KEY)`);
+    });
+
     await t('Progrès observe : plus aucun bouton d\'exercice (refonte, lot 5) ; une ligne de point faible ouvre l\'aperçu', () => {
         seed(w, [-1, 2, 0, 5]);
         reset();
         assert(!$('#home-tab-stats [data-action="statsGoTraining"]'), 'aucun bouton vers l’Entraînement');
         assert(!$('#home-tab-stats #stats-lines'), 'la fiche d’ouverture a quitté Progrès (lot 3)');
-        const row = $('.st-weak .st-wrow');
+        const row = $('.st-weak .st-wcard');
         assert(row, 'une ligne de point faible');
         const c = calls();
         assert.deepStrictEqual(c.train, []);
@@ -101,9 +127,9 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         assert.deepStrictEqual(c.train, []);
     });
 
-    await t('points faibles : mini-échiquier, la ligne entière ouvre l\'aperçu (data-origin="weak")', () => {
+    await t('points faibles : cartes « Trouver le coup » sur échiquier, la carte entière ouvre l\'aperçu (data-origin="weak")', () => {
         seed(w, [-1, 2, 0, 5]);
-        const row = $('.st-wrow');
+        const row = $('.st-wcard');
         assert.strictEqual(row.tagName, 'BUTTON');
         assert(row.querySelector('.st-mini'));
         assert.strictEqual(row.dataset.action, 'statsPreview');
@@ -120,7 +146,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('aperçu : plus de « Appuyez sur S\'entraîner », trois faits dans le panneau latéral, cachés hors aperçu', () => {
         seed(w, [-1, 2, 0, 5]);
-        $('.st-wrow').click();
+        $('.st-wcard').click();
         assert.strictEqual(w.eval('gameMode'), 'preview');
         assert(!/Appuyez/.test($('#status-text').textContent));
         const facts = $('#side-panel #stats-facts');
@@ -178,7 +204,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('« Tout voir » ouvre toutes les positions annoncées ; le retour rend la page', () => {
         seedWeak();
-        assert.strictEqual($$('.st-weak .st-wrow').length, 3);
+        assert.strictEqual($$('.st-weak .st-wcard').length, 4, 'quatre cartes « Trouver le coup »');
         const link = $('.st-weak .st-link');
         assert.strictEqual(link.dataset.action, 'statsWeakAll');
         link.click();

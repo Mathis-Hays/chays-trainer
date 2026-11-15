@@ -1215,3 +1215,55 @@ button.so-x-row:focus-visible, .so-x-mv:focus-visible, .so-x-add:focus-visible {
 .si-pos-h > span:nth-child(4), .si-pos-h > span:nth-child(5) { text-align: right; }
 .si-go { grid-column: 1 / -1; justify-self: start; min-height: 32px; font-size: 12.5px; }
 @media (max-width: 599px) { .si-views .tr-seg-btn { padding-inline: 2px; font-size: 12px; } }
+
+/* ─── PROGRÈS DANS LE TEMPS (atelier « Ouvertures et Progrès », lot 4) ───
+   Maîtrise en courbe (aires empilées, du plus sûr en bas au plus fragile en haut) ; à droite, le retard à part puis la
+   prévision sur sa propre échelle, et les constats des parties en bas de la colonne ; points faibles en cartes. */
+.st-now { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+.st-side { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.st-gain { align-self: center; padding: 5px 8px; border-radius: 7px; font: 600 12px/1 var(--font-note); font-style: normal;
+    background: color-mix(in srgb, currentColor 9%, transparent); }
+.st-gain.up { color: color-mix(in srgb, var(--ok) 62%, currentColor); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+.st-gain.down { color: var(--lv-fragile-ink); background: color-mix(in srgb, var(--lv-fragile) 14%, transparent); }
+.st-big .st-since { align-self: center; font-size: 12px; opacity: .7; }
+.st-curve svg { display: block; width: 100%; height: auto; overflow: visible; }
+.st-curve .g { stroke: color-mix(in srgb, currentColor 16%, transparent); stroke-width: .7; }
+.st-curve .ax { font-family: var(--font-note); font-size: 12px; fill: currentColor; opacity: .66; }
+.st-curve path { fill: var(--c); fill-opacity: .74; stroke: var(--c); stroke-width: .6; stroke-linejoin: round; }
+.st-curve path.lv-mastered { fill-opacity: .95; }
+.st-curve .end { fill: currentColor; stroke: var(--card-w-bg, #fff); stroke-width: 1.5; }
+.st-curve-note { font-size: 11.5px; opacity: .7; }
+.st-lg-d { margin-left: -2px; font: 500 10.5px/1 var(--font-note); opacity: .7; }
+.st-lg-d.up { color: color-mix(in srgb, var(--ok) 62%, currentColor); opacity: 1; }
+
+/* Retard : son propre chiffre, en ambre, au-dessus de la prévision. */
+.st-late { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px;
+    background: color-mix(in srgb, var(--warn) 12%, var(--surface)); font-size: 12px; color: var(--text-muted); }
+.st-late > span:first-child { display: grid; gap: 3px; }
+.st-late b { font-family: var(--font-display); font-size: 22px; line-height: 1; color: var(--warn); font-variant-numeric: tabular-nums; }
+.st-late > span:last-child { text-align: right; max-width: 12em; }
+
+/* Constats des parties en bas de la colonne : lignes compactes, à toutes les largeurs. */
+.st-side .st-todo { grid-template-columns: minmax(0, 1fr) !important; gap: 10px; }
+.st-side .st-todo-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; }
+.st-side .st-todo-card .st-eyebrow, .st-side .st-todo-card .st-claim { grid-column: 1; }
+.st-side .st-todo-card .st-claim { font-size: 16px; }
+.st-side .st-todo-card .st-dbar { display: none; }
+.st-side .st-todo-card .st-todo-go { grid-column: 2; grid-row: 1 / span 2; margin: 0; }
+
+/* Points faibles : la question sur un échiquier lisible ; la carte ouvre l'aperçu. */
+.st-wcards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.st-wcard { display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 8px 8px 10px; border: 1px solid var(--border); border-radius: 14px;
+    background: var(--bg-inset); color: inherit; font: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-1); }
+@media (hover: hover) { .st-wcard:hover { border-color: var(--border-strong); } }
+.st-wcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st-wcard-b { width: 100%; border-radius: 8px; }
+.st-wcard-q { font-size: 13.5px; font-weight: 600; line-height: 1.25; }
+.st-wcard-s { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-muted); }
+.st-wcard-s small { min-width: 0; font-size: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.st-wcard-s > span { display: inline-flex; align-items: center; gap: 5px; flex: none; font-family: var(--font-note); font-variant-numeric: tabular-nums; }
+@container stats (max-width: 719px) {
+    .st-now { grid-template-columns: minmax(0, 1fr); }
+    .st-wcards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+}
+@media (prefers-reduced-motion: reduce) { .st-wcard { transition: none; } }
