@@ -51,14 +51,14 @@ const _lvMark = l => `<i class="lv-mark lv-${l}" aria-hidden="true"></i>`;
 const _lvPair = (l, n) => I18n.pair(I18n.t(STATS_LEVELS[l].label), n);
 
 // Barre de répartition ; counts : { niveau: nombre }. opts.buttons : un bouton par segment, qui filtre la liste
-// comme la légende (statsLegend) ; opts.active : niveau du filtre en cours. Sans opts, des <i> décoratifs.
+// comme la légende (statsLegend, ou opts.action) ; opts.active : niveau du filtre en cours. Sans opts, des <i> décoratifs.
 function levelBarHTML(counts, cls, opts) {
     const lv = STATS_MASTERY_LEVELS.filter(l => counts[l]);
     if (!opts || !opts.buttons) return `<span class="lv-bar ${cls || ''}" aria-hidden="true">${lv
         .map(l => `<i class="lv-${l}" style="flex:${counts[l]}" title="${_lvPair(l, counts[l])}"></i>`).join('')}</span>`;
     const on = opts.active && opts.active !== 'all' ? opts.active : '';
     return `<span class="lv-bar lv-bar-btn${on ? ' has-on' : ''} ${cls || ''}" role="group" aria-label="Filtrer la liste par niveau">${lv.map(l =>
-        `<button type="button" class="lv-${l}${on === l ? ' on' : ''}" style="flex:${counts[l]}" data-action="statsLegend" data-arg="${l}" aria-pressed="${on === l}" title="${_lvPair(l, counts[l])}" aria-label="${I18n.mark(`${I18n.t(STATS_LEVELS[l].label)}, ${counts[l]}`)}"></button>`).join('')}</span>`;
+        `<button type="button" class="lv-${l}${on === l ? ' on' : ''}" style="flex:${counts[l]}" data-action="${opts.action || 'statsLegend'}" data-arg="${l}" aria-pressed="${on === l}" title="${_lvPair(l, counts[l])}" aria-label="${I18n.mark(`${I18n.t(STATS_LEVELS[l].label)}, ${counts[l]}`)}"></button>`).join('')}</span>`;
 }
 
 const _plural = (n, one, many) => `${n} ${n > 1 ? many || one + 's' : one}`;

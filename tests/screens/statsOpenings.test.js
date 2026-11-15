@@ -157,16 +157,37 @@ const seedGames = async (w, games) => {
         w.eval(`UI_ACTIONS.statsInPeriod('12')`);
     });
 
-    await t('miroir : une ligne par ouverture, préparation et écart ; toucher une ligne ouvre sa fiche', () => {
-        const rows = $$('#stats-lines .so-mirror .so-mr:not(.so-mr-h)');
+    await t('index : une ligne par ouverture (miniature, niveaux, écart) ; toucher une ligne ouvre sa fiche à sa place', () => {
+        w.eval('UI_ACTIONS.opBack()');                                // les tests précédents ont ouvert une fiche
+        const rows = $$('#stats-lines .so-mirror .so-mr');
         assert(rows.length >= 2);
         assert(rows[0].classList.contains('on') && /italienne/i.test(rows[0].textContent), 'la plus coûteuse en tête, ouverte');
-        assert(rows[0].querySelector('.lv-bar') && rows[0].querySelector('.st-dbar.down'));
+        assert(rows[0].querySelector('.st-mini') && rows[0].querySelector('.lv-bar') && rows[0].querySelector('.so-mr-r small.down'));
+        assert(!$('#stats-lines .so-layout').classList.contains('is-open'), "l'index d'abord");
         const sic = rows.find(r => /sicilienne/i.test(r.textContent));
         sic.click();
         assert(/sicilienne/i.test($('#so-trigger b').textContent));
+        assert($('#stats-lines .so-layout').classList.contains('is-open'), "la fiche prend la place de l'index");
         assert($('#stats-lines .so-mr.on') && /sicilienne/i.test($('#stats-lines .so-mr.on').textContent));
+        $('#stats-lines [data-action="opBack"]').click();
+        assert(!$('#stats-lines .so-layout').classList.contains('is-open'), "« ‹ Ouvertures » ramène à l'index");
         rows[0].dataset.arg && w.eval(`UI_ACTIONS.statsOpPick(${JSON.stringify(rows[0].dataset.arg)})`);
+    });
+
+    await t('index : barre de niveaux filtrante et vue Carte', () => {
+        const seg = $('#stats-lines .so-fbar-bar button');
+        assert(seg, 'barre de niveaux cliquable');
+        const lv = seg.dataset.arg;
+        seg.click();
+        assert.strictEqual(w.eval('statsFilter'), lv);
+        assert($('#stats-lines .so-fbar-leg [data-arg="all"]'), '« Tout afficher » pendant le filtre');
+        $('#stats-lines .so-fbar-leg [data-arg="all"]').click();
+        assert.strictEqual(w.eval('statsFilter'), 'all');
+        assert(!$('#stats-lines .stats-chip'), 'plus de puces de niveau');
+        $('#stats-lines [data-action="statsOpView"][data-arg="map"]').click();
+        assert($('#stats-lines .so-ix-map .so-map') && !$('#stats-lines .so-mirror'));
+        $('#stats-lines [data-action="statsOpView"][data-arg="list"]').click();
+        assert($('#stats-lines .so-mirror'));
     });
 
     await t('« À faire » : l\'ouverture qui coûte le plus mène à sa fiche, onglet Ouvertures', () => {

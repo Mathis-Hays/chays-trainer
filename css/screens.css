@@ -46,9 +46,9 @@
    Barre de contexte collante sous la barre du haut (répertoire, couleur ; période, site, cadence sur Ouvertures et Parties),
    « À faire » (trois constats au plus), puis quatre onglets à toutes les largeurs : une seule colonne.
    Cartes « Velours » : mêmes jetons que l'accueil (css/home.css). */
-.setup-screen:has(#home-tab-stats:not(.hidden)) { padding-top: 0; }
-.home-content:has(#home-tab-stats:not(.hidden)) { max-width: 1120px; justify-content: flex-start; text-align: left; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
-#home-tab-stats { gap: 0; align-items: stretch; }
+.setup-screen:has(:is(#home-tab-stats, #home-tab-openings):not(.hidden)) { padding-top: 0; }
+.home-content:has(:is(#home-tab-stats, #home-tab-openings):not(.hidden)) { max-width: 1120px; justify-content: flex-start; text-align: left; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
+#home-tab-stats, #home-tab-openings { gap: 0; align-items: stretch; }   /* Ouvertures : la page de Progrès (refonte, lot 3) */
 
 .st-scope {
     position: sticky; top: var(--topnav-h); z-index: 50; display: flex; align-items: center; gap: 10px;
@@ -250,7 +250,7 @@
 .st-cmp b { text-align: right; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 599px) {
-    .home-content:has(#home-tab-stats:not(.hidden)) { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }   /* cartes bord à bord : elles portent la marge */
+    .home-content:has(:is(#home-tab-stats, #home-tab-openings):not(.hidden)) { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }   /* cartes bord à bord : elles portent la marge */
     .st-scope { gap: 6px; flex-wrap: wrap; }       /* petit écran ou texte agrandi : Blancs / Noirs / Les deux passe à la ligne plutôt que d'être coupé */
     .st-rep .dd-label { display: none; }
     .st-rep .dd-value { max-width: 96px; }
@@ -262,12 +262,12 @@
     .st-seg.seg .seg-btn { padding: 8px 4px; text-align: center; white-space: nowrap; }
     .st-big b { font-size: 46px; }
     /* Ergonomie, lot 5 : puce et capsule sur une ligne (capsule en pièces seules), action principale au centre du dock */
-    #home-tab-stats > .st-scope, #home-tab-training > .st-scope { flex-wrap: nowrap; }
-    :is(#home-tab-stats, #home-tab-training) > .st-scope .st-rep { flex: 0 1 auto; min-width: 0; }
-    :is(#home-tab-stats, #home-tab-training) > .st-scope .rp-txt small { overflow: hidden; text-overflow: ellipsis; }
-    :is(#home-tab-stats, #home-tab-training) > .st-scope .st-seg { flex: none; min-width: 0; margin-left: auto; }
-    :is(#home-tab-stats, #home-tab-training) > .st-scope .cs-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    :is(#home-tab-stats, #home-tab-training) > .st-scope .cs-opt { padding: 7px 10px; }
+    #home-tab-stats > .st-scope, #home-tab-openings > .st-scope, #home-tab-training > .st-scope { flex-wrap: nowrap; }
+    :is(#home-tab-stats, #home-tab-openings, #home-tab-training) > .st-scope .st-rep { flex: 0 1 auto; min-width: 0; }
+    :is(#home-tab-stats, #home-tab-openings, #home-tab-training) > .st-scope .rp-txt small { overflow: hidden; text-overflow: ellipsis; }
+    :is(#home-tab-stats, #home-tab-openings, #home-tab-training) > .st-scope .st-seg { flex: none; min-width: 0; margin-left: auto; }
+    :is(#home-tab-stats, #home-tab-openings, #home-tab-training) > .st-scope .cs-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    :is(#home-tab-stats, #home-tab-openings, #home-tab-training) > .st-scope .cs-opt { padding: 7px 10px; }
     #home-tab-training .btn-primary { background: var(--accent-soft); border: 1.5px solid var(--accent-line); color: var(--accent); box-shadow: none; }
 }
 
@@ -746,7 +746,7 @@
 
 /* ─── Statistiques sur téléphone (requête de conteneur sur l'onglet) ───
    « À faire » en une colonne (constats en lignes compactes), onglets étirés sur toute la largeur. */
-#home-tab-stats { container: stats / inline-size; }
+#home-tab-stats, #home-tab-openings { container: stats / inline-size; }
 @container stats (max-width: 599px) {
     .st-todo.n-2, .st-todo.n-3 { grid-template-columns: minmax(0, 1fr); gap: 0; }
     .st-todo-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 4px 12px; }
@@ -758,10 +758,10 @@
     .st-tab { flex: 1 0 auto; justify-content: center; padding: 0 6px; font-size: 13px; }
     .st-tab-n { display: none; }
     /* Barre de contexte : répertoire et couleur sur une ligne, période, site et cadence sur la suivante. */
-    #home-tab-stats > .st-scope { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
-    #home-tab-stats .st-filters { grid-column: 1 / -1; margin: 0; }
-    #home-tab-stats .st-filters .si-bar { width: 100%; }
-    #home-tab-stats .st-filters .dd { flex: 1 1 0; min-width: 0; }
+    :is(#home-tab-stats, #home-tab-openings) > .st-scope { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 8px; }
+    :is(#home-tab-stats, #home-tab-openings) .st-filters { grid-column: 1 / -1; margin: 0; }
+    :is(#home-tab-stats, #home-tab-openings) .st-filters .si-bar { width: 100%; }
+    :is(#home-tab-stats, #home-tab-openings) .st-filters .dd { flex: 1 1 0; min-width: 0; }
 }
 
 /* ─── STATISTIQUES PUPITRE (LOT 7) ───
@@ -894,8 +894,8 @@
 /* Téléphone (requête de conteneur de l'onglet) : cartes bord à bord, une seule marge de 16 px portée par les cartes,
    cibles de 44 px (légende, onglets, ColorScope, puces), calendrier réduit aux 5 dernières semaines. */
 @container stats (max-width: 599px) {
-    #home-tab-stats .st-scope { margin: 0; padding: 10px 16px; }
-    #home-tab-stats .st-seg .cs-opt { min-height: calc(var(--tap) - 9px); }   /* capsule de 44 px (3 px de marge et 1,5 px de bord de chaque côté) */
+    :is(#home-tab-stats, #home-tab-openings) .st-scope { margin: 0; padding: 10px 16px; }
+    :is(#home-tab-stats, #home-tab-openings) .st-seg .cs-opt { min-height: calc(var(--tap) - 9px); }   /* capsule de 44 px (3 px de marge et 1,5 px de bord de chaque côté) */
     .st-body { gap: 14px; padding-top: 16px; }
     .st-main { gap: 14px; }
     .st-todo + .st-tabs { margin-top: 2px; }
@@ -921,36 +921,67 @@
 
 /* ─── PAR OUVERTURE : SÉLECTEUR ET FICHE (statsOpenings.js) ─── */
 .so-wrap { container: so / inline-size; padding: 12px 20px 20px; }
-/* Miroir : une ouverture par ligne, préparation (niveaux) | écart à l'attendu ; la fiche à côté dès 980 px de contenu. */
+/* Index (atelier « Ouvertures et Progrès », lot 1) : en-tête et segment Liste / Carte, barre de niveaux qui filtre, une ligne par
+   ouverture (miniature | nom et niveaux | verdict). La fiche à côté dès 980 px de contenu ; en dessous, elle prend la place
+   de l'index (.is-open) et « ‹ Ouvertures » y ramène. */
 .so-layout { display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; }
-.so-mirror { display: flex; flex-direction: column; gap: 2px; padding: 12px 12px 4px; }
-.so-mr { display: grid; grid-template-columns: minmax(0, 1fr) 58px 68px 30px; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 6px 8px;
+.so-index { display: flex; flex-direction: column; gap: 12px; min-width: 0; padding: 16px 12px 12px; }
+.so-ix-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-inline: 8px; }
+.so-ix-head h3 { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; white-space: nowrap; }
+.so-ix-head .tr-seg { flex: none; width: auto; }                      /* pas la pleine largeur des segments de téléphone */
+.so-ix-head .tr-seg-btn { flex: none; padding: 8px 14px; }
+.so-fbar { display: flex; flex-direction: column; gap: 7px; padding-inline: 8px; }
+.so-fbar-row { display: flex; align-items: center; gap: 10px; }
+.so-fbar-bar.lv-bar { flex: 1; height: 14px; }
+.so-unsure { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1.5px dashed var(--border-strong); border-radius: 999px;
+             background: none; color: var(--text-muted); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; transition: border-color var(--dur-1), color var(--dur-1); }
+.so-unsure b { color: var(--text); font-variant-numeric: tabular-nums; }
+.so-unsure.on { border-style: solid; border-color: var(--accent); color: var(--text); background: var(--accent-soft); }
+.so-fbar-leg { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 20px; font-family: var(--font-note); font-size: 11px; color: var(--text-dim); }
+.so-fbar-leg > span { display: inline-flex; align-items: center; gap: 6px; }
+.so-ix-map { padding-inline: 4px; }
+.so-mirror { display: flex; flex-direction: column; gap: 2px; }
+.so-mr { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 8px;
          border: 1px solid transparent; border-radius: 12px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; transition: background var(--dur-1), border-color var(--dur-1); }
-.so-mr-h { min-height: 0; padding-block: 0 4px; cursor: default; font-family: var(--font-note); font-size: 9.5px; letter-spacing: .03em; text-transform: uppercase; color: var(--text-dim); }
-.so-mr-h span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.so-mr-h span:nth-child(2), .so-mr-h span:nth-child(3) { text-align: center; } .so-mr-h span:last-child { text-align: right; }
-@media (hover: hover) { .so-mr:not(.so-mr-h):hover { background: var(--bg-inset); } }
+@media (hover: hover) { .so-mr:hover { background: var(--bg-inset); } }
 .so-mr.on { background: var(--accent-soft); border-color: var(--accent-line); }
 .so-mr:focus-visible { outline: 2px solid var(--board-accent); outline-offset: 1px; }
-.so-mr-n { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.so-mr-n .so-txt b { font-size: 14px; }
+.so-mr-b { display: grid; place-items: center; width: 44px; }
+.so-mr-b .st-mini { width: 44px; border-radius: 5px; }
+.so-mr-n { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.so-mr-n .so-txt b { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.so-mr-n .so-txt b .so-dot { flex: none; }
 .so-mr-n .so-txt small { font-size: 11px; }
-.so-mr-bar.lv-bar { height: 8px; }
-.so-mr-out { display: block; font-size: 11px; color: var(--text-dim); text-align: center; }
-.so-mr-r { display: flex; flex-direction: column; gap: 4px; }
-.so-mr-r small { font-size: 11px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.so-mr-bar.lv-bar { height: 5px; }
+.so-mr-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.so-mr-r small { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-dim); }
 .so-mr-r small.up { color: var(--new); } .so-mr-r small.down { color: var(--lv-fragile-ink); }
-.so-mr-g { font-size: 12px; text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.so-mr-all { margin-top: 4px; }
+.so-mr-v { font-family: var(--font-note); font-size: 11px; font-weight: 600; white-space: nowrap; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.so-mr-v small { font-weight: 500; color: var(--text-dim); }
+.so-mr-v[class*="v-"] { padding: 4px 7px; border-radius: 6px; font-size: 10px; letter-spacing: .03em; text-transform: uppercase;
+                        color: var(--vc); background: color-mix(in oklab, var(--vc) 15%, transparent); }
+.so-mr-v.v-learn { --vc: var(--err); }
+.so-mr-v.v-replace, .so-mr-v.v-losing { --vc: var(--lv-fragile-ink); }
+.so-mr-v.v-through { --vc: var(--new); }
+.so-mr-v.v-consolidate { --vc: var(--text-muted); }
+.so-mr-v.v-keep { --vc: var(--lv-mastered); }
+.so-back { display: none; }
 @container stats (min-width: 980px) {
-    .so-layout { grid-template-columns: minmax(360px, 440px) minmax(0, 1fr); }
-    .so-mirror { position: sticky; top: calc(var(--topnav-h) + 76px); padding: 12px 4px 16px 12px; border-right: 1px solid var(--border); }
+    .so-layout { grid-template-columns: minmax(360px, 420px) minmax(0, 1fr); }
+    .so-index { position: sticky; top: calc(var(--topnav-h) + 76px); max-height: calc(100vh - var(--topnav-h) - 92px); padding: 16px 4px 12px 12px; border-right: 1px solid var(--border); }
+    .so-mirror { overflow-y: auto; margin-right: -4px; padding-right: 4px; }
 }
-@container stats (max-width: 979px) { .so-layout > .so-wrap { border-top: 1px solid var(--border); } }
+@container stats (max-width: 979px) {
+    .so-layout:not(.is-open) > .so-wrap, .so-layout.is-open > .so-index { display: none; }
+    .so-back { display: inline-flex; flex: none; align-items: center; gap: 4px; min-height: var(--tap); padding: 0 12px 0 6px; border: 0; border-radius: 12px;
+               background: none; color: var(--accent); font: inherit; font-weight: 600; cursor: pointer; }
+    .so-back .ico { width: 18px; height: 18px; fill: none; }
+    .so-bar .so-back { margin-right: auto; }                          /* ‹ Ouvertures à gauche, ◀ ▶ à droite, l'ouverture en dessous */
+    .so-bar .so-trigger { order: 3; flex-basis: 100%; }
+}
 @container stats (max-width: 599px) {
-    .so-mirror { padding: 8px 8px 4px; }
-    .so-mr { grid-template-columns: minmax(0, 1fr) 56px 64px; gap: 10px; }
-    .so-mr-g, .so-mr-h span:last-child { display: none; }
+    .so-index { padding: 14px 8px 8px; }
+    .so-mr { gap: 10px; padding: 8px 6px; }
 }
 .so-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; }
 .so-trigger { flex: 1 1 260px; min-width: 0; min-height: 52px; display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--border-strong); border-radius: 13px; background: var(--bg-elevated); color: inherit; font: inherit; text-align: left; cursor: pointer; }
