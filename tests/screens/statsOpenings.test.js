@@ -80,17 +80,42 @@ const seedGames = async (w, games) => {
         assert.strictEqual($$('#home-tab-stats .btn-primary').length, 0, 'Progrès : toujours aucune action pleine');
     });
 
-    await t('arbre des coups appris : une ligne par réponse, décalée sous celles qui la précèdent, toucher ouvre l\'aperçu', () => {
-        const rows = $$('#stats-lines .so-tree-row');
-        // Les premiers coups (1. e4, 2. Cf3) appartiennent aux ouvertures plus générales : ici, les deux réponses de la variante.
-        assert.strictEqual(rows.length, 2, rows.map(r => r.textContent.trim()).join(' / '));
-        assert.deepStrictEqual(rows.map(r => r.style.getPropertyValue('--d')), ['0', '1']);
-        assert(/3\.\s*[FB]c4/.test(rows[0].textContent) && /4\.\s*c3/.test(rows[1].textContent), rows.map(r => r.textContent.trim()).join(' / '));
-        rows[1].click();
-        assert.strictEqual(w.eval('gameMode'), 'preview');
-        assert.strictEqual(w.document.querySelector('#topnav-tabs-setup .topnav-tab.active').id, 'nav-tab-openings', 'aperçu : onglet Ouvertures marqué');
-        w.eval('statsBack()');
-        assert(!$('#home-tab-openings').classList.contains('hidden'), 'retour à l\'onglet Ouvertures');
+    await t('explorateur (modèle) : coups adverses joués, repérés ou du répertoire ; sans réponse d\'abord à égalité ; trous comptés', () => {
+        const got = w.eval(`(() => {
+            const db = {}, k = p => Chess.key(Chess.replay(p));
+            db[k([])] = { move: 'e2e4', san: 'e4' };
+            db[k(['e2e4', 'e7e5'])] = { move: 'g1f3', san: 'Nf3' };
+            const nd = OpeningExplorer.node({ path: ['e2e4'], side: 'w', db, opp: { [k(['e2e4'])]: ['c7c5'] },
+                rows: [{ g: { result: 'l' }, a: { path: ['e2e4', 'd7d5'] } }, { g: { result: 'w' }, a: { path: ['e2e4', 'd7d5'] } }, { g: { result: 'w' }, a: { path: ['d2d4'] } }] });
+            const me = OpeningExplorer.node({ path: [], side: 'w', db, rows: [] });
+            return JSON.stringify(nd.replies.map(r => [r.san, r.n, r.answered, r.seen])) + '|' + nd.turn + '|' + nd.games.n + '|' + OpeningExplorer.holes(nd) + '|' + me.turn + ' ' + me.mine.san;
+        })()`);
+        assert.strictEqual(got, '[["d5",2,false,false],["c5",0,false,true],["e5",0,true,false]]|opp|2|2|me e4');
+    });
+
+    await t('explorateur : la ligne coup par coup, ma réponse et son niveau, trous en ambre avec « Ajouter une réponse »', () => {
+        w.eval(`window.__an = []; window.__oa = openAnalysis; openAnalysis = (p, i) => window.__an.push(p.join(' ') + '@' + i)`);
+        assert($('#stats-lines .so-x'), 'explorateur dans la fiche');
+        assert(!$('#stats-lines .so-tree-row'), "plus d'arbre en texte");
+        assert($('#stats-lines .so-x-cov'), 'couverture affichée avec des parties');
+        w.eval(`UI_ACTIONS.opExplore('e2e4 e7e5 g1f3 b8c6 f1c4')`);
+        const rows = () => $$('#stats-lines .so-x .so-x-row');
+        const bc5 = rows().find(r => /c5/.test(r.textContent) && r.matches('button'));
+        assert(bc5, $('#stats-lines .so-x').textContent.replace(/\s+/g, ' '));
+        bc5.click();
+        const mine = $('#stats-lines .so-x .so-x-row.is-mine');
+        assert(mine && /c3/.test(mine.textContent) && mine.querySelector('.lv-mark'), 'à mon trait : ma réponse et son niveau');
+        mine.click();
+        const hole = rows().find(r => r.classList.contains('is-hole') && /f6/.test(r.textContent));
+        assert(hole, 'Cf6 joué en partie, sans réponse : en ambre');
+        hole.querySelector('[data-action="opAdd"]').click();
+        assert.strictEqual(w.eval('window.__an[0]'), 'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 g8f6@7', 'Analyse sur la position après le trou');
+        const crumbs = $$('#stats-lines .so-x-mv');
+        assert.strictEqual(crumbs.length, 7);
+        assert.strictEqual($$('#stats-lines .so-x-mv[aria-current]').length, 1);
+        crumbs[4].click();
+        assert.strictEqual($('#stats-lines .so-x-mv[aria-current]').dataset.arg, 'e2e4 e7e5 g1f3 b8c6 f1c4', 'le fil ramène en arrière');
+        w.eval(`openAnalysis = window.__oa`);
     });
 
     await t('parties rattachées par position, coup joué à la place, positions de la fiche', () => {

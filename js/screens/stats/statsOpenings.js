@@ -9,7 +9,7 @@
  *     (« ‹ Ouvertures » y ramène, st.open).
  *   Sélecteur (« Toutes les ouvertures ») : recherche par nom ou par coups, « À travailler d'abord », familles, carte maîtrise × résultats.
  *     Fenêtre posée sous <body> : dans l'onglet, une requête de conteneur capterait le position: fixed du tiroir de téléphone.
- *   Fiche : diagnostic, score, écart à l'attendu, performance, maîtrise, évolution, sorties du répertoire, réponses adverses, coups à connaître (les 5 moins sus, le reste déplié à la demande).
+ *   Fiche : explorateur coup par coup (lot 2 de l'atelier, OpeningExplorer), diagnostic, score, écart à l'attendu, performance, maîtrise, évolution, sorties du répertoire, réponses adverses, coups à connaître (les 5 moins sus, le reste déplié à la demande).
  * Le rattachement d'une partie : la position la plus avancée de mon répertoire qu'elle a atteinte (les transpositions comptent).
  * Sans position enregistrée, la partie rejoint son ouverture nommée (« Hors répertoire »). Calculs : OpeningReport.
  * Seules les positions déjà travaillées forment les groupes, comme l'Entraînement (_assignOpenings).
@@ -21,7 +21,7 @@
 const StatsOpenings = (function () {
     const ROWS = 5, AFTER_PLIES = 4, PRIORITY = 3, MIN_OUT = 2, MIN_MAP = 3, REPLIES = 6, SWAPS = 3, MIN_DIAG = 5;
     const OTHER = 'Autres positions';
-    const st = { ctx: null, scope: '', cur: null, picked: false, open: false, view: 'list', mode: 'list', q: '', active: -1, all: new Set(), tree: new Set(), list: [], reached: new Map() };
+    const st = { ctx: null, scope: '', cur: null, picked: false, open: false, view: 'list', mode: 'list', q: '', active: -1, all: new Set(), cursor: new Map(), list: [], reached: new Map() };
 
     const pct = v => `${Math.round(v)} %`;
     const num1 = v => Math.abs(v).toLocaleString(I18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -126,7 +126,7 @@ const StatsOpenings = (function () {
             : !s.n ? 'Aucune de vos parties récentes ne passe par cette ouverture.'
             : !d ? `Trop peu de parties pour juger (${s.n}).` : d[1](g.mastery, num1(s.lost), exit === null ? '' : evalText(exit));
         return `<div class="so-head vel-card vel-dark">
-            ${g.path.length ? `<div class="so-board">${_miniBoardHTML({ side: g.side, path: g.path }, true)}</div>` : ''}
+            ${g.path.length && !g.all.length ? `<div class="so-board">${_miniBoardHTML({ side: g.side, path: g.path }, true)}</div>` : ''}
             <div class="so-head-txt">
                 <span class="st-eyebrow">${g.side === 'w' ? 'Blancs' : 'Noirs'}${g.all.length ? ` · ${_plural(g.all.length, 'position')}` : ''}</span>
                 <h4 class="so-name">${g.html}</h4>
@@ -153,30 +153,70 @@ const StatsOpenings = (function () {
         </div>`;
     }
 
-    // Arbre des coups appris (lot 3) : chaque réponse de l'ouverture, dans l'ordre de la ligne, décalée selon les
-    // réponses qui la précèdent ; la pastille dit son niveau, toucher ouvre l'aperçu. La vue d'ensemble qui manque à une
-    // liste de points faibles : ce que je sais déjà, et où.
-    const TREE_ROWS = 12;
-    function treeHTML(g) {
-        if (!g.all.length) return '';
-        const rows = g.all.filter(r => r.path).slice().sort((a, b) => a.path.join(' ').localeCompare(b.path.join(' ')) || a.path.length - b.path.length);
-        if (!rows.length) return '';
-        const depth = r => rows.filter(x => x !== r && x.path.length < r.path.length && x.path.every((m, i) => r.path[i] === m)).length;
-        const open = st.tree.has(g.key), shown = open ? rows : rows.slice(0, TREE_ROWS);
-        const label = r => {
-            try {
-                const sans = _pathToSans(r.path), i = sans.length - 1, from = Math.max(0, i - 1);
-                return sans.slice(from).map((s, k) => {
-                    const j = from + k, w = j % 2 === 0, n = Math.floor(j / 2) + 1;
-                    return `${w ? `${n}. ` : k ? '' : `${n}… `}${formatSan(s, w ? 'w' : 'b')}`;
-                }).join(' ');
-            } catch (e) { return _moveLabel(r.e, false, true); }
-        };
-        const line = r => `<button type="button" class="so-tree-row lv-${r.lv}" style="--d:${Math.min(6, depth(r))}" data-action="statsPreview" data-arg="${escapeHtml(r.side + ':' + r.k)}" data-origin="${escapeHtml(g.name)}">
-            <span class="so-tree-mv">${label(r)}</span>${_lvMark(r.lv)}<span class="so-tree-lv">${STATS_LEVELS[r.lv].one}</span></button>`;
-        return `<div class="so-card so-tree"><h5>Arbre des coups appris</h5><p class="st-sub">${_plural(rows.length, 'réponse')}</p>
-            <div class="so-tree-list">${shown.map(line).join('')}</div>
-            ${rows.length > TREE_ROWS ? `<button type="button" class="st-more" data-action="opTreeMore" data-arg="${escapeHtml(g.key)}" aria-expanded="${open}">${open ? 'Réduire' : `Afficher les ${rows.length - TREE_ROWS} autres`}</button>` : ''}</div>`;
+    // Explorateur (atelier « Ouvertures et Progrès », lot 2) : la ligne se parcourt coup par coup depuis la position de l'ouverture.
+    // À mon trait, ma réponse et son niveau ; au trait adverse, les coups connus (répertoire, parties de la période, repérés),
+    // et en ambre ceux qui n'ont pas de réponse, avec « Ajouter une réponse » (Analyse sur la position). OpeningExplorer calcule.
+    const X_REPLIES = 8;
+    function explorerHTML(g) {
+        if (!g.all.length || !g.path.length) return '';
+        const path = st.cursor.get(g.key) || g.path;
+        let nd, sans;
+        try {
+            nd = OpeningExplorer.node({ path, side: g.side, db: readDBFor(currentRepertoire, g.side), opp: readOppFor(currentRepertoire, g.side), rows: g.recent });
+            sans = _pathToSans(path);
+        } catch (e) { return ''; }
+        const arg = p => escapeHtml(p.join(' ')), pct0 = v => `${Math.round(v)} %`;
+        const crumbs = sans.map((s, i) => {
+            const w = i % 2 === 0, last = i === sans.length - 1;
+            return `${w ? `<span class="so-x-num">${i / 2 + 1}.</span>` : ''}<button type="button" class="so-x-mv${last ? ' on' : ''}" data-action="opExplore" data-arg="${arg(path.slice(0, i + 1))}"${last ? ' aria-current="step"' : ''}>${formatSan(s, w ? 'w' : 'b')}</button>`;
+        }).join('');
+        const ply = path.length + 1, moved = path.length !== g.path.length || path.some((u, i) => u !== g.path[i]);
+        const add = p => `<button type="button" class="so-x-add" data-action="opAdd" data-arg="${arg(p)}">${ico('plus')}Ajouter une réponse</button>`;
+        let body;
+        if (nd.turn === 'me') {
+            const m = nd.mine;
+            if (!m) body = `<div class="so-x-h">Votre coup</div><div class="so-x-row is-hole"><span class="so-x-san">${_moveLabel({ ply, san: '?' }, true, true)}</span><span class="so-x-info">Pas de réponse enregistrée ici</span>${add(path)}</div>`;
+            else {
+                const lv = _level(m.entry), score = Math.round(masteryOf(m.entry));
+                body = `<div class="so-x-h">Votre coup</div><div class="so-x-line">
+                    <button type="button" class="so-x-row is-mine" data-action="opExplore" data-arg="${arg(path.concat(m.uci))}">
+                        <span class="so-x-san">${_moveLabel({ ply, san: m.san }, false, true)}</span>
+                        <span class="so-x-mid"><span class="so-x-bar lv-${lv}"><i style="width:${Math.max(3, score)}%"></i></span><span class="so-x-info">${score} / 100${m.n ? ` · ${_plural(m.n, 'partie')}` : ''}</span></span>
+                        <span class="so-x-lv">${_lvMark(lv)}${STATS_LEVELS[lv].one}</span></button>
+                    <button type="button" class="st-ibtn" data-action="statsPreview" data-arg="${escapeHtml(g.side + ':' + m.key)}" data-origin="${escapeHtml(g.name)}" title="Voir la position" aria-label="Voir la position">${ico('eye')}</button></div>`;
+            }
+        } else if (!nd.replies.length) {
+            body = `<div class="so-x-h">Réponses adverses</div><p class="so-x-none">Aucun coup adverse connu ici : ni dans le répertoire, ni dans vos parties.</p>`;
+        } else {
+            const top = Math.max(1, ...nd.replies.map(r => r.n)), shown = nd.replies.slice(0, X_REPLIES);
+            body = `<div class="so-x-h">Réponses adverses${nd.games.n ? ` · ${_plural(nd.games.n, 'partie')} ici` : ''}</div>` + shown.map(r => {
+                const label = _moveLabel({ ply, san: r.san }, false, true), info = r.n ? `${_plural(r.n, 'partie')} · ${pct0(r.t.score)}` : r.seen ? 'Repéré' : 'Dans le répertoire';
+                if (!r.answered) return `<div class="so-x-row is-hole"><span class="so-x-san">${label}</span><span class="so-x-info">${r.n ? `Joué ${r.n} fois contre vous` : 'Repéré'} · sans réponse</span>${add(path.concat(r.uci))}</div>`;
+                const lv = _level(r.answer);
+                return `<button type="button" class="so-x-row" data-action="opExplore" data-arg="${arg(path.concat(r.uci))}">
+                    <span class="so-x-san">${label}</span>
+                    <span class="so-x-mid">${r.n ? `<span class="so-x-bar is-share"><i style="width:${Math.max(4, 100 * r.n / top)}%"></i></span>` : ''}<span class="so-x-info">${info}</span></span>
+                    <span class="so-x-lv" title="Votre réponse : ${escapeHtml(formatSanText(r.answer.san, g.side))}">${_lvMark(lv)}${formatSan(r.answer.san, g.side)}</span></button>`;
+            }).join('') + (nd.replies.length > shown.length ? `<p class="so-x-none">${_plural(nd.replies.length - shown.length, 'autre coup', 'autres coups')}</p>` : '');
+        }
+        const cov = g.stats.n ? OpeningReport.detail(g.recent, g.path.length).coverage : null;
+        return `<div class="so-card so-x">
+            <div class="so-x-top"><h5>Explorateur</h5>${cov === null ? '' : `<span class="so-x-cov" title="Part de vos parties où le coup adverse avait une réponse dans le répertoire"><b>${pct0(cov)}</b> couverture</span>`}</div>
+            <div class="so-x-grid">
+                <div class="so-x-board">${_miniBoardHTML({ side: g.side, path }, true, { label: 'Position explorée' })}</div>
+                <div class="so-x-side">
+                    <div class="so-x-crumbs">${crumbs}${moved ? `<button type="button" class="hp-link so-x-reset" data-action="opExplore" data-arg="${arg(g.path)}">Revenir au début</button>` : ''}</div>
+                    <div class="so-x-moves">${body}</div>
+                </div>
+            </div></div>`;
+    }
+
+    function paintExplorer() {
+        const el = slot() && slot().querySelector('.so-x'), g = current();
+        if (!el || !g) { paint(); return; }
+        el.outerHTML = explorerHTML(g);
+        const on = slot().querySelector('.so-x .so-x-mv.on');
+        if (on && on.focus) on.focus({ preventScroll: true });
     }
 
     function kpisHTML(g) {
@@ -290,7 +330,7 @@ const StatsOpenings = (function () {
                 <button type="button" class="so-step" data-action="statsOpStep" data-arg="-1" title="Précédente à travailler" aria-label="Précédente à travailler">${ico('chevron-left')}</button>
                 <button type="button" class="so-step" data-action="statsOpStep" data-arg="1" title="Suivante à travailler" aria-label="Suivante à travailler">${ico('chevron-right')}</button>
             </div>
-            <div class="so-fiche">${headHTML(g)}${treeHTML(g)}${kpisHTML(g)}${gamesHTML(g)}${positionsHTML(g)}</div>
+            <div class="so-fiche">${headHTML(g)}${explorerHTML(g)}${kpisHTML(g)}${gamesHTML(g)}${positionsHTML(g)}</div>
         </div></div>`;
     }
 
@@ -315,13 +355,13 @@ const StatsOpenings = (function () {
     function prime(ctx) {
         st.ctx = ctx;
         const scope = currentRepertoire + '|' + statsColor;
-        if (scope !== st.scope) { st.scope = scope; st.cur = null; st.picked = false; st.all = new Set(); }
+        if (scope !== st.scope) { st.scope = scope; st.cur = null; st.picked = false; st.all = new Set(); st.cursor = new Map(); }
     }
 
     function sectionHTML(ctx) {
         st.ctx = ctx;
         const scope = currentRepertoire + '|' + statsColor;
-        if (scope !== st.scope) { st.scope = scope; st.cur = null; st.picked = false; st.open = false; st.all = new Set(); }
+        if (scope !== st.scope) { st.scope = scope; st.cur = null; st.picked = false; st.open = false; st.all = new Set(); st.cursor = new Map(); }
         build();
         return `<section class="st-sec st-card st-card-flush edge-card" id="stats-lines" data-pane="openings">${inner()}</section>`;
     }
@@ -472,7 +512,8 @@ const StatsOpenings = (function () {
             if (g) startOpeningReview({ color: g.side, opening: { key: g.key, name: g.name }, path: g.path, kind });
         },
         opFree: k => { const g = st.list.find(x => x.key === k); if (!g) return; playerColor = g.side; openAnalysis(g.path.slice(), g.path.length - 1, statsBackToOpenings); },
-        opTreeMore: k => { if (!st.tree.delete(k)) st.tree.add(k); paint(); },
+        opExplore: p => { if (!st.cur) return; st.cursor.set(st.cur, p ? p.split(' ') : []); paintExplorer(); },
+        opAdd: p => { const g = current(); if (!g) return; const path = p.split(' '); playerColor = g.side; openAnalysis(path, path.length - 1, statsBackToOpenings); },
         statsOpMore: k => {
             const closing = st.all.delete(k);
             if (!closing) st.all.add(k);
