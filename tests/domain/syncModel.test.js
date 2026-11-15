@@ -23,6 +23,16 @@ t('descriptions des répertoires : synchronisées, la plus récente l\'emporte, 
     assert.deepStrictEqual(x, y);
     assert.deepStrictEqual(x, { A: { v: 'distant', at: 9 } });
 });
+t('historique de maîtrise : synchronisé, par jour le relevé le plus récent l\'emporte, symétrique, purge propagée', () => {
+    const K = 'chessTrainer_masteryLog', rec = (n, at) => ({ w: [n, 0, 0, 0, 0, 0], b: [0, 0, 0, 0, 0, 0], at });
+    assert.strictEqual(S.kindOf(K), 'mastery');
+    const b = { 'G|2026-11-01': rec(1, 1), 'G|2026-11-02': rec(2, 2) };
+    const l = { 'G|2026-11-02': rec(3, 5), 'G|2026-11-03': rec(4, 6) };   // 01 purgé ici
+    const r = { 'G|2026-11-01': rec(1, 1), 'G|2026-11-02': rec(7, 9) };
+    const x = S.merge(K, b, l, r), y = S.merge(K, b, r, l);
+    assert.deepStrictEqual(x, y);
+    assert.deepStrictEqual(x, { 'G|2026-11-02': rec(7, 9), 'G|2026-11-03': rec(4, 6) });
+});
 t('compteurs : base + delta local + delta distant', () => {
     const r = S.merge(DB, { p: E('e2e4', 3, 1) }, { p: E('e2e4', 5, 1) }, { p: E('e2e4', 4, 2) });
     assert.strictEqual(r.p.attempts, 6); assert.strictEqual(r.p.failures, 2);

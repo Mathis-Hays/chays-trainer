@@ -82,6 +82,7 @@ function renameRepertoire(oldName, newName) {
     saveRepertoireList(list);
     const note = repertoireNote(oldName);
     if (note) { setRepertoireNote(clean, note); setRepertoireNote(oldName, ''); }
+    if (typeof MasteryLog !== 'undefined') MasteryLog.rename(oldName, clean);      // historique de maîtrise (scripts chargés seuls dans les tests)
     const trash = loadTrash();
     if (trash.some(it => it.rep === oldName && it.type !== 'repertoire')) {
         trash.forEach(it => { if (it.rep === oldName && it.type !== 'repertoire') it.rep = clean; });

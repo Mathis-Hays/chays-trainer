@@ -343,6 +343,7 @@ Bus.on('games:analysed', statsSyncChrome);
 function initStats() {
     const body = document.getElementById('stats-body');
     if (!body) return;
+    MasteryLog.record(currentRepertoire);                     // historique de maîtrise : relevé du jour (atelier, lot 3)
 
     const rows = _statsRows();
     const hasAct = Object.keys(readActivity()).length > 0;

@@ -71,7 +71,7 @@ function deleteRepertoire(name) {
     const idx  = list.indexOf(name);
     if (idx < 0) return false;
 
-    const data = { index: idx, dbs: {}, opp: {}, note: repertoireNote(name) };
+    const data = { index: idx, dbs: {}, opp: {}, note: repertoireNote(name), mastery: typeof MasteryLog !== 'undefined' ? MasteryLog.take(name) : null };
     let count = 0;
     ['w', 'b'].forEach(c => {
         data.dbs[c] = dataStore.get(dbKeyFor(name, c));
@@ -114,6 +114,7 @@ function restoreTrashItem(id) {
             reps.splice(Math.min(item.data.index, reps.length), 0, name);
             saveRepertoireList(reps);
             if (item.data.note) setRepertoireNote(name, item.data.note);
+            if (item.data.mastery && typeof MasteryLog !== 'undefined') MasteryLog.put(name, item.data.mastery);
             saveTrash(list.filter(it => it.id !== id));
             return { ok: true, type: 'repertoire', rep: name,
                      message: `✓ Répertoire « ${name} » restauré${name !== item.rep ? ' (le nom d\'origine était déjà pris)' : ''}.` };

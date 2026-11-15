@@ -564,7 +564,8 @@ registerActions({ selectRepertoire, resumeLastPlay, createRepertoire: () => crea
     purgeExpiredTrash();                    // corbeille : purge des éléments de plus de 30 jours
     renderRepertoireList();
     updateTrashBadges();
-    if (typeof SeenPositions !== 'undefined') setTimeout(() => SeenPositions.refresh(), 800);   // filtre « Vu en partie », après le premier rendu
+    if (typeof SeenPositions !== 'undefined') setTimeout(() => SeenPositions.refresh(), 800);
+    setTimeout(() => MasteryLog.record(currentRepertoire), 1000);   // historique de maîtrise : un relevé par jour d'utilisation   // filtre « Vu en partie », après le premier rendu
 })();
 
 function createRepertoirePrompt() {

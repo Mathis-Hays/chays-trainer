@@ -270,6 +270,7 @@ function _timedTick() {
 function _endSession(early, stay) {
     const S = trainingState.session;
     if (!S) return;
+    if (typeof MasteryLog !== 'undefined') MasteryLog.record(currentRepertoire);   // historique de maîtrise : l'état après la séance (script chargé seul dans les tests)
     const first = [...S.results.values()];
     const dbs = { w: readDBFor(currentRepertoire, 'w'), b: readDBFor(currentRepertoire, 'b') };
     const rows = first.map(r => {
