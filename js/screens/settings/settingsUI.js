@@ -94,6 +94,8 @@ function _settingRows() {
             { group: 'Révisions', kind: 'seg', key: 'trainNext', label: 'Exercice suivant', search: 'enchaîner automatiquement passage suivant pause',
               tip: 'Après une erreur : une réussite nette enchaîne seule, une erreur, un indice ou la solution laissent le temps d’analyser. Le contre-la-montre enchaîne toujours.',
               opts: [['error', 'Après une erreur'], ['wait', 'Toujours attendre'], ['auto', 'Toujours enchaîner']] },
+            { group: 'Révisions', kind: 'toggle', key: 'trainBites', label: 'Séances en bouchées', search: 'pause paquets cinq positions découper courte',
+              tip: 'Une courte pause toutes les 5 positions : « Encore 5 » pour continuer, Quitter pour garder le bilan. Le contre-la-montre et la ligne complète ne s’arrêtent pas.' },
             { group: 'Révisions', kind: 'toggle', key: 'freqWeight', label: 'Lignes fréquentes d’abord', search: 'prioriser fréquence', tip: 'Les positions où vos adversaires (ou les joueurs Lichess) vous amènent le plus souvent sortent plus souvent. Sans données, rien ne change.' },
             { group: 'Mode libre', kind: 'seg', key: 'training:fromStart', label: 'Départ', tip: 'Juste avant la position tirée, ou du premier coup de la ligne.', opts: [[0, 'Position ciblée'], [1, 'Début de partie']], value: k.fromStart },
             { group: 'Mode libre', kind: 'seg', key: 'training:maxPlies', label: 'Profondeur max.', tip: 'Seules les positions jusqu’à ce coup sont tirées.', opts: [[0, 'Toutes'], [5, '≤ 5'], [10, '≤ 10'], [20, '≤ 20']], value: k.maxPlies },

@@ -125,6 +125,12 @@ function _homeGoalHTML(done, goal) {
         ariaLabel: `Objectif du jour : ${n} sur ${goal} positions`, cls: 'hp-goal' });
 }
 
+// Joker de la série (Habits.streak) : une pastille laiton, pleine tant que celui de la semaine est libre.
+function _homeJokerHTML(st) {
+    const tip = st.jokerFree ? 'Joker de la semaine libre : un jour manqué ne casse pas la série.' : 'Joker de la semaine utilisé : le prochain arrive lundi.';
+    return ` <span class="hp-joker${st.jokerFree ? '' : ' is-used'}" title="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(tip)}"></span>`;
+}
+
 // Prévision des 7 prochains jours (programme du répertoire, reviewPlan) : une barre fine par jour avec son total.
 function _homeForecastHTML(fc, now) {
     const max = Math.max(1, ...fc), d0 = new Date(now);
@@ -165,12 +171,14 @@ function renderHomeSummary() {
         document.getElementById('home-bar-' + c).innerHTML = STATS_MASTERY_LEVELS.some(l => counts[l]) ? levelBarHTML(counts, 'hp-bar') : '';
     });
 
-    // Surtitre : salutation · série.
+    // Surtitre : salutation · série (avec son joker, Habits.streak) ; « Bon retour » le jour d'une reprise (Habits.comeback).
     const h = new Date().getHours(), name = appSettings.pseudo.trim();
-    const act = readActivity(), streak = _streak(act), today = (act[dayStamp(now)] || { a: 0 }).a, goal = appSettings.dailyGoal;
-    const evening = h >= 18 || h < 5, hello = name ? (evening ? `Bonsoir, ${name}` : `Bonjour, ${name}`) : (evening ? 'Bonsoir' : 'Bonjour');
+    const act = readActivity(), st = Habits.streak(act, now), today = (act[dayStamp(now)] || { a: 0 }).a, goal = appSettings.dailyGoal;
+    const cb = Habits.comeback(act, due.length, now, goal);
+    const evening = h >= 18 || h < 5, word = cb && cb.first ? 'Bon retour' : evening ? 'Bonsoir' : 'Bonjour';
+    const hello = name ? `${word}, ${name}` : word;
     const head = `<p class="hp-over">${escapeHtml(hello)}`
-        + `${streak ? ` · <span class="hp-streak">${pl(streak, 'jour', 'jours')} d'affilée</span>` : ''}</p>`;
+        + `${st.n ? ` · <span class="hp-streak">${pl(st.n, 'jour', 'jours')} d'affilée</span>${_homeJokerHTML(st)}` : ''}</p>`;
 
     // Répertoire vide : par quelle couleur commencer (une carte choisie, une seule action pleine).
     if (!rows.length) {
@@ -188,19 +196,31 @@ function renderHomeSummary() {
 
     const link = `<button type="button" class="hp-link" data-action="homeExercises">Autres exercices ${ico('chevron-right')}</button>`;
     let title, sub, focus = '', cta, plan = '';
-    const steps = _homeSteps(due, rp, now), next = steps.find(x => !x.done);
+    const steps = _homeSteps(due, rp, now, cb), next = steps.find(x => !x.done);
     _homeStepsNow = steps;
-    if (due.length) {
+    if (cb && !cb.left) {
+        // Reprise en douceur : la part du jour est faite, le reste attend les jours suivants.
+        title = `Reprise du jour <em>faite</em>.`;
+        sub = `${pl(cb.held, 'révision gardée', 'révisions gardées')} pour les jours suivants` + (today >= goal ? ' · objectif atteint' : '');
+        plan = _homeForecastHTML(rp.forecast(null, 7), now);
+    } else if (due.length) {
         // La position la plus en retard, telle qu'elle sera posée (avant mon coup).
         const nx = due.slice().sort((a, b) => dueOf(a.e) - dueOf(b.e))[0];
         const path = nx.e.path && nx.e.path.length ? nx.e.path : null, op = path ? openingNameOf(path) : null;
         const d0 = dueOf(nx.e), late = d0 ? Math.floor((now - d0) / DAY_MS) : 0, colors = new Set(due.map(r => r.color));
         const minutes = Math.max(1, Math.round(due.length * TRAIN_SECONDS_PER_POSITION / 60));
-        title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>à réviser`;
         const fresh = due.filter(r => !r.e.attempts).length;
-        sub = `<b>Environ ${minutes} min</b> · ${colors.size > 1 ? 'Blancs et Noirs' : colors.has('w') ? 'Blancs' : 'Noirs'}`
-            + (fresh ? ` · dont ${pl(fresh, 'nouvelle', 'nouvelles')}` : '')
-            + (today < goal ? ` · encore ${goal - today} pour l'objectif` : '');
+        if (cb) {
+            // Retour en douceur : une part du retard aujourd'hui, le reste réparti sur la semaine (rien n'est effacé).
+            const m = Math.max(1, Math.round(cb.left * TRAIN_SECONDS_PER_POSITION / 60));
+            title = `<em>${cb.left}</em> ${cb.left > 1 ? 'positions' : 'position'}<br>${cb.first ? 'pour reprendre la main' : 'pour aujourd’hui'}`;
+            sub = `<b>Environ ${m} min</b> · ${cb.held > 1 ? `les ${cb.held} autres sont réparties` : 'la dernière est gardée'} sur les jours suivants`;
+        } else {
+            title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>à réviser`;
+            sub = `<b>Environ ${minutes} min</b> · ${colors.size > 1 ? 'Blancs et Noirs' : colors.has('w') ? 'Blancs' : 'Noirs'}`
+                + (fresh ? ` · dont ${pl(fresh, 'nouvelle', 'nouvelles')}` : '')
+                + (today < goal ? ` · encore ${goal - today} pour l'objectif` : '');
+        }
         focus = `<div class="hp-focus">${_miniBoardHTML({ side: nx.color, path, k: nx.key }, false, { cls: 'hp-focus-board', label: 'Position la plus en retard, avant votre coup' })}
             <span class="hp-focus-txt"><span class="hp-focus-over">La plus en retard${late >= 1 ? ` · ${late} j` : ''}</span>
             <b>${op ? escapeHtml(op.name) : 'Position de départ'}</b><span class="hp-focus-line">${path ? _homeLineBefore(path) : ''}</span>
@@ -232,14 +252,18 @@ function renderHomeSummary() {
 // Une étape faite reste affichée, cochée (révisions à jour, finale réussie aujourd'hui) ; une étape sans objet disparaît.
 let _homeStepsNow = [];
 
-function _homeSteps(due, rp, now) {
+// cb : retour en douceur (Habits.comeback) : l'étape Révisions ne propose que la part du jour (limit), faite = cochée.
+function _homeSteps(due, rp, now, cb) {
     const pl = (n, one, many) => `${n} ${n > 1 ? many : one}`, out = [];
     const s = trainingState.lastSummary, miss = s && s.kind !== 'timed' ? s.rows.filter(r => !r.ok).length : 0;
     if (miss) out.push({ id: 'retry', icon: 'rotate-ccw', tone: 'err', title: 'Erreurs de la séance', sub: 'À revoir tant qu’elles sont fraîches', n: miss });
-    if (due.length) {
+    if (cb && !cb.left) {
+        out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: `Reprise du jour faite · <span>${cb.held} pour les jours suivants</span>`, html: true, done: true });
+    } else if (due.length) {
         const names = _homePlan(due).slice(0, 3).map(g => `<span>${g.html}</span>`).join(', ');
         const back = due.filter(r => Number.isInteger(r.e.relearn) || r.e.prio).length;
-        out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: names + (back ? ` · <span>dont ${back} à revoir</span>` : ''), n: due.length, html: true });
+        out.push(cb ? { id: 'due', icon: 'book', title: 'Révisions', sub: names + ' · <span>reprise en douceur</span>', n: cb.left, html: true, limit: cb.left }
+                    : { id: 'due', icon: 'book', title: 'Révisions', sub: names + (back ? ` · <span>dont ${back} à revoir</span>` : ''), n: due.length, html: true });
     } else {
         const at = rp.next();
         out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: Number.isFinite(at) ? `À jour · <span>Prochaine révision ${dueInLabel(at, true)}</span>` : 'À jour', html: true, done: true });
@@ -268,7 +292,7 @@ function homeRunStep(id) {
     const x = _homeStepsNow.find(s => s.id === id);
     if (!x || x.done) return;
     if (id === 'retry') UI_ACTIONS.trainingRetry(null, null);
-    else if (id === 'due') startDailyReview();
+    else if (id === 'due') startDailyReview(x.limit);
     else if (id === 'news') {
         const answer = document.querySelector('#hp-news .hp-answer');
         if (answer) answer.click();

@@ -82,7 +82,7 @@ const Shortcuts = (function () {
             trainingState.ctxSkip();
             return true;
         }
-        if (k === 'enter' && gameMode === 'training' && trainingState.pause && !trainingState.editing) {
+        if (k === 'enter' && gameMode === 'training' && (trainingState.pause || trainingState.bite) && !trainingState.editing) {
             if (e.target && e.target.tagName === 'BUTTON') return false;
             nextDrill();
             return true;

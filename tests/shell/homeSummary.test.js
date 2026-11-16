@@ -180,6 +180,42 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval('goHome()');
     });
 
+    await t('retour en douceur (Habits.comeback) : « Bon retour », 8 positions pour reprendre, la séance n\'en prend que 8', () => {
+        w.eval(`(() => {
+            const day = 86400000, now = Date.now(), db = {};
+            const p = 'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 g8f6 d2d4 e5d4 c3d4 c5b4 b1c3 f6e4 e1g1 e4c3 b2c3 b4c3 d1b3 d7d5 c4d5 e8g8'.split(' ');
+            for (let k = 0; k < p.length; k += 2) {
+                const path = p.slice(0, k + 1), pos = Chess.replay(path.slice(0, -1)), e = newEntry(path[k], Chess.san(pos, path[k]), path);
+                e.due = now - 2 * day; e.attempts = 2;
+                db[Chess.key(pos)] = e;
+            }
+            dataStore.set(dbKeyFor(currentRepertoire, 'w'), JSON.stringify(db));
+            dataStore.set(dbKeyFor(currentRepertoire, 'b'), '{}');
+            dataStore.setJSON('chessTrainer_activity', { [dayStamp(now - 5 * day)]: { a: 4, f: 0 } });
+            trainingState.lastSummary = null;
+            loadDB(); renderHomeSummary();
+        })()`);
+        assert(/^Bon retour/.test($('#hp-today .hp-over').textContent.trim()), $('#hp-today .hp-over').textContent);
+        assert(/^8\s+positions\s*pour reprendre la main/.test($('#hp-today .hp-title').textContent.trim()), $('#hp-today .hp-title').textContent);
+        assert(/les 3 autres sont réparties/.test($('#hp-today .hp-sub').textContent));
+        assert.strictEqual($('#hp-today .hp-step[data-arg="due"] .hp-step-n').textContent, '8');
+        w.eval('window.__spy = startDailyReview; startDailyReview = n => { window.__limit = n; }; UI_ACTIONS.homeGo(); startDailyReview = window.__spy');
+        assert.strictEqual(w.eval('window.__limit'), 8, '« Commencer » ne demande que la part du jour');
+        w.eval(`startTrainingExercise('due', 8)`);
+        assert.strictEqual(w.eval('trainingState.session.items.length'), 8, 'la séance ne prend que la part demandée');
+        w.eval('quitTraining()');
+        w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 8, f: 0 }, [dayStamp(Date.now() - 5 * 864e5)]: { a: 4, f: 0 } }); renderHomeSummary()`);
+        assert(/Reprise du jour\s*faite/.test($('#hp-today .hp-title').textContent), 'part du jour faite');
+        assert($('#hp-today .hp-step[data-arg="due"]').classList.contains('is-done'));
+    });
+
+    await t('série avec joker : pastille laiton dans le surtitre, libre ou utilisée', () => {
+        const day = 864e5;
+        w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 3, f: 0 }, [dayStamp(Date.now() - 2 * ${day})]: { a: 3, f: 0 } }); renderHomeSummary()`);
+        assert(/2\s+jours d'affilée/.test($('#hp-today .hp-over').textContent), $('#hp-today .hp-over').textContent);
+        assert($('#hp-today .hp-joker'), 'pastille du joker');
+    });
+
     await t('aucune erreur JS', () => { assert.deepStrictEqual(errors, []); });
 
     console.log(`\n${n} tests réussis.`);

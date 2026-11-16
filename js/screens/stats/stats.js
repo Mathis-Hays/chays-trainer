@@ -135,11 +135,9 @@ function _miniBoardHTML(r, after, opts = {}) {
 // ─── RÉGULARITÉ (tous répertoires) ────────────────────────────────────────────
 
 // Jours consécutifs avec au moins un essai, en remontant depuis aujourd'hui (ou hier si rien aujourd'hui).
+// Série de jours actifs, joker de la semaine compris (Habits.streak, atelier « L'envie de revenir », lot 1).
 function _streak(act) {
-    let n = 0, t = Date.now();
-    if (!(act[dayStamp(t)] || {}).a) t -= DAY_MS;
-    while ((act[dayStamp(t)] || {}).a) { n++; t -= DAY_MS; }
-    return n;
+    return Habits.streak(act).n;
 }
 
 // Jour à minuit, décalé de `days` jours (jours du calendrier : robuste aux changements d'heure).
@@ -150,7 +148,7 @@ function _regularityHTML() {
     const dayAt = t => act[dayStamp(t)] || { a: 0, f: 0 };
     let active = 0;
     for (let i = 0; i < STATS_DAYS; i++) if (dayAt(_dayStart(today, -i)).a) active++;
-    const streak = _streak(act);
+    const st = Habits.streak(act, now), streak = st.n, jokers = new Set(st.jokers);
 
     // Calendrier : STATS_HEAT_WEEKS semaines du lundi au dimanche, la semaine en cours en dernier.
     const monday = _dayStart(today, -((new Date(today).getDay() + 6) % 7));
@@ -161,8 +159,9 @@ function _regularityHTML() {
     for (let w = 0; w < STATS_HEAT_WEEKS; w++) {
         for (let d = 0; d < 7; d++) {
             const t = _dayStart(first, w * 7 + d), a = dayAt(t).a;
-            const cls = t > today ? 'future' : !a ? '' : a < 10 ? 'h1' : a < 25 ? 'h2' : 'h3';
-            heat += `<i class="${cls}${t === today ? ' today' : ''}" title="${t > today ? '' : I18n.pair(fmt(t), I18n.t(_plural(a, 'essai')))}"></i>`;
+            const joker = jokers.has(dayStamp(t));
+            const cls = t > today ? 'future' : joker ? 'joker' : !a ? '' : a < 10 ? 'h1' : a < 25 ? 'h2' : 'h3';
+            heat += `<i class="${cls}${t === today ? ' today' : ''}" title="${t > today ? '' : I18n.pair(fmt(t), joker ? 'joker : la série continue' : I18n.t(_plural(a, 'essai')))}"></i>`;
         }
     }
 
@@ -203,7 +202,7 @@ function _regularityHTML() {
 
     // Deux groupes : l'assiduité (série, calendrier), puis la qualité (réussite, maîtrise par couleur) ; côte à côte sur ordinateur.
     return `<div class="st-reg-a">
-        <div class="st-reg-kpis"><div><b>${_plural(streak, 'jour')}</b><span>d'affilée</span></div><div><b>${active} / ${STATS_DAYS}</b><span>jours actifs</span></div></div>
+        <div class="st-reg-kpis"><div><b>${_plural(streak, 'jour')}</b><span>d'affilée</span><small class="st-joker">${st.jokerFree ? 'Joker libre cette semaine' : 'Joker utilisé cette semaine'}</small></div><div><b>${active} / ${STATS_DAYS}</b><span>jours actifs</span></div></div>
         <div class="st-heat" style="--weeks:${STATS_HEAT_WEEKS}" role="img" aria-label="Essais par jour sur ${STATS_HEAT_WEEKS} semaines">${heat}</div>
         <div class="st-heat-leg">Peu <i></i><i class="h1"></i><i class="h2"></i><i class="h3"></i> Beaucoup</div></div>
         <div class="st-reg-b">${chart}

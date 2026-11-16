@@ -412,7 +412,7 @@ function initTraining() {
 
 // ─── LANCEMENT DES EXERCICES ──────────────────────────────────────────────────
 
-function startTrainingExercise(kind) {
+function startTrainingExercise(kind, limit) {
     const rows = _trRows(), now = Date.now(), items = (list, cmp = _trOrder) => list.sort(cmp).map(r => ({ color: r.color, key: r.key }));
     const prioFirst = (a, b) => (b.e.prio ? 1 : 0) - (a.e.prio ? 1 : 0)     // « Traitée depuis » jamais réussie, puis la file À revoir
         || (Number.isInteger(b.e.relearn) ? 1 : 0) - (Number.isInteger(a.e.relearn) ? 1 : 0) || _trOrder(a, b);
@@ -426,7 +426,10 @@ function startTrainingExercise(kind) {
         unsure: () => _trSeen(rows).filter(r => r.lv === 'unsure').sort((a, b) => a.e.attempts - b.e.attempts).slice(0, TRAIN_WEAK_MAX)
     }[kind];
     const label = { relearn: 'À revoir', due: 'Révision du jour', weak: 'Points faibles', unsure: 'À confirmer' }[kind];
-    if (pick) return startSession({ kind, label, items: items(pick(), kind === 'due' ? prioFirst : _trOrder) });
+    if (pick) {
+        const list = items(pick(), kind === 'due' ? prioFirst : _trOrder);
+        return startSession({ kind, label, items: limit > 0 ? list.slice(0, limit) : list });
+    }
     return false;
 }
 
@@ -443,12 +446,13 @@ function startOpeningReview({ color, opening, path, kind }) {
 
 // Accueil Jouer : « Commencer la révision » lance la Révision du jour du répertoire actif, les deux couleurs,
 // sans filtre d'ouverture (la séance est celle de l'Entraînement : elle compte).
-function startDailyReview() {
+// limit : retour en douceur (Habits.comeback) : seules les premières positions de la file, dans le même ordre.
+function startDailyReview(limit) {
     _trColor = 'mix';
     _trOpening = null;
     _trFocus = null;
     trainingState.lastSummary = null;
-    startTrainingExercise('due');
+    startTrainingExercise('due', limit);
 }
 
 function _startLine(line) {

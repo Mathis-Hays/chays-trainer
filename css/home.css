@@ -415,6 +415,11 @@
 /* Aujourd'hui : surtitre Plex Mono */
 .hp-over { margin: 0 0 12px; font: 500 11.5px/1.4 var(--font-note); letter-spacing: .04em; color: var(--text-muted); }
 .hp-over .hp-streak { padding: 0; background: none; color: var(--text); font: inherit; font-weight: 600; }
+/* Joker de la série (Habits.streak) : laiton plein tant que celui de la semaine est libre, cerclé une fois utilisé. */
+.hp-joker { display: inline-block; width: 8px; height: 8px; margin-left: 4px; vertical-align: 1px; border-radius: 50%; background: var(--brand-brass-deep); box-shadow: 0 0 0 1.5px var(--brand-brass-deep); }
+.hp-joker.is-used { background: transparent; }
+[data-theme="dark"] .hp-joker { background: var(--brand-brass); box-shadow: 0 0 0 1.5px var(--brand-brass); }
+[data-theme="dark"] .hp-joker.is-used { background: transparent; }
 .hp-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; }
 .hp-day .hp-title { margin: 0 0 6px; font-size: 28px; line-height: 1.08; letter-spacing: -.01em; }
 .hp-title em { font-variant-numeric: tabular-nums; }

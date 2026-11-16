@@ -39,6 +39,10 @@ const TRAIN_RECORD_KEY   = 'chessTrainer_timedRecord';      // record du contre-
 const TRAIN_SEQ_END      = 999;
 const TRAIN_TIMED_MS     = 3 * 60000;
 const TRAIN_TIMED_PENALTY_MS = 10000;                       // une erreur au contre-la-montre coûte 10 s
+// Séances en bouchées (atelier « L'envie de revenir », lot 1, préférence trainBites) : une pause toutes les TRAIN_BITE
+// positions, « Encore 5 » pour continuer, Quitter pour garder le bilan ; pas de pause s'il en reste moins de TRAIN_BITE_MIN_LEFT.
+const TRAIN_BITE = 5;
+const TRAIN_BITE_MIN_LEFT = 3;
 
 const trainingState = {
     busy: false, timers: [], lastKey: null, current: null, ok: 0, reason: '', mixed: false,
@@ -52,6 +56,7 @@ const trainingState = {
     ctxSkip: null,          // passe la mise en situation en cours
     tick: null,             // minuteur du contre-la-montre
     drill: { erred: false, keys: [], answered: null },   // exercice en cours : erreur ou solution, positions posées, dernière réponse
+    bite: false,            // pause entre deux bouchées (_offerBite) : Entrée continue
     pause: null,            // fin d'exercice en attente : { key } de la position répondue (Suivant, Analyser, Modifier le coup)
     editing: null           // « Modifier le coup » : position dont on attend le nouveau coup
 };
@@ -98,6 +103,7 @@ function stopTraining() {
     trainingState.busy   = false;
     trainingState.ctxSkip = null;
     trainingState.pause  = null;
+    trainingState.bite   = false;
     trainingState.editing = null;
     _syncAfterTools();
 }
@@ -220,6 +226,7 @@ function _nextSessionDrill() {
         if (!_startFullLine()) { setStatus('Aucune ligne enregistrée pour cette ouverture.', 'info'); _later(() => _endSession(), 1200); }
         return;
     }
+    if (_biteDue(S)) { _offerBite(S); return; }
     while (S.i < S.items.length) {
         const it = S.items[S.i];
         if (it.color !== playerColor) { playerColor = it.color; loadDB(); showGameScreen(it.color); }
@@ -228,6 +235,24 @@ function _nextSessionDrill() {
         S.i++;
     }
     _endSession();
+}
+
+// Fin d'une bouchée : TRAIN_BITE positions closes depuis le début (ou la dernière pause), et assez de suite derrière.
+function _biteDue(S) {
+    if (!appSettings.trainBites || S.kind === 'timed' || S.kind === 'line') return false;
+    return S.i > 0 && S.i % TRAIN_BITE === 0 && S.biteAt !== S.i && S.items.length - S.i >= TRAIN_BITE_MIN_LEFT;
+}
+
+// Pause entre deux bouchées : l'échiquier reste sur la dernière position, aucun coup n'est attendu (busy).
+function _offerBite(S) {
+    S.biteAt = S.i;
+    trainingState.busy = true;
+    trainingState.bite = true;
+    const next = Math.min(TRAIN_BITE, S.items.length - S.i);
+    const m = Math.max(1, Math.round(next * (typeof TRAIN_SECONDS_PER_POSITION !== 'undefined' ? TRAIN_SECONDS_PER_POSITION : 30) / 60));
+    setStatus(`Bouchée ${S.i / TRAIN_BITE} faite · ${S.i} sur ${S.items.length}`, 'ok', `Encore ${next} ? Environ ${m} min. Quitter garde le bilan.`);
+    setStatusAction({ action: `Encore ${next}`, icon: 'play', title: 'Continuer la séance (Entrée)', run: () => nextDrill() });
+    _renderSessionBar();
 }
 
 // Résultat du coup joué sur la position posée (première fois seulement : c'est elle que le bilan retient).
@@ -340,10 +365,10 @@ function _renderSessionBar() {
         el.innerHTML = `<div class="tr-prog-l"><span>Ligne complète · <b>${escapeHtml(S.line.name)}</b></span><span><b class="tr-prog-n">${S.results.size}</b> ${S.results.size > 1 ? 'coups' : 'coup'} · ${okFirst} du premier coup</span></div>`;
         return;
     }
-    const n = S.items.length, pos = Math.min(n, (S.cur >= 0 ? S.cur : S.i) + 1);
-    const again = S.items.filter(x => x.second && !x.res).length, combo = trainingState.combo;
+    const n = S.items.length, pos = Math.min(n, S.cur >= 0 ? S.cur + 1 : trainingState.bite ? S.i : S.i + 1);   // pause de bouchée : positions faites
+    const again = S.items.filter(x => x.second && !x.res).length, combo = trainingState.combo, bites = !!appSettings.trainBites && n > TRAIN_BITE;
     el.innerHTML = `<div class="tr-prog-bar${n > 40 ? ' dense' : ''}" role="progressbar" aria-label="${escapeHtml(S.label)}" aria-valuemin="1" aria-valuemax="${n}" aria-valuenow="${pos}" aria-valuetext="Position ${pos} sur ${n}">${S.items.map((x, i) =>
-        `<i class="${i === S.cur ? 'cur' : x.res === 'ok' ? 'ok' : x.res === 'ko' ? 'ko' : x.res === 'skip' ? 'skip' : x.second ? 'again' : ''}"></i>`).join('')}</div>
+        `<i class="${i === S.cur ? 'cur' : x.res === 'ok' ? 'ok' : x.res === 'ko' ? 'ko' : x.res === 'skip' ? 'skip' : x.second ? 'again' : ''}${bites && (i + 1) % TRAIN_BITE === 0 && i < n - 1 ? ' bite-end' : ''}"></i>`).join('')}</div>
         <div class="tr-prog-l"><span><b class="tr-prog-n">${pos} / ${n}</b> ${escapeHtml(S.label.toLowerCase())}</span><span>${combo >= 3 ? `<b class="tr-combo">×${combo} sans faute</b> · ` : ''}${okFirst} du premier coup${again ? ` · ${again} à revoir à la fin` : ''}</span></div>`;
 }
 

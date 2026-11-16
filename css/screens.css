@@ -220,6 +220,8 @@
 .st-reg { display: flex; flex-direction: column; gap: 16px; padding: 18px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm); }
 .st-reg-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .st-reg-kpis div { display: flex; flex-direction: column; }
+.st-reg-kpis .st-joker { margin-top: 2px; font-size: 11.5px; color: var(--brand-brass-deep); }       /* joker de la série (Habits.streak) */
+[data-theme="dark"] .st-reg-kpis .st-joker { color: var(--brand-brass); }
 .st-reg-kpis b { font-family: var(--font-display); font-weight: 600; font-size: 26px; line-height: 1.1; font-variant-numeric: tabular-nums; }
 .st-reg-kpis span { font-size: 12px; color: var(--text-muted); }
 /* Calendrier : une colonne par semaine (lundi en haut), la semaine en cours à droite ; les cases se partagent la largeur */
@@ -230,6 +232,8 @@
 .st-heat i.h2, .st-heat-leg i.h2 { background: color-mix(in srgb, var(--board-accent) 60%, var(--bg-inset)); }
 .st-heat i.h3, .st-heat-leg i.h3 { background: var(--board-accent); }
 .st-heat i.today { box-shadow: 0 0 0 2px var(--text); }
+.st-heat i.joker, .st-heat-leg i.joker { background: none; box-shadow: inset 0 0 0 2px var(--brand-brass-deep); }   /* jour couvert par le joker */
+[data-theme="dark"] .st-heat i.joker, [data-theme="dark"] .st-heat-leg i.joker { box-shadow: inset 0 0 0 2px var(--brand-brass); }
 .st-heat i.future { background: none; box-shadow: inset 0 0 0 1px var(--border); }
 .st-heat-leg { display: flex; align-items: center; justify-content: flex-end; gap: 4px; margin-top: -8px; font-size: 10.5px; color: var(--text-dim); }
 .st-heat-leg i { width: 10px; height: 10px; border-radius: 3px; }
@@ -289,6 +293,8 @@
 .tr-prog-bar i.ko   { background: var(--err); }
 .tr-prog-bar i.skip { background: var(--text-dim); }
 .tr-prog-bar i.cur  { background: var(--accent); }
+.tr-prog-bar i.bite-end { margin-right: 3px; }                                   /* séances en bouchées : un écart toutes les 5 positions */
+.tr-prog-bar.dense i.bite-end { margin-right: 2px; }
 .tr-prog-bar i.again { background: repeating-linear-gradient(135deg, var(--err) 0 3px, color-mix(in srgb, var(--err) 30%, transparent) 3px 6px); }
 .tr-prog-time { border-radius: 2px; background: var(--border-strong); overflow: hidden; }
 .tr-prog-time i { flex: none; height: 100%; border-radius: 2px; background: var(--accent); transition: width var(--dur-2) linear; }

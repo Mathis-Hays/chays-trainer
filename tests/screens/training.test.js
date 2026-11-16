@@ -118,4 +118,29 @@ t('« Rester ici » annule l\'enchaînement et propose Suivant', () => {
     assert.deepStrictEqual(acts, ['Rester ici', 'Suivant']);
 });
 
+t('séances en bouchées : pause toutes les 5 positions, « Encore N », pas de pause pour moins de 3 restantes ni sans le réglage', () => {
+    const statuses = [];
+    ctx.setStatus = (msg, type, detail) => statuses.push(msg);
+    const S = n => ({ kind: 'due', label: 'Révision du jour', items: Array.from({ length: n }, (_, i) => ({ color: 'w', key: 'k' + i, res: 'ok' })),
+                      i: 5, cur: -1, results: new Map(), colors: ['w'], started: Date.now(), end: 0, score: 0 });
+    ctx.appSettings.trainBites = true;
+    const s9 = S(9);
+    assert.strictEqual(ctx._biteDue(s9), true);
+    acts.length = 0;
+    ctx._offerBite(s9);
+    assert.deepStrictEqual(acts, ['Encore 4']);
+    assert.strictEqual(trainingState.busy, true);
+    assert.strictEqual(trainingState.bite, true);
+    assert.match(statuses.pop(), /^Bouchée 1 faite · 5 sur 9/);
+    assert.strictEqual(ctx._biteDue(s9), false, 'une seule pause à cet endroit');
+    ctx.stopTraining();
+    assert.strictEqual(trainingState.bite, false, 'Encore : la pause est levée');
+    assert.strictEqual(ctx._biteDue(S(7)), false, '2 restantes : pas de pause');
+    assert.strictEqual(ctx._biteDue({ ...S(9), i: 4 }), false);
+    assert.strictEqual(ctx._biteDue({ ...S(9), kind: 'timed' }), false);
+    assert.strictEqual(ctx._biteDue({ ...S(9), kind: 'line' }), false);
+    ctx.appSettings.trainBites = false;
+    assert.strictEqual(ctx._biteDue(S(9)), false, 'réglage coupé');
+});
+
 console.log(`\n${n} tests réussis.`);

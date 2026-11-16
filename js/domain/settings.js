@@ -71,6 +71,7 @@ const SYNCED_PREFS = {
     freqWeight: { ok: _bool, def: true },
     trainSeen:  { ok: _bool, def: true },                                               // exercices limités aux positions vues en partie (hors Révision du jour)
     trainNext:  { ok: _oneOf(['error', 'wait', 'auto']), def: 'error' },                // fin d'exercice : pause après une erreur, toujours, jamais
+    trainBites: { ok: _bool, def: true },                                               // séances en bouchées : pause toutes les 5 positions (training.js)
     notation:   { ok: _oneOf(['fr', 'en', 'fig']), def: 'fr' },
     backupReminder: { ok: _oneOf(['never', 'weekly', 'monthly']), def: 'weekly' },
     // Mode libre de l'Entraînement (training.js)
