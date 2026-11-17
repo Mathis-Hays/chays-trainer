@@ -188,7 +188,9 @@ async function boot() {
         assert(skip && skip.textContent === 'Sauter', 'bouton montré pendant la mise en situation');
         assert.strictEqual($('#status-text .status-title').textContent, 'Mise en situation…');
         const lead = $('#status-text .status-detail');
-        assert(lead && lead.textContent && lead.textContent === w.eval('openingNameOf(openingDB[trainingState.current].path).name'), 'l’ouverture est nommée pendant la mise en situation');
+        const opName = w.eval('openingNameOf(openingDB[trainingState.current].path).name'), idea = w.eval(`(OpeningMarks.idea(currentRepertoire, playerColor, ${JSON.stringify(opName)}) || {}).text || ''`);
+        assert(lead && lead.textContent === (idea ? `${opName} · ${idea}` : opName), 'l’ouverture est nommée pendant la mise en situation, suivie de son idée (lot 4)');
+        assert(idea, 'une ouverture connue a son idée suggérée');
         assert(/^1 \/ 1$/.test($('#tr-progress .tr-prog-n').textContent), 'compteur « 1 / N »');
         skip.click();                                                   // passer
         assert(!$('#status-bar .status-act'), 'bouton retiré quand la main revient');

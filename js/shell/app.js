@@ -241,7 +241,7 @@ function renderHomeSummary() {
     }
     host.innerHTML = `<div class="hp-day edge-card${next ? '' : ' is-done'}">${head}
         <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div>${_homeGoalHTML(today, goal)}</div>
-        ${focus}${_homeDailyHTML(rows, now)}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}</div>`;
+        ${focus}${_homeDailyHTML(rows, now)}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}${_homeGainHTML(now)}</div>`;
     HomePanels.render();                         // À traiter : nouveautés des parties, dernières parties
     if (typeof Dock !== 'undefined') Dock.refresh();   // le centre du dock reprend « Commencer », maintenant dessiné
 }
@@ -278,6 +278,18 @@ function _homeSteps(due, rp, now, cb) {
         else if (ex) out.push({ id: 'endgame', icon: 'finish-flag', tone: 'brass', title: 'Une finale', sub: ex.title, n: 1, arg: ex.id });
     }
     return out;
+}
+
+// ─── CE QUE LE RÉPERTOIRE RAPPORTE (atelier « L'envie de revenir », lot 4) ────
+// Une phrase, seulement quand les parties relues montrent un gain (OpeningReport.payoff) : jamais de reproche.
+function _homeGainHTML(now) {
+    if (typeof StatsGames === 'undefined' || typeof OpeningReport === 'undefined') return '';
+    const rows = StatsGames.analysed();
+    if (!rows.length) { StatsGames.prime(); return ''; }
+    const p = OpeningReport.payoff(rows, now), gain = p.gain === null ? 0 : Math.round(p.gain);
+    if (gain < 1) return '';
+    return `<p class="hp-gain">${ico('book')}<span><span>Quand vous suivez votre répertoire, vous marquez <b>+${gain} %</b> de plus que quand vous le quittez.</span>
+        <small>Score face à l’attendu d’après l’Elo · ${p.n} parties relues sur un an</small></span></p>`;
 }
 
 // ─── DÉFI DU JOUR (atelier « L'envie de revenir », lot 3, Daily) ───────────────

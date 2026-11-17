@@ -142,6 +142,14 @@ function _trNextHTML(items, primary) {
         </button>`).join('')}</div>`;
 }
 
+// Promotions d'ouverture (atelier « L'envie de revenir », lot 4) : le sceau du nouveau rang, frappé une fois.
+function _trPromosHTML(s) {
+    const list = (s.promos || []).filter(p => typeof OpeningMarks !== 'undefined');
+    if (!list.length) return '';
+    return `<div class="trr-promos">${list.map(p => `<div class="trr-promo is-r${p.to}">${_opRankHTML(p.to, 'is-seal')}
+        <span><span class="st-eyebrow">Promotion · ${p.side === 'w' ? 'Blancs' : 'Noirs'}</span><b>${escapeHtml(p.name)}</b><small>${OpeningMarks.RANKS[p.from]} → ${OpeningMarks.RANKS[p.to]}</small></span></div>`).join('')}</div>`;
+}
+
 const TRAIN_FILM_MAX = 20;
 function _trSummaryHTML(s, primary, next) {
     if (!s) return '';
@@ -194,6 +202,7 @@ function _trSummaryHTML(s, primary, next) {
                 <button type="button" class="icon-btn trr-close" data-action="trainingCloseSummary" aria-label="Fermer le bilan" title="Fermer le bilan">${ico('x')}</button>
             </div>
             ${badges ? `<div class="trr-badges">${badges}</div>` : ''}
+            ${_trPromosHTML(s)}
             ${acts ? `<div class="trr-acts">${acts}</div>` : ''}
             ${ensuite}
             ${film ? `<div class="trr-film-wrap"><span class="st-eyebrow">La séance en images<small>Toucher une position pour la rejouer</small></span><ul class="trr-film" role="list">${film}</ul></div>` : ''}

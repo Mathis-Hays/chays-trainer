@@ -232,5 +232,16 @@ const StatsGames = (function () {
     }
     const pending = () => st.games === null || st.analysing || st.busy;
 
-    return { content, mount, analysed, pending, repaint: paint, games: () => st.games };
+    // Aujourd'hui (« Ce que le répertoire rapporte ») : l'archive relue et croisée avec le répertoire, sans réseau.
+    let priming = false;
+    async function prime() {
+        if (priming) return;
+        if (st.games !== null) { analyse(); return; }           // répertoire changé : analyse() recroise
+        priming = true;
+        try { st.games = await GameArchive.all(); } catch (e) { st.games = []; }
+        priming = false;
+        analyse();
+    }
+
+    return { content, mount, prime, analysed, pending, repaint: paint, games: () => st.games };
 })();

@@ -1052,6 +1052,43 @@
 .so-name { margin: 0; font: 600 22px/1.15 var(--font-display); overflow-wrap: anywhere; }
 .so-moves { font-family: var(--font-note); font-size: 12px; opacity: .78; }
 .so-diag { padding: 3px 10px; border-radius: 99px; background: var(--card-b-ink); color: var(--card-b-bg); font-size: 12px; font-weight: 650; }
+/* Rangs d'ouverture et idée de la ligne (atelier « L'envie de revenir », lot 4) : trois chevrons en laiton, autant de pleins que le rang. */
+.op-rank { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 99px; font-size: 12px; font-weight: 650; white-space: nowrap;
+    color: var(--brand-brass-deep); background: color-mix(in srgb, var(--brand-brass) 14%, transparent); border: 1px solid color-mix(in srgb, var(--brand-brass) 40%, transparent); }
+[data-theme="dark"] .op-rank, .vel-dark .op-rank { color: var(--brand-brass); }
+.op-rank-m { display: inline-flex; gap: 2px; }
+.op-rank-m i { width: 6px; height: 9px; background: currentColor; opacity: .25; clip-path: polygon(0 0, 50% 35%, 100% 0, 100% 65%, 50% 100%, 0 65%); }
+.op-rank-m i.on { opacity: 1; }
+.op-rank.is-r2 { color: var(--brand-brass-deep); background: color-mix(in srgb, var(--brand-brass) 26%, transparent); }
+.op-rank.is-mini { align-self: flex-start; padding: 1px 7px 1px 5px; font-size: 10.5px; font-weight: 600; letter-spacing: .02em; }
+.op-rank.is-mini .op-rank-m i { width: 5px; height: 7px; }
+.so-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.so-rank { display: flex; flex-direction: column; gap: 5px; width: 100%; max-width: 420px; font-size: 12.5px; }
+.so-rank-h { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; }
+.so-rank-h b { font-variant-numeric: tabular-nums; }
+.so-rank-track { display: block; height: 6px; border-radius: 3px; background: color-mix(in srgb, currentColor 18%, transparent); overflow: hidden; }
+.so-rank-track i { display: block; height: 100%; border-radius: 3px; background: var(--brand-brass); }
+.so-rank small { opacity: .8; line-height: 1.4; }
+.so-rank.is-top { opacity: .85; }
+.so-idea { display: flex; flex-direction: column; gap: 4px; width: 100%; max-width: 520px; padding: 10px 12px; border-radius: 12px;
+    border-left: 2px solid var(--brand-brass); background: color-mix(in srgb, currentColor 6%, transparent); }
+.so-idea.is-suggested { border-left-style: dashed; }
+.so-idea-h { font-family: var(--font-note); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: color-mix(in srgb, var(--brand-brass) 55%, currentColor); }
+.so-idea p { margin: 0; font-family: var(--font-display, inherit); font-size: 15px; line-height: 1.45; }
+.so-idea-acts { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; }
+.so-head .hp-link { color: inherit; }
+/* Promotion au bilan : le sceau frappé une fois (animations réduites : immobile). */
+.trr-promos { display: flex; flex-direction: column; gap: 8px; }
+.trr-promo { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 14px;
+    border: 1px solid color-mix(in srgb, var(--brand-brass) 45%, var(--border)); background: color-mix(in srgb, var(--brand-brass) 8%, var(--surface)); }
+.trr-promo > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.trr-promo small { color: var(--text-muted); font-size: 12px; }
+.op-rank.is-seal { flex-direction: column; gap: 3px; width: 64px; padding: 8px 4px; border-radius: 12px; font-size: 11px; }
+.op-rank.is-seal .op-rank-m i { width: 9px; height: 13px; }
+@media (prefers-reduced-motion: no-preference) {
+    html:not([data-motion="reduced"]) .op-rank.is-seal { animation: op-stamp var(--dur-3, .4s) var(--ease-out, ease-out) both .2s; }
+}
+@keyframes op-stamp { from { transform: scale(1.35) rotate(-8deg); opacity: 0; } 70% { transform: scale(.96); opacity: 1; } to { transform: none; } }
 .so-acts { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: auto; padding-top: 4px; font-size: 12.5px; }
 .so-acts .btn-soft { color: var(--card-b-ink); border-color: color-mix(in srgb, var(--card-b-ink) 45%, transparent); background: none; }
 /* Page d'ouverture (refonte « Chays sans détour », lot 3) : « Réviser » et ses variantes dans l'en-tête sombre, puis l'arbre. */

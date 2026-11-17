@@ -48,6 +48,11 @@ let statsWeak   = null;      // vue complète « Points faibles » : { shown, y 
 
 // Repère de niveau : couleur ET forme (lisible sans distinguer les couleurs), cf. .lv-mark.
 const _lvMark = l => `<i class="lv-mark lv-${l}" aria-hidden="true"></i>`;
+// Rang d'une ouverture (atelier « L'envie de revenir », lot 4, OpeningMarks) : trois chevrons, autant de pleins que le rang + 1.
+function _opRankHTML(r, cls = '') {
+    const name = OpeningMarks.RANKS[r];
+    return `<span class="op-rank is-r${r}${cls ? ' ' + cls : ''}" title="Rang : ${name}"><span class="op-rank-m" aria-hidden="true">${[0, 1, 2].map(i => `<i class="${i <= r ? 'on' : ''}"></i>`).join('')}</span><span class="op-rank-t">${name}</span></span>`;
+}
 // Gravure progressive (atelier « L'envie de revenir », lot 2) : le trait gravé dont la profondeur suit la maîtrise, doré une fois Maîtrisée.
 // À confirmer : jamais plus que rayé, tant que les essais manquent.
 function _lvEngrave(e) {

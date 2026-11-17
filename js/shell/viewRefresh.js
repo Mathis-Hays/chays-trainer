@@ -39,6 +39,9 @@ Bus.on('games:reviewed', () => {
     if (typeof OpeningsTab !== 'undefined') OpeningsTab.refresh();
 });
 
+// Parties croisées avec le répertoire : « Ce que le répertoire rapporte » (Aujourd'hui) se met à jour.
+Bus.on('games:analysed', () => { if (typeof renderHomeSummary === 'function' && !_viewHidden('home-tab-play')) renderHomeSummary(); });
+
 Bus.on('data:imported', () => {
     renderRepertoireList();
     if (typeof refreshTree === 'function') refreshTree();

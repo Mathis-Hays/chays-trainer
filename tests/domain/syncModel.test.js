@@ -225,6 +225,18 @@ t('défi du jour : par jour, le premier essai l\'emporte, symétrique ; jours de
     assert.deepStrictEqual(Object.keys(x).sort(), ['2026-11-15', '2026-11-16', '2026-11-17']);
 });
 
+t('rangs et idées des ouvertures : champ par champ, le plus récent l\'emporte, symétrique', () => {
+    const K = 'chessTrainer_openings';
+    assert.strictEqual(S.kindOf(K), 'openings');
+    const base = { G: { 'w|Italienne': { r: 0, ra: 1 } } };
+    const l = { G: { 'w|Italienne': { r: 1, ra: 50, i: 'centre d\'abord', ia: 10 } } };
+    const r = { G: { 'w|Italienne': { r: 2, ra: 40, i: 'attaquer f7', ia: 20 }, 'b|Caro-Kann': { r: 1, ra: 5 } }, H: { 'w|Londres': { i: 'Ff4', ia: 3 } } };
+    const x = S.merge(K, base, l, r), y = S.merge(K, base, r, l);
+    assert.deepStrictEqual(x, y);
+    assert.deepStrictEqual(x.G['w|Italienne'], { r: 1, ra: 50, i: 'attaquer f7', ia: 20 }, 'rang de l\'un, idée de l\'autre');
+    assert(x.G['b|Caro-Kann'] && x.H['w|Londres']);
+});
+
 t('étoiles des finales : la meilleure l\'emporte ; absentes, le champ n\'apparaît pas', () => {
     const P = (stars) => Object.assign({ tries: 2, wins: 1, perfect: false, best: 9, last: 1 }, stars ? { stars } : {});
     const x = S.merge('chessTrainer_endgames', { e: P(0) }, { e: P(2) }, { e: Object.assign(P(3), { tries: 3 }) });

@@ -7,6 +7,7 @@
  *   detail(lignes, minPly)     répertoire suivi ou quitté, couverture, profondeur, réponses adverses, coups joués à la place.
  *   clockLead(partie, demi-coups)  avance à l'horloge après ces demi-coups, en points de temps initial.
  *   exitEval(partie, demi-coups)   évaluation de mon point de vue après ces demi-coups (centipions, bornée), ou null.
+ *   payoff(lignes, now)        ce que le répertoire rapporte : écart à l'attendu quand je le suis, moins quand je le quitte (365 jours).
  *   diagnose(n, écart, maîtrise, évaluation?)   'learn' | 'replace' | 'through' | 'losing' | 'consolidate' | 'keep', ou null sans assez d'éléments.
  * Une partie : celle de GameArchive. Une ligne : { g: partie, a: { dev, path, played } } (StatsGames.analysed).
  *   dev : déviation retenue (detectDeviation) ou null ; path : coups UCI joués dans le répertoire ; played : mon coup à la place du coup prévu.
@@ -110,6 +111,17 @@ const OpeningReport = (function () {
         };
     }
 
+    // Ce que le répertoire rapporte (atelier « L'envie de revenir », lot 4) : sur les parties de l'année, l'écart au score
+    // attendu (Elo) quand je suis le répertoire jusqu'au bout, moins celui des parties où je le quitte. gain : null sans
+    // MIN_PAYOFF parties avec Elo de chaque côté.
+    const MIN_PAYOFF = 5, PAYOFF_DAYS = 365;
+    function payoff(rows, now = Date.now()) {
+        const list = rows.filter(x => x.g.at >= now - PAYOFF_DAYS * 864e5), kept = [], left = [];
+        list.forEach(({ g, a }) => (a.dev && a.dev.by === 'me' ? left : kept).push(g));
+        const k = summarize(kept), l = summarize(left), enough = arr => arr.filter(hasElo).length >= MIN_PAYOFF;
+        return { n: list.length, kept: k, left: l, gain: enough(kept) && enough(left) ? k.delta - l.delta : null };
+    }
+
     function diagnose(n, delta, mastery, exit = null) {
         if (n < MIN_DIAGNOSIS || delta === null || mastery === null) return null;
         if (mastery < KNOWN) return delta < 0 ? 'learn' : 'consolidate';
@@ -117,5 +129,5 @@ const OpeningReport = (function () {
         return exit === null ? 'losing' : exit < 0 ? 'replace' : 'through';
     }
 
-    return { KNOWN, expected, meOf, oppOf, clockBase, clockLead, exitEval, summarize, months, detail, diagnose };
+    return { KNOWN, MIN_PAYOFF, payoff, expected, meOf, oppOf, clockBase, clockLead, exitEval, summarize, months, detail, diagnose };
 })();

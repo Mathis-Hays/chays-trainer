@@ -293,6 +293,12 @@
 .hp-daily-st.is-ok { color: var(--ok); }
 .hp-daily-st.is-ko { color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) { .hp-daily { transition: none; } }
+/* Ce que le répertoire rapporte (atelier « L'envie de revenir », lot 4) : une phrase, sous le plan. */
+.hp-gain { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 0; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 13.5px; line-height: 1.45; }
+.hp-gain > .ico { flex: none; width: 16px; height: 16px; margin-top: 2px; fill: none; color: var(--new); }
+.hp-gain > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.hp-gain b { color: var(--new); font-variant-numeric: tabular-nums; }
+.hp-gain small { color: var(--text-dim); font-size: 11.5px; }
 .hp-ctas { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin-top: 16px; }
 .hp-cta {
     display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 22px;

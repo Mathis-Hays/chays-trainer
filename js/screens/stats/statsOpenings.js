@@ -63,7 +63,10 @@ const StatsOpenings = (function () {
             gr.recent.push(x);
             x.a.mine.forEach(k => { const id = x.g.color + '|' + k; if (!st.reached.has(id)) st.reached.set(id, []); st.reached.get(id).push(x.g); });
         });
+        // Rangs (atelier « L'envie de revenir », lot 4) : rangés sans fête ici ; la promotion se fête au bilan de séance.
+        if (typeof OpeningMarks !== 'undefined') OpeningMarks.update(currentRepertoire, rows);
         map.forEach(g => {
+            g.rank = g.all.length && g.path.length && typeof OpeningMarks !== 'undefined' ? OpeningMarks.rank(currentRepertoire, g.key) : null;
             g.counts = _countLevels(g.all);
             g.items = g.all.filter(r => statsFilter === 'all' || r.lv === statsFilter);
             g.due = g.all.filter(r => rp.today(r.side, r.k)).length;
@@ -131,10 +134,33 @@ const StatsOpenings = (function () {
                 <span class="st-eyebrow">${g.side === 'w' ? 'Blancs' : 'Noirs'}${g.all.length ? ` · ${_plural(g.all.length, 'position')}` : ''}</span>
                 <h4 class="so-name">${g.html}</h4>
                 ${g.path.length && g.name !== _movesLabel(g.path) ? `<small class="so-moves">${_movesLabel(g.path, true)}</small>` : ''}
-                ${d ? `<span class="so-diag">${d[0]}</span>` : ''}
+                ${d || g.rank !== null ? `<div class="so-tags">${g.rank !== null ? _opRankHTML(g.rank) : ''}${d ? `<span class="so-diag">${d[0]}</span>` : ''}</div>` : ''}
                 <p>${text}</p>
+                ${rankHTML(g)}${ideaHTML(g)}
                 ${reviewHTML(g)}
             </div></div>`;
+    }
+
+    // Rang (atelier « L'envie de revenir », lot 4) : ce qui manque pour le suivant, et une barre.
+    function rankHTML(g) {
+        if (g.rank === null) return '';
+        const p = OpeningMarks.progress(OpeningMarks.statsOf(g.all), g.rank), name = OpeningMarks.RANKS;
+        if (!p) return `<div class="so-rank is-top"><span>Maître de cette ouverture : elle le reste tant qu’elle est révisée.</span></div>`;
+        return `<div class="so-rank"><div class="so-rank-h"><span>Vers ${name[p.to]}</span><b>${p.pct} %</b></div>
+            <span class="so-rank-track" role="img" aria-label="${p.pct} %"><i style="width:${p.pct}%"></i></span>
+            ${p.need.length ? `<small>${p.need.map(escapeHtml).join(' · ')}</small>` : ''}</div>`;
+    }
+
+    // L'idée de la ligne (lot 4) : la phrase du joueur, celle de la famille, sinon une suggestion à garder ou réécrire.
+    function ideaHTML(g) {
+        if (!g.all.length || !g.path.length || typeof OpeningMarks === 'undefined') return '';
+        const v = OpeningMarks.idea(currentRepertoire, g.side, g.name), arg = escapeHtml(g.key);
+        if (!v) return `<button type="button" class="hp-link so-idea-add" data-action="opIdea" data-arg="${arg}">${ico('plus')}Écrire l’idée de la ligne</button>`;
+        const head = !v.own ? 'Idée suggérée' : v.from ? `Idée de la famille ${v.from}` : 'L’idée de la ligne';
+        return `<div class="so-idea${v.own ? '' : ' is-suggested'}"><span class="so-idea-h">${escapeHtml(head)}</span>
+            <p${v.own ? ' translate="no"' : ''}>${escapeHtml(v.text)}</p>
+            <div class="so-idea-acts">${v.own ? '' : `<button type="button" class="hp-link" data-action="opIdeaKeep" data-arg="${arg}">${ico('check')}Garder</button>`}
+            <button type="button" class="hp-link" data-action="opIdea" data-arg="${arg}">${ico('pencil')}${v.own && !v.from ? 'Modifier' : 'Écrire la mienne'}</button></div></div>`;
     }
 
     // Réviser l'ouverture (lot 3) : une action pleine qui lance la séance (les positions dues, sinon les plus
@@ -345,7 +371,7 @@ const StatsOpenings = (function () {
             return `<button type="button" class="so-mr${g.key === st.cur ? ' on' : ''}" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}" aria-pressed="${g.key === st.cur}" aria-label="${escapeHtml(label)}">
                 <span class="so-mr-b">${g.path.length ? _miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name }) : sideDot(g.side)}</span>
                 <span class="so-mr-n"><span class="so-txt"><b>${statsColor === 'all' ? sideDot(g.side) : ''}${g.html}</b>${moves ? `<small>${moves}</small>` : ''}</span>
-                    ${g.all.length ? levelBarHTML(g.counts, 'so-mr-bar') : ''}</span>
+                    ${g.all.length ? levelBarHTML(g.counts, 'so-mr-bar') : ''}${g.rank !== null ? _opRankHTML(g.rank, 'is-mini') : ''}</span>
                 <span class="so-mr-r">${tag}${d === null ? '' : `<small class="${d >= 0 ? 'up' : 'down'}">${I18n.mark(`${d >= 0 ? '+' : '−'}${num1(d)} %`)}</small>`}</span></button>`;
         };
         return `<div class="so-mirror">${st.list.map(row).join('')}</div>`;
@@ -505,6 +531,17 @@ const StatsOpenings = (function () {
         statsOpPick: pick,
         statsOpMode: m => { st.mode = m; renderPicker(); },
         statsOpView: v => { st.view = v; paint(); },
+        opIdea: k => {
+            const g = st.list.find(x => x.key === k);
+            if (!g) return;
+            const v = OpeningMarks.idea(currentRepertoire, g.side, g.name);
+            askText({ title: `L’idée de la ligne · ${g.name}`, value: v && v.own && !v.from ? v.text : '', placeholder: v ? v.text : 'ex : pousser c5 et attaquer d4',
+                      ok: 'Enregistrer', allowEmpty: true, max: OpeningMarks.IDEA_MAX }, t => { OpeningMarks.setIdea(currentRepertoire, k, t); paint(); });
+        },
+        opIdeaKeep: k => {
+            const g = st.list.find(x => x.key === k), v = g && OpeningMarks.idea(currentRepertoire, g.side, g.name);
+            if (v) { OpeningMarks.setIdea(currentRepertoire, k, I18n.t(v.text)); paint(); }
+        },
         opBack: () => { st.open = false; paint(); window.scrollTo({ top: 0 }); },
         statsOpStep: d => step(Number(d)),
         opReview: arg => {

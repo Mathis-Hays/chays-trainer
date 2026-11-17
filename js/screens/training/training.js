@@ -328,10 +328,11 @@ function _endSession(early, stay) {
     const summary = {
         kind: S.kind, label: S.label, line: S.line, early: !!early, minutes: Math.max(1, Math.round((Date.now() - S.started) / 60000)),
         total: rows.length, ok: rows.filter(r => r.ok).length, rows, score: S.score, record, newRecord,
-        colors: S.colors, returnTab: S.returnTab, lives: S.lives
+        colors: S.colors, returnTab: S.returnTab, lives: S.lives, promos: _rankPromos()
     };
     const keep = S.keep;
     // Le cadre rejoué garde sa trace dans la pellicule : réussi ou non, et son niveau d'après.
+    if (keep && summary.promos.length) keep.promos = (keep.promos || []).concat(summary.promos);
     if (keep) rows.forEach(r => { const f = keep.rows.find(x => x.key === r.key && x.color === r.color); if (f) Object.assign(f, { replay: r.ok, lvAfter: r.lvAfter, e: r.e }); });
     _clearSession();
     stopTraining();
@@ -342,7 +343,8 @@ function _endSession(early, stay) {
     if (stay) return;
     if (early || !rows.length) { goHome(back); return; }
     playSound('end');
-    const msg = daily ? (daily.ok ? (daily.streak > 1 ? `Défi du jour réussi · ${daily.streak} jours d’affilée` : 'Défi du jour réussi') : 'Défi du jour manqué · un nouveau demain')
+    const promo = summary.promos[0];
+    const msg = promo ? `Promotion · ${OpeningMarks.RANKS[promo.to]} · ${promo.name}` : daily ? (daily.ok ? (daily.streak > 1 ? `Défi du jour réussi · ${daily.streak} jours d’affilée` : 'Défi du jour réussi') : 'Défi du jour manqué · un nouveau demain')
         : summary.kind === 'survival' ? (summary.newRecord ? `Nouveau record de survie · ${summary.score}` : `Survie · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`)
         : summary.kind === 'frame' ? (summary.ok ? 'Position retrouvée' : 'Pas encore : elle revient bientôt')
         : summary.kind === 'timed' ? `Temps écoulé · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`
@@ -477,6 +479,26 @@ function _drillOpening(e) {
     return op ? op.name : '';
 }
 
+// L'idée de la ligne (atelier « L'envie de revenir », lot 4) : rappelée pendant la mise en situation, après le nom.
+function _drillOpeningIdea(e) {
+    const name = _drillOpening(e);
+    if (!name || typeof OpeningMarks === 'undefined') return name;
+    const v = OpeningMarks.idea(currentRepertoire, playerColor, name);
+    return v ? `${name} · ${v.text}` : name;
+}
+
+// Rangs des ouvertures après une séance (lot 4) : les promotions, à fêter dans le bilan.
+function _rankPromos() {
+    if (typeof OpeningMarks === 'undefined' || typeof _assignOpenings !== 'function') return [];
+    const rows = [];
+    ['w', 'b'].forEach(side => {
+        const db = readDBFor(currentRepertoire, side);
+        Object.keys(db).forEach(k => { const e = db[k]; if (e.attempts > 0) rows.push({ k, e, side, lv: _level(e), path: e.path && e.path.length ? e.path : null }); });
+    });
+    _assignOpenings(rows);
+    return OpeningMarks.update(currentRepertoire, rows);
+}
+
 function _drillReason(e) {
     const now = Date.now();
     if (trainingState.session && trainingState.session.items[trainingState.session.cur] && trainingState.session.items[trainingState.session.cur].second)
@@ -560,7 +582,7 @@ function _startDrill(key, seqLen, opts) {
         const start = Math.max(0, n - TRAIN_CONTEXT_PLIES);
         const ctx   = fullPath.slice(start, n);
         loadPositionFromPath(fullPath.slice(0, start));
-        setStatus('Mise en situation…', 'info', ctx.length ? _drillOpening(entry) : trainingState.reason, ctx.length ? {
+        setStatus('Mise en situation…', 'info', ctx.length ? _drillOpeningIdea(entry) : trainingState.reason, ctx.length ? {
             action: 'Sauter', title: 'Passer la mise en situation', run: () => { if (trainingState.ctxSkip) trainingState.ctxSkip(); }
         } : null);
         ctx.forEach((u, i) => _later(() => {
