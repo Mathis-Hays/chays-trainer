@@ -69,11 +69,20 @@ const _egBudgetText = ex => ex.maxMoves ? `${ex.maxMoves} coups au plus` : ex.ho
 // État à droite d'une ligne : coche laiton (sans faute), coche verte (réussi), essais (en cours), difficulté sinon.
 function _egStateHTML(prog, ex) {
     const st = _egState(prog, ex);
+    const n = prog[ex.id] && prog[ex.id].stars;
+    if (n && (st === 'perfect' || st === 'done')) return _egStarsHTML(n);                  // étoiles (lot 3) ; avant elles, la coche
     if (st === 'perfect') return `<span class="eg-st is-perfect" role="img" aria-label="Réussi sans faute" title="Réussi sans faute">${ico('check')}</span>`;
     if (st === 'done')    return `<span class="eg-st is-done" role="img" aria-label="Réussi" title="Réussi">${ico('check')}</span>`;
     if (st === 'tried')   return `<span class="eg-st is-tried">${_egTries(prog[ex.id].tries)}</span>`;
     return _egDotsHTML(ex.level);
 }
+
+// Étoiles d'une finale gagnée (EG.stars) : trois cases, les gagnées en laiton.
+function _egStarsHTML(n, cls = '') {
+    const label = `${n} étoile${n > 1 ? 's' : ''} sur 3`;
+    return `<span class="eg-stars${cls ? ' ' + cls : ''}" role="img" aria-label="${label}" title="${label}">${[1, 2, 3].map(i => `<i class="${i <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+}
+const _egStarSum = (prog, list) => list.reduce((t, e) => t + ((prog[e.id] && prog[e.id].stars) || 0), 0);
 
 // Origine du jugement, annoncée avant la séance d'après le catalogue (le juge la confirme au premier verdict).
 const _egMen = fen => fen.split(' ')[0].replace(/[\d/]/g, '');
@@ -189,7 +198,7 @@ function initEndgame() {
         const full = tracks.find(t => t.cat === cat).list, w = full.filter(e => _egWon(prog, e)).length;
         const open = egOpen ? egOpen.has(cat.id) : cat.id === currentCat || (!currentCat && cat === visible[0].cat);
         return `<section class="eg-sec${open ? ' is-open' : ''}" id="eg-sec-${escapeHtml(cat.id)}" aria-labelledby="eg-sec-h-${escapeHtml(cat.id)}">
-            <div class="eg-sec-h">${Ring.html({ value: w, max: full.length, size: 30, stroke: 9, cls: 'eg-sec-ring', decorative: true })}<h3 id="eg-sec-h-${escapeHtml(cat.id)}">${escapeHtml(cat.label)}</h3><span class="eg-sec-n">${w} / ${full.length}</span>
+            <div class="eg-sec-h">${Ring.html({ value: w, max: full.length, size: 30, stroke: 9, cls: 'eg-sec-ring', decorative: true })}<h3 id="eg-sec-h-${escapeHtml(cat.id)}">${escapeHtml(cat.label)}</h3><span class="eg-sec-n">${w} / ${full.length}</span><span class="eg-sec-stars" title="Étoiles de la catégorie">${_egStarsHTML(1, 'is-one')}${_egStarSum(prog, full)} / ${3 * full.length}</span>
                 <span class="eg-sec-bar" aria-hidden="true"><i style="width:${Math.round(100 * w / full.length)}%"></i></span>
                 <button type="button" class="eg-sec-tg" data-action="egToggle" data-arg="${escapeHtml(cat.id)}" aria-expanded="${open}" aria-controls="eg-sec-l-${escapeHtml(cat.id)}" aria-label="${escapeHtml(cat.label)}">${ico('chevron-down')}</button></div>
             <p class="eg-sec-desc">${escapeHtml(cat.desc)}</p>
@@ -206,7 +215,7 @@ function initEndgame() {
     const preview = shown ? _egPreviewHTML(shown, prog, 'aside') : _egDoneHTML(prog);
     const sum = `<section class="eg-sum" aria-label="Parcours"><span class="st-eyebrow">Parcours</span>
         <div class="eg-sum-big"><b>${done}</b><span>sur ${N} réussie${done > 1 ? 's' : ''}</span></div>
-        <span class="eg-sum-sub">${perfect} sans faute · ${tried} en cours</span></section>`;
+        <span class="eg-sum-sub">${_egStarSum(prog, all)} étoiles sur ${3 * N} · ${perfect} sans faute · ${tried} en cours</span></section>`;
 
     panel.innerHTML = `<div class="egl">
         <aside class="egl-aside"><div id="eg-preview">${preview}</div>${sum}</aside>
@@ -454,8 +463,9 @@ function _egLoadPosition() {
     resetNavCursor();
     clearErrorFx();
     s.busy = false; s.over = false; s.failed = null; s.verdict = null; s.theory = false;
-    s.moves = 0; s.hintLevel = 0; s.seen = {}; s.planStep = 0;
+    s.moves = 0; s.hintLevel = 0; s.seen = {}; s.planStep = 0; s.par = 0; s.stars = 0;
     s.token++;
+    _egFindPar(s, ex);
     s.source = _egJudged(ex) ? null : 'local'; s.exact = true;   // mats, KPK, pions : juges locaux exacts
     if (_egJudged(ex)) {
         s.budget = ex.goal === 'win' ? ex.keep || ex.maxMoves : ex.hold;
@@ -550,7 +560,11 @@ function renderEndgameCard() {
     let body;
     if (s.over) {
         const i = ENDGAME_EXERCISES.indexOf(ex), nx = ENDGAME_EXERCISES[(i + 1) % ENDGAME_EXERCISES.length];
-        body = `<div class="eg-win"><span class="eg-medal">${ico('check')}</span><div><b>Exercice réussi</b><span>${escapeHtml(s.over)}</span></div></div>
+        const st = s.stars || 1, gain = st > (s.prevStars || 0) && s.prevStars ? ' · nouveau record' : '';
+        const goal3 = st >= 3 ? 'Trois étoiles.' : s.par ? `Troisième étoile : sans faute ni indice, en ${s.par + EG.starsSlack(s.par)} coups au plus (le plus court : ${s.par}).`
+            : 'Troisième étoile : sans faute ni indice.';
+        body = `<div class="eg-win">${_egStarsHTML(st, 'is-big')}<div><b>Exercice réussi${gain}</b><span>${escapeHtml(s.over)}</span></div></div>
+            <p class="eg-star-goal">${escapeHtml(goal3)}</p>
             <div class="eg-kpis"><div><b>${s.moves}</b><small>coup${s.moves > 1 ? 's' : ''}</small></div><div><b>${s.errors}</b><small>erreur${s.errors > 1 ? 's' : ''}</small></div><div><b>${s.hints}</b><small>indice${s.hints > 1 ? 's' : ''}</small></div></div>
             ${_egTheoryHTML(s, ex)}
             <div class="eg-nextup">${_egMini(nx, 'eg-pos')}<div><small>Suivant</small><b>${escapeHtml(nx.title)}</b></div></div>
@@ -848,16 +862,35 @@ function _egReplyMove(m) {
     renderEndgameCard();
 }
 
+// ─── ÉTOILES : LE CHEMIN LE PLUS COURT ────────────────────────────────────────
+// par = coups du joueur sur le chemin le plus court : base KPK (dtw, en demi-coups), sinon distance au mat des tables
+// (mats élémentaires, dtm en demi-coups, réseau). Exercices « tenir » ou à durée fixée : pas de par, les étoiles ne
+// regardent que les fautes et les indices.
+function _egFindPar(s, ex) {
+    if (ex.goal === 'draw') return;
+    if (ex.kind === 'kpk') { const pr = EG.kpkProbe(_egCur()); if (pr.win) s.par = Math.ceil(pr.dtw / 2); return; }
+    if (ex.kind !== 'mate' || typeof EndgameJudge === 'undefined') return;
+    const token = s.token;
+    EndgameJudge.probe(_egFen()).then(v => {
+        if (token !== s.token || !v || !Number.isFinite(v.dtm) || !v.dtm) return;
+        s.par = Math.ceil(Math.abs(v.dtm) / 2);
+        if (s.over) renderEndgameCard();
+    }, () => {});
+}
+
 // ─── FIN D'EXERCICE ───────────────────────────────────────────────────────────
 function _egFinish(msg) {
     const s = endgameState, ex = s.ex;
     playSound('success');
     s.over = msg; s.busy = true; s.theory = true;
     const perfect = s.errors === 0 && s.hints === 0;
+    s.stars = EG.stars({ errors: s.errors, hints: s.hints, moves: s.moves, par: s.par });
+    s.prevStars = (readEndgameProgress()[ex.id] || {}).stars || 0;
     _egBump(ex.id, p => {
         p.wins++;
         if (perfect) p.perfect = true;
         if (!p.best || s.moves < p.best) p.best = s.moves;
+        if (s.stars > (p.stars || 0)) p.stars = s.stars;                    // la meilleure reste
     });
     renderEndgameCard();
     setStatus(`✓ ${msg}`, 'ok');

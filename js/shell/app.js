@@ -241,7 +241,7 @@ function renderHomeSummary() {
     }
     host.innerHTML = `<div class="hp-day edge-card${next ? '' : ' is-done'}">${head}
         <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div>${_homeGoalHTML(today, goal)}</div>
-        ${focus}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}</div>`;
+        ${focus}${_homeDailyHTML(rows, now)}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}</div>`;
     HomePanels.render();                         // À traiter : nouveautés des parties, dernières parties
     if (typeof Dock !== 'undefined') Dock.refresh();   // le centre du dock reprend « Commencer », maintenant dessiné
 }
@@ -278,6 +278,24 @@ function _homeSteps(due, rp, now, cb) {
         else if (ex) out.push({ id: 'endgame', icon: 'finish-flag', tone: 'brass', title: 'Une finale', sub: ex.title, n: 1, arg: ex.id });
     }
     return out;
+}
+
+// ─── DÉFI DU JOUR (atelier « L'envie de revenir », lot 3, Daily) ───────────────
+// Une position du répertoire, la même toute la journée, avant le plan du jour. Faite : son résultat, plus d'action.
+function _homeDailyHTML(rows, now) {
+    if (typeof Daily === 'undefined') return '';
+    const done = Daily.today(now), streak = Daily.streak(undefined, now);
+    const r = done ? rows.find(x => x.key === done.k && x.color === done.c) : Daily.pick(rows, dayStamp(now), currentRepertoire);
+    if (!r) return '';
+    const path = r.e.path && r.e.path.length ? r.e.path : null, op = path ? openingNameOf(path) : null;
+    const who = r.color === 'w' ? 'Blancs' : 'Noirs';
+    const over = `Défi du jour${streak ? ` · <span class="hp-daily-streak">${streak} jour${streak > 1 ? 's' : ''} d’affilée</span>` : ''}`;
+    const st = !done ? `<span class="hp-daily-go">${ico('play')}<span>Relever</span></span>`
+        : done.r ? `<span class="hp-daily-st is-ok">${ico('check')}Réussi</span>` : `<span class="hp-daily-st is-ko">${ico('x')}Un nouveau demain</span>`;
+    return `<button type="button" class="hp-daily${done ? ' is-done' : ''}" data-action="homeDaily" data-arg="${escapeHtml(r.color + ':' + r.key)}"${done ? ' aria-disabled="true"' : ''}>
+        ${_miniBoardHTML({ side: r.color, path, k: r.key }, false, { cls: 'hp-daily-board', label: 'Position du défi du jour, avant votre coup' })}
+        <span class="hp-daily-txt"><span class="hp-daily-over">${over}</span><b>Trouver le coup des ${who}</b><small>${op ? escapeHtml(op.name) : 'Position du répertoire'}</small></span>
+        ${st}</button>`;
 }
 
 function _homeStepsHTML(steps) {
@@ -578,7 +596,12 @@ function goHome(tab) {
 
 registerActions({ selectRepertoire, resumeLastPlay, createRepertoire: () => createRepertoirePrompt(), homeImportPgn: () => showPgnImport(),
     homeReview: () => startDailyReview(), homeGo: () => { const x = _homeStepsNow.find(s => !s.done); if (x) homeRunStep(x.id); },
-    homeStep: id => homeRunStep(id), homeAddLine: c => startGame(c), homeExercises: () => switchHomeTab('training') });
+    homeStep: id => homeRunStep(id),
+    homeDaily: arg => {
+        if (typeof Daily !== 'undefined' && Daily.today()) return;           // un seul essai compté par jour
+        const i = String(arg || '').indexOf(':');
+        if (i > 0) startDailyChallenge(arg.slice(0, i), arg.slice(i + 1));
+    }, homeAddLine: c => startGame(c), homeExercises: () => switchHomeTab('training') });
 
 // ─── INITIALISATION ───────────────────────────────────────────────────────────
 

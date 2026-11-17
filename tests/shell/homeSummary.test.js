@@ -216,6 +216,30 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert($('#hp-today .hp-joker'), 'pastille du joker');
     });
 
+    await t('défi du jour : une position du répertoire avant le plan, la même toute la journée ; faite, son résultat sans action', () => {
+        seed(w, 3, 3);
+        w.eval(`dataStore.remove('chessTrainer_daily'); renderHomeSummary()`);
+        const card = $('#hp-today .hp-daily');
+        assert(card && card.nextElementSibling.classList.contains('hp-steps'), 'juste avant le plan du jour');
+        assert(card.querySelector('.st-mini'), 'mini-échiquier');
+        const arg = card.dataset.arg;
+        w.eval('renderHomeSummary()');
+        assert.strictEqual($('#hp-today .hp-daily').dataset.arg, arg, 'même position au second rendu');
+        let started = null;
+        w.startDailyChallenge = (c, k) => { started = c + ':' + k; };
+        $('#hp-today .hp-daily').click();
+        assert.strictEqual(started, arg, 'lance la position du défi');
+        const i = arg.indexOf(':');
+        w.eval(`Daily.save({ ok: true, color: ${JSON.stringify(arg.slice(0, i))}, key: ${JSON.stringify(arg.slice(i + 1))}, rep: currentRepertoire }); renderHomeSummary()`);
+        const done = $('#hp-today .hp-daily');
+        assert(done.classList.contains('is-done') && /Réussi/.test(done.textContent));
+        started = null;
+        done.click();
+        assert.strictEqual(started, null, 'un seul essai compté par jour');
+        assert(/1 jour d’affilée/.test(done.textContent), done.textContent);
+        w.eval(`dataStore.remove('chessTrainer_daily')`);
+    });
+
     await t('aucune erreur JS', () => { assert.deepStrictEqual(errors, []); });
 
     console.log(`\n${n} tests réussis.`);

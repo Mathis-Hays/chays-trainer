@@ -10,11 +10,13 @@
  *   openingDB_{rép}_{couleur}    'db'        position → { move, san, attempts, failures, path?, ply?, lastReviewed?, interval?, due?, created?, prio?, relearn?, mastery? }
  *   openingOpp_{rép}_{couleur}   'opp'       position → [coups UCI adverses connus]
  *   chessTrainer_trash           'trash'     [{ id, type, deletedAt, … }]
- *   chessTrainer_endgames        'endgames'  exercice → { tries, wins, perfect, best, last }
+ *   chessTrainer_endgames        'endgames'  exercice → { tries, wins, perfect, best, last, stars? }
  *   chessTrainer_activity        'activity'  jour (AAAA-MM-JJ) → { a: essais, f: erreurs }
  *   chessTrainer_prefs           'prefs'     préférence → { v: valeur, at: date du choix } (échiquier, pièces, flèches)
  *   chessTrainer_gameLedger      'games'     partie analysée → { src, at, first, last, vs?, v: { 'rép|couleur': verdict }, counted: { … } }
  *   chessTrainer_timedRecord     'record'    record du contre-la-montre (nombre) : le plus grand l'emporte
+ *   chessTrainer_survivalRecord  'record'    record de la Survie (nombre) : le plus grand l'emporte
+ *   chessTrainer_daily           'daily'     jour → { r, k, c, rep, at } : défi du jour, le premier essai (at le plus ancien) l'emporte
  *   chessTrainer_masteryLog      'mastery'   'répertoire|jour' → { w: [6 niveaux], b: [6 niveaux], at } : par jour, le relevé le plus récent l'emporte
  * Tout le reste (mode clair / sombre, sons, options d'entraînement, état de sauvegarde…)
  * reste LOCAL à l'appareil.
@@ -45,6 +47,8 @@ const SyncModel = (function () {
         if (key === 'chessTrainer_prefs')       return 'prefs';
         if (key === 'chessTrainer_gameLedger')  return 'games';
         if (key === 'chessTrainer_timedRecord') return 'record';
+        if (key === 'chessTrainer_survivalRecord') return 'record';
+        if (key === 'chessTrainer_daily')       return 'daily';
         if (key === 'chessTrainer_masteryLog')  return 'mastery';
         if (typeof key === 'string' && key.startsWith('openingDB_'))  return 'db';
         if (typeof key === 'string' && key.startsWith('openingOpp_')) return 'opp';
@@ -181,8 +185,11 @@ const SyncModel = (function () {
         const tries = Math.max(num(l.tries), num(r.tries), num(l.tries) + num(r.tries) - bt);
         const wins  = Math.max(num(l.wins),  num(r.wins),  num(l.wins)  + num(r.wins)  - bw);
         const bests = [l.best, r.best].filter(x => num(x) > 0);
-        return { tries, wins, perfect: !!(l.perfect || r.perfect),
-                 best: bests.length ? Math.min(...bests) : 0, last: Math.max(num(l.last), num(r.last)) };
+        const out = { tries, wins, perfect: !!(l.perfect || r.perfect),
+                      best: bests.length ? Math.min(...bests) : 0, last: Math.max(num(l.last), num(r.last)) };
+        const stars = Math.max(num(l.stars), num(r.stars));                 // étoiles des finales : la meilleure l'emporte
+        if (stars > 0) out.stars = Math.min(3, stars);
+        return out;
     }
     const mergeEndgames = (b, l, r) => mergeMap(b, l, r, mergeProgress);
 
@@ -223,8 +230,16 @@ const SyncModel = (function () {
     // ─── Record du contre-la-montre ───────────────────────────────────────────
     const mergeRecord = (b, l, r) => Math.max(num(Number(l)), num(Number(r)));
 
+    // ─── Défi du jour : par jour, le premier essai l'emporte (même date : choix déterministe) ──
+    function mergeDailyDay(b, l, r) {
+        const a = num(l.at), c = num(r.at);
+        if (a !== c) return clone(a < c ? l : r);
+        return clone(stable(l) <= stable(r) ? l : r);
+    }
+    const mergeDaily = (b, l, r) => mergeMap(b, l, r, mergeDailyDay);
+
     // ─── Point d'entrée ───────────────────────────────────────────────────────
-    const MERGERS = { db: mergeDB, opp: mergeOpp, list: mergeList, trash: mergeTrash, endgames: mergeEndgames, activity: mergeActivity, prefs: mergePrefs, notes: mergePrefs, games: mergeGames, record: mergeRecord, mastery: mergePrefs };
+    const MERGERS = { db: mergeDB, opp: mergeOpp, list: mergeList, trash: mergeTrash, endgames: mergeEndgames, activity: mergeActivity, prefs: mergePrefs, notes: mergePrefs, games: mergeGames, record: mergeRecord, mastery: mergePrefs, daily: mergeDaily };
 
     // Valeurs déjà décodées (null = absent). Renvoie la valeur fusionnée (null = supprimée).
     function merge(key, base, local, remote) {

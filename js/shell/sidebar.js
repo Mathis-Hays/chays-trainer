@@ -47,6 +47,7 @@ const SideBar = (() => {
             { id: 'line', label: 'Ligne complète', press: '[data-focus="line"]' },
             { id: 'unsure', label: 'À confirmer', press: '[data-focus="unsure"]' },
             { id: 'timed', label: 'Contre-la-montre', press: '[data-focus="timed"]' },
+            { id: 'survival', label: 'Survie', press: '[data-focus="survival"]' },
             { id: 'free', label: 'Mode libre', press: '[data-focus="free"]' }
         ],
         endgame: ENDGAME_CATEGORIES.map(c => ({

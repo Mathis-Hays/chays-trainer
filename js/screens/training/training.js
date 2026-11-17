@@ -39,6 +39,11 @@ const TRAIN_RECORD_KEY   = 'chessTrainer_timedRecord';      // record du contre-
 const TRAIN_SEQ_END      = 999;
 const TRAIN_TIMED_MS     = 3 * 60000;
 const TRAIN_TIMED_PENALTY_MS = 10000;                       // une erreur au contre-la-montre coûte 10 s
+// Survie (atelier « L'envie de revenir », lot 3) : trois vies, du plus sûr au plus fragile, jusqu'à la troisième erreur.
+const TRAIN_SURVIVAL_KEY   = 'chessTrainer_survivalRecord';  // record de la Survie (synchronisé : le plus grand l'emporte)
+const TRAIN_SURVIVAL_LIVES = 3;
+// Séances à score (bilan : score et record, pas d'anneau du premier coup).
+const _trScoreKind = k => k === 'timed' || k === 'survival';
 // Séances en bouchées (atelier « L'envie de revenir », lot 1, préférence trainBites) : une pause toutes les TRAIN_BITE
 // positions, « Encore 5 » pour continuer, Quitter pour garder le bilan ; pas de pause s'il en reste moins de TRAIN_BITE_MIN_LEFT.
 const TRAIN_BITE = 5;
@@ -173,7 +178,8 @@ function startSession(opts) {
         items: items.map(it => ({ color: it.color, key: it.key, res: null, second: false })),
         i: 0, cur: -1, results: new Map(), line: opts.line || null, colors: opts.colors || ['w', 'b'],
         started: Date.now(), end: opts.kind === 'timed' ? Date.now() + TRAIN_TIMED_MS : 0, score: 0,
-        keep: opts.keep || null      // bilan à retrouver en fin de séance (un cadre de la pellicule rejoué)
+        keep: opts.keep || null,     // bilan à retrouver en fin de séance (un cadre de la pellicule rejoué)
+        lives: opts.kind === 'survival' ? TRAIN_SURVIVAL_LIVES : 0
     };
     trainingState.mixed   = false;
     trainingState.ok      = 0;
@@ -229,6 +235,7 @@ function _nextSessionDrill() {
         if (!_startFullLine()) { setStatus('Aucune ligne enregistrée pour cette ouverture.', 'info'); _later(() => _endSession(), 1200); }
         return;
     }
+    if (S.kind === 'survival' && S.lives <= 0) { _endSession(); return; }
     if (_biteDue(S)) { _offerBite(S); return; }
     while (S.i < S.items.length) {
         const it = S.items[S.i];
@@ -242,7 +249,7 @@ function _nextSessionDrill() {
 
 // Fin d'une bouchée : TRAIN_BITE positions closes depuis le début (ou la dernière pause), et assez de suite derrière.
 function _biteDue(S) {
-    if (!appSettings.trainBites || S.kind === 'timed' || S.kind === 'line') return false;
+    if (!appSettings.trainBites || S.kind === 'timed' || S.kind === 'line' || S.kind === 'survival') return false;
     return S.i > 0 && S.i % TRAIN_BITE === 0 && S.biteAt !== S.i && S.items.length - S.i >= TRAIN_BITE_MIN_LEFT;
 }
 
@@ -266,7 +273,7 @@ function _sessionRecord(key, ok) {
         const e = openingDB[key];
         S.results.set(key, { key, color: playerColor, ok, lvBefore: trainingState.keyLv || (e ? _level(e) : 'unsure') });
         trainingState.combo = ok ? trainingState.combo + 1 : 0;
-        if (ok && S.kind === 'timed') S.score++;
+        if (ok && _trScoreKind(S.kind)) S.score++;
     }
     const it = S.items[S.cur];
     if (it && it.key === key && !it.res) it.res = ok ? 'ok' : 'ko';
@@ -278,6 +285,7 @@ function _sessionMistake(key) {
     const S = trainingState.session;
     if (!S) return;
     if (S.kind === 'timed') { S.end -= TRAIN_TIMED_PENALTY_MS; _renderSessionBar(); return; }
+    if (S.kind === 'survival') { S.lives = Math.max(0, S.lives - 1); _renderSessionBar(); return; }   // pas de second passage
     if (S.kind === 'line') return;
     const it = S.items[S.cur];
     if (it && it.key === key && !it.second && !S.items.some(x => x.second && x.key === key)) {
@@ -306,14 +314,21 @@ function _endSession(early, stay) {
         return { ...r, e, lvAfter: e ? _level(e) : r.lvBefore };
     }).filter(r => r.e);
     let record = 0, newRecord = false;
-    if (S.kind === 'timed') {
-        record = Number(dataStore.getJSON(TRAIN_RECORD_KEY, 0)) || 0;
-        if (S.score > record) { newRecord = record > 0 || S.score > 0; record = S.score; dataStore.setJSON(TRAIN_RECORD_KEY, record); }
+    if (_trScoreKind(S.kind)) {
+        const rk = S.kind === 'survival' ? TRAIN_SURVIVAL_KEY : TRAIN_RECORD_KEY;
+        record = Number(dataStore.getJSON(rk, 0)) || 0;
+        if (S.score > record) { newRecord = record > 0 || S.score > 0; record = S.score; dataStore.setJSON(rk, record); }
+    }
+    // Défi du jour : seul le premier essai du jour est gardé (Daily.save).
+    let daily = null;
+    if (S.kind === 'daily' && rows.length && typeof Daily !== 'undefined') {
+        Daily.save({ ok: rows[0].ok, key: rows[0].key, color: rows[0].color, rep: currentRepertoire });
+        daily = { ok: Daily.today().r === 1, streak: Daily.streak() };
     }
     const summary = {
         kind: S.kind, label: S.label, line: S.line, early: !!early, minutes: Math.max(1, Math.round((Date.now() - S.started) / 60000)),
         total: rows.length, ok: rows.filter(r => r.ok).length, rows, score: S.score, record, newRecord,
-        colors: S.colors, returnTab: S.returnTab
+        colors: S.colors, returnTab: S.returnTab, lives: S.lives
     };
     const keep = S.keep;
     // Le cadre rejoué garde sa trace dans la pellicule : réussi ou non, et son niveau d'après.
@@ -327,7 +342,9 @@ function _endSession(early, stay) {
     if (stay) return;
     if (early || !rows.length) { goHome(back); return; }
     playSound('end');
-    const msg = summary.kind === 'frame' ? (summary.ok ? 'Position retrouvée' : 'Pas encore : elle revient bientôt')
+    const msg = daily ? (daily.ok ? (daily.streak > 1 ? `Défi du jour réussi · ${daily.streak} jours d’affilée` : 'Défi du jour réussi') : 'Défi du jour manqué · un nouveau demain')
+        : summary.kind === 'survival' ? (summary.newRecord ? `Nouveau record de survie · ${summary.score}` : `Survie · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`)
+        : summary.kind === 'frame' ? (summary.ok ? 'Position retrouvée' : 'Pas encore : elle revient bientôt')
         : summary.kind === 'timed' ? `Temps écoulé · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`
         : `Séance terminée · ${summary.ok}/${summary.total} du premier coup`;
     setStatus(msg, 'ok', back === 'stats' ? 'Retour aux statistiques…' : 'Bilan de la séance…');
@@ -366,6 +383,13 @@ function _renderSessionBar() {
         const left = Math.max(0, S.end - Date.now()), s = Math.ceil(left / 1000);
         el.innerHTML = `<div class="tr-prog-bar tr-prog-time" role="img" aria-label="Temps restant"><i style="width:${(100 * left / TRAIN_TIMED_MS).toFixed(1)}%"></i></div>
             <div class="tr-prog-l"><span><b class="tr-prog-n">${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}</b> restantes</span><span><b class="tr-prog-n">${S.score}</b> bon${S.score > 1 ? 's' : ''} coup${S.score > 1 ? 's' : ''}</span></div>`;
+        return;
+    }
+    if (S.kind === 'survival') {
+        const hearts = Array.from({ length: TRAIN_SURVIVAL_LIVES }, (_, i) => `<i class="tr-life${i < S.lives ? ' on' : ''}" aria-hidden="true"></i>`).join('');
+        const rec = Number(dataStore.getJSON(TRAIN_SURVIVAL_KEY, 0)) || 0;
+        el.innerHTML = `<div class="tr-prog-l"><span class="tr-lives" role="img" aria-label="${S.lives} vie${S.lives > 1 ? 's' : ''} sur ${TRAIN_SURVIVAL_LIVES}">${hearts}</span>`
+            + `<span><b class="tr-prog-n">${S.score}</b> bon${S.score > 1 ? 's' : ''} coup${S.score > 1 ? 's' : ''}${rec ? ` · record ${rec}` : ''}</span></div>`;
         return;
     }
     if (S.kind === 'line') {
@@ -928,7 +952,9 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
         trainingState.keyErred = true;
         trainingState.drill.erred = true;
         const S = trainingState.session;
-        const told = !first ? '' : S && S.kind === 'timed' ? '−10 s. ' : second ? '' : 'Elle passe dans la file À revoir. ';
+        const told = !first ? '' : S && S.kind === 'timed' ? '−10 s. '
+            : S && S.kind === 'survival' ? (S.lives > 0 ? `Plus que ${S.lives} vie${S.lives > 1 ? 's' : ''}. ` : 'Troisième erreur : la survie s’arrête après cette position. ')
+            : second ? '' : 'Elle passe dans la file À revoir. ';
         _rejectMove(to, '✗ Pas le bon coup', `${told}Réessayez, ou appuyez sur Indice.`, from);
         noteMistake(key);
     } else {

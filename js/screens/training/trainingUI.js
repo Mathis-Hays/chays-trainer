@@ -153,7 +153,7 @@ function _trSummaryHTML(s, primary, next) {
     const up = s.rows.filter(r => rank(r.lvAfter) > rank(r.lvBefore)).length;
     const down = s.rows.filter(r => rank(r.lvAfter) < rank(r.lvBefore)).length;
     const engraved = s.rows.filter(r => r.lvAfter === 'mastered' && r.lvBefore !== 'mastered').length;
-    const timed = s.kind === 'timed';
+    const timed = _trScoreKind(s.kind);                 // contre-la-montre et Survie : score et record
     const pct = s.total ? Math.round(100 * s.ok / s.total) : 0;
     const title = timed ? (s.newRecord ? 'Nouveau record !' : `${s.score} bon${s.score > 1 ? 's' : ''} coup${s.score > 1 ? 's' : ''}`)
         : s.early ? 'Séance interrompue' : pct >= 80 ? 'Très bonne séance' : pct >= 60 ? 'Bonne séance' : 'Séance utile';
@@ -169,13 +169,13 @@ function _trSummaryHTML(s, primary, next) {
         down ? `<span class="vbadge is-warn">${ico('chevron-down')}${down} descendu${down > 1 ? 's' : ''}</span>` : ''
     ].join('');
     const nMiss = missed.length;
-    const acts = timed ? _trBtn(false, 'trainingEx', 'timed', 'Rejouer', 'rotate-ccw')
+    const acts = timed ? _trBtn(false, 'trainingEx', s.kind, 'Rejouer', 'rotate-ccw')
         : s.kind === 'line' ? _trBtn(false, 'trainingReplayLine', null, 'Rejouer la ligne', 'play') : '';
-    const ensuite = timed ? '' : _trNextHTML(_trNextItems(nMiss, next), primary);
+    const ensuite = s.kind === 'timed' ? '' : _trNextHTML(_trNextItems(nMiss, next), primary);
     // Pellicule (atelier « L'envie de revenir », lot 2) : une bande de mini-échiquiers, ratées d'abord, puis les niveaux
     // qui ont bougé ; sous chaque cadre le coup et le niveau avant → après. Toucher un cadre rejoue la position.
     const rows = s.rows.slice().sort((a, b) => (a.ok - b.ok) || (Math.abs(rank(b.lvAfter) - rank(b.lvBefore)) - Math.abs(rank(a.lvAfter) - rank(a.lvBefore))));
-    const film = timed ? '' : rows.slice(0, TRAIN_FILM_MAX).map(r => {
+    const film = s.kind === 'timed' ? '' : rows.slice(0, TRAIN_FILM_MAX).map(r => {
         const moved = r.lvAfter !== r.lvBefore, mv = _moveLabel(r.e, false, true);
         const board = typeof _miniBoardHTML === 'function' ? _miniBoardHTML({ side: r.color, path: r.e.path && r.e.path.length ? r.e.path : null, k: r.key }, false, { cls: 'trr-frame-b' }) : '';
         return `<li><button type="button" class="trr-frame ${r.ok ? 'is-ok' : 'is-ko'}" data-action="trainingFrame" data-arg="${escapeHtml(r.color + ':' + r.key)}"
@@ -328,6 +328,8 @@ function initTraining() {
     // ── Exercices ──
     const openings = _trOpenings();
     const record = Number(dataStore.getJSON(TRAIN_RECORD_KEY, 0)) || 0;
+    const survRecord = Number(dataStore.getJSON(TRAIN_SURVIVAL_KEY, 0)) || 0;
+    const survN = exRows.filter(r => r.e.attempts > 0).length;
     const freeOpts = [trainingSettings.fromStart ? 'début' : 'ciblée', trainingSettings.maxPlies ? `≤ ${trainingSettings.maxPlies}` : 'toutes',
                       trainingSettings.seqLen >= TRAIN_SEQ_END ? 'variante' : `${trainingSettings.seqLen} coup${trainingSettings.seqLen > 1 ? 's' : ''}`].join(' · ');
     const row = (kind, icon, lvl, title, n, small, opts = {}) => `
@@ -374,6 +376,7 @@ function initTraining() {
                 ${lineList}
                 ${row('unsure', 'check', 'unsure', 'À confirmer', Math.min(unsure, TRAIN_WEAK_MAX), '', { empty: 'Aucune position à confirmer' })}
                 ${row('timed', 'lightbulb', 'progress', 'Contre-la-montre', null, `3 min · ${record ? `record ${record}` : 'pas encore de record'}`)}
+                ${row('survival', 'shield-check', 'solid', 'Survie', null, `3 vies, du plus sûr au plus fragile · ${survRecord ? `record ${survRecord}` : 'pas encore de record'}`, survN ? {} : { empty: 'Aucune position déjà essayée' })}
                 ${row('free', 'shuffle', '', 'Mode libre', null, freeOpts, { expanded: freeOpen })}
                 ${freePanel}
                 ${cta}
@@ -406,6 +409,7 @@ function initTraining() {
         unsure: _trPreviewOf(sorted(exRows.filter(r => r.lv === 'unsure'), (a, b) => a.e.attempts - b.e.attempts)[0], 'À confirmer'),
         line:   firstLine ? { r: { side: firstLine.color, path: firstLine.path, k: null }, after: true, title: 'Ligne complète · ' + firstLine.name,
                               line: _movesLabel(firstLine.path, true), side: firstLine.color === 'w' ? 'Blancs' : 'Noirs' } : null,
+        survival: start('Survie · trois vies', `${seenOn ? 'Vues en partie' : 'Tout le répertoire'} · du plus sûr au plus fragile`),
         timed:  start('Contre-la-montre · positions au hasard', `${seenOn ? 'Vues en partie' : 'Tout le répertoire'} · 3 min`),
         free:   start('Mode libre', freeOpts)
     };
@@ -420,6 +424,11 @@ function initTraining() {
 
 // ─── LANCEMENT DES EXERCICES ──────────────────────────────────────────────────
 
+// Défi du jour (atelier « L'envie de revenir », lot 3) : la position tirée par Daily.pick, seule ; retour à Aujourd'hui.
+function startDailyChallenge(color, key) {
+    return startSession({ kind: 'daily', label: 'Défi du jour', items: [{ color, key }], returnTab: 'play' });
+}
+
 function startTrainingExercise(kind, limit) {
     const rows = _trRows(), now = Date.now(), items = (list, cmp = _trOrder) => list.sort(cmp).map(r => ({ color: r.color, key: r.key }));
     const prioFirst = (a, b) => (b.e.prio ? 1 : 0) - (a.e.prio ? 1 : 0)     // « Traitée depuis » jamais réussie, puis la file À revoir
@@ -427,6 +436,13 @@ function startTrainingExercise(kind, limit) {
     if (kind === 'line') { _trLineOpen = !_trLineOpen; initTraining(); return; }
     if (kind === 'free') { startTraining(_trColor); return; }
     if (kind === 'timed') { startSession({ kind: 'timed', label: 'Contre-la-montre', colors: _trSides() }); return; }
+    if (kind === 'survival') {
+        // Du plus sûr au plus fragile, un peu mélangé (±8 points de maîtrise) pour que deux parties ne se ressemblent pas.
+        const list = _trSeen(rows).filter(r => r.e.attempts > 0).map(r => ({ r, s: masteryOf(r.e) + (Math.random() - .5) * 16 }))
+            .sort((a, b) => b.s - a.s).map(x => ({ color: x.r.color, key: x.r.key }));
+        if (!startSession({ kind: 'survival', label: 'Survie', items: list })) initTraining();
+        return;
+    }
     const pick = {
         relearn: () => rows.filter(r => Number.isInteger(r.e.relearn) && isDue(r.e, now)),
         due:    () => { const plan = reviewPlan(currentRepertoire, now); return rows.filter(r => plan.today(r.color, r.key)); },

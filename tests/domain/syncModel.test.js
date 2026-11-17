@@ -208,4 +208,31 @@ t('record du contre-la-montre : synchronisé, le plus grand l\'emporte, symétri
     assert.strictEqual(SM.mergeRaw('chessTrainer_timedRecord', null, '9', '11'), '11');
 });
 
+t('record de la Survie : synchronisé, le plus grand l\'emporte', () => {
+    assert.strictEqual(S.kindOf('chessTrainer_survivalRecord'), 'record');
+    assert.strictEqual(S.merge('chessTrainer_survivalRecord', 3, 7, 12), 12);
+    assert.strictEqual(S.merge('chessTrainer_survivalRecord', 3, 12, 7), 12);
+});
+
+t('défi du jour : par jour, le premier essai l\'emporte, symétrique ; jours des deux côtés gardés', () => {
+    const K = 'chessTrainer_daily';
+    assert.strictEqual(S.kindOf(K), 'daily');
+    const l = { '2026-11-17': { r: 0, k: 'a', c: 'w', rep: 'G', at: 100 }, '2026-11-16': { r: 1, k: 'b', c: 'w', rep: 'G', at: 50 } };
+    const r = { '2026-11-17': { r: 1, k: 'a', c: 'w', rep: 'G', at: 200 }, '2026-11-15': { r: 1, k: 'c', c: 'b', rep: 'G', at: 10 } };
+    const x = S.merge(K, null, l, r), y = S.merge(K, null, r, l);
+    assert.deepStrictEqual(x, y);
+    assert.strictEqual(x['2026-11-17'].r, 0, 'le premier essai (raté) reste');
+    assert.deepStrictEqual(Object.keys(x).sort(), ['2026-11-15', '2026-11-16', '2026-11-17']);
+});
+
+t('étoiles des finales : la meilleure l\'emporte ; absentes, le champ n\'apparaît pas', () => {
+    const P = (stars) => Object.assign({ tries: 2, wins: 1, perfect: false, best: 9, last: 1 }, stars ? { stars } : {});
+    const x = S.merge('chessTrainer_endgames', { e: P(0) }, { e: P(2) }, { e: Object.assign(P(3), { tries: 3 }) });
+    const y = S.merge('chessTrainer_endgames', { e: P(0) }, { e: Object.assign(P(3), { tries: 3 }) }, { e: P(2) });
+    assert.deepStrictEqual(x, y);
+    assert.strictEqual(x.e.stars, 3);
+    const z = S.merge('chessTrainer_endgames', null, { e: P(0) }, { e: Object.assign(P(0), { wins: 2 }) });
+    assert(!('stars' in z.e));
+});
+
 console.log(`\n${n} tests réussis.`);

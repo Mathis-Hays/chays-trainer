@@ -535,7 +535,23 @@ const EG = (function () {
         return Infinity;
     }
 
+    // ─── Étoiles (atelier « L'envie de revenir », lot 3) ─────────────────────
+    // Une finale gagnée reçoit de 1 à 3 étoiles. par : coups du chemin le plus court (tables, base KPK), 0 s'il est inconnu.
+    //   par connu   : 3 = sans faute ni indice, au plus par + 15 % (1 coup au moins) ; 2 = sans faute ni indice, ou un seul
+    //                 écart en 1,5 × par au plus ; 1 sinon.
+    //   par inconnu : 3 = sans faute ni indice ; 2 = un seul écart ; 1 sinon.
+    function stars({ errors = 0, hints = 0, moves = 0, par = 0 } = {}) {
+        const slips = errors + hints;
+        if (par > 0) {
+            if (!slips && moves <= par + Math.max(1, Math.ceil(par * 0.15))) return 3;
+            return !slips || (slips <= 1 && moves <= par * 1.5) ? 2 : 1;
+        }
+        return !slips ? 3 : slips <= 1 ? 2 : 1;
+    }
+    const starsSlack = par => Math.max(1, Math.ceil(par * 0.15));
+
     return {
+        stars, starsSlack,
         P, N, B, R, Q, K, LETTER, MATE, forcesPromotion,
         pawnValue, pawnMoveValue, pawnMoveWinDepth, pawnMoveLossDepth, pawnCount,
         fromFen, fromGlobals, mFrom, mTo, mPromo, mk, promoLetter,

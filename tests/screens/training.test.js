@@ -143,4 +143,25 @@ t('séances en bouchées : pause toutes les 5 positions, « Encore N », pas de 
     assert.strictEqual(ctx._biteDue(S(9)), false, 'réglage coupé');
 });
 
+t('Survie : une erreur coûte une vie (pas de second passage) ; la troisième arrête la séance, record gardé', () => {
+    ctx.gameMode = 'training';
+    trainingState.lastSummary = null;
+    trainingState.session = {
+        kind: 'survival', label: 'Survie', returnTab: 'training', items: [{ color: 'w', key: 'kw', res: null }, { color: 'w', key: 'kw', res: null }],
+        i: 0, cur: 0, results: new Map(), line: null, colors: ['w'], started: Date.now(), end: 0, score: 4, lives: 3
+    };
+    const S = trainingState.session;
+    ctx._sessionMistake('kw');
+    assert.strictEqual(S.lives, 2);
+    assert.strictEqual(S.items.length, 2, 'aucune position remise en fin de séance');
+    ctx._sessionMistake('kw'); ctx._sessionMistake('kw');
+    assert.strictEqual(S.lives, 0);
+    S.results.set('kw', { key: 'kw', color: 'w', ok: false, lvBefore: 'weak' });
+    ctx._nextSessionDrill();
+    assert.strictEqual(trainingState.session, null, 'séance close à la troisième erreur');
+    assert.strictEqual(trainingState.lastSummary.kind, 'survival');
+    assert.strictEqual(store.chessTrainer_survivalRecord, 4, 'record écrit (synchronisé)');
+    assert.strictEqual(ctx._biteDue({ kind: 'survival', i: 5, items: new Array(20) }), false, 'pas de bouchées en Survie');
+});
+
 console.log(`\n${n} tests réussis.`);
