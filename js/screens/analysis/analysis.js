@@ -112,6 +112,7 @@ function openAnalysis(path, displayPly, back) {
 
 // Arrêt du calcul (sortie par le logo ou un onglet : le brouillon reste dans la session).
 function stopAnalysis() {
+    if (typeof WhatIf !== 'undefined') WhatIf.stop();       // « Et si » (lot 6) : le moteur bridé s'arrête avec l'Analyse
     _anScreenClass(false);
     clearTimeout(analysis.wait);
     if (analysis.job) analysis.job.stop();
@@ -157,6 +158,7 @@ function analysisMove(from, to, promo) {
     analysis.resumed = false;
     _anSaveDraft();
     analysisPositionChanged();
+    if (typeof WhatIf !== 'undefined') WhatIf.afterMove();   // « Et si » : au tour du moteur, il répond
 }
 
 function analysisGo(arg) {
@@ -290,6 +292,7 @@ function _anCloud(fen) {
 // Lignes affichées : celles de Lichess tant que le moteur local calcule sans avoir atteint leur profondeur
 // (ou sa propre limite) ; ensuite, ou dès qu'il a fini, celles du moteur local.
 function _anShownLines() {
+    if (typeof WhatIf !== 'undefined' && WhatIf.active()) return { lines: [], cloud: false };   // « Et si » : pas d'évaluation pendant la partie
     const local = analysis.lines, cloud = analysis.cloud;
     if (!cloud || !cloud.length) return { lines: local, cloud: false };
     if (!local.length) return { lines: cloud, cloud: true };
@@ -347,7 +350,8 @@ function renderAnalysisPanel() {
         _anFocusConflict(box);
         return;
     }
-    box.innerHTML = `<div class="ab-card ab-engine" id="an-engine"></div>${_anDraftHTML()}`;
+    const wi = typeof WhatIf !== 'undefined' && WhatIf.active();
+    box.innerHTML = `${wi ? WhatIf.cardHTML() : '<div class="ab-card ab-engine" id="an-engine"></div>'}${_anDraftHTML()}`;
     _anPaintEngine();
     _anRevealInPanel(box.querySelector('.ab-mv.is-cur'));
 }
@@ -758,6 +762,7 @@ document.addEventListener('visibilitychange', () => {
 
 GameModes.register('analysis', {
     playsBothSides: true,
+    inputBlocked: () => typeof WhatIf !== 'undefined' && WhatIf.thinking(),   // « Et si » : le moteur joue
     onMove: (from, to, promo) => analysisMove(from, to, promo),      // brouillon : rien n'est vérifié ni enregistré
     onNavigate: () => analysisPositionChanged(),
     engineArrows: () => analysisArrowList()

@@ -1338,6 +1338,17 @@ Annulation impossible ici
 Un coup a été remplacé : restaurez-le depuis la corbeille.
 Ajout annulé
 Le répertoire est revenu à son état précédent ; le brouillon est conservé.
+Et si…
+Vous jouez le coup du répertoire ; le moteur répond à ~{0} Elo.
+Partie terminée
+Le moteur ne répond pas
+Le moteur réfléchit…
+À vous de jouer
+demi-coup joué
+demi-coups joués
+· {0} depuis votre partie
+<b>Contre le moteur bridé à ~{0} Elo</b>
+{3}Revoir avec le moteur
 Mater
 Gagner
 {0} essai{1}
@@ -2238,6 +2249,7 @@ Par famille d'ouverture
 </i>Nulles
 </i>Pertes
 Selon la couleur et l'adversaire
+Et si vous aviez joué {2} ? Rejouer contre le moteur
 Mettre à jour
 Chargement…
 Récupération des parties… {0}
@@ -2524,8 +2536,32 @@ Nom ou coups : Najdorf, Cf3…
 Chercher une ouverture
 L’idée de la ligne · {0}
 ex : pousser c5 et attaquer d4
+à votre niveau sur Lichess
+une branche de votre répertoire
+Adversaire du club
+Il ouvre la partie…
+joué {0} % du temps {1}
+{0} · à vous de jouer
+{0} : {1}, et vous n’avez pas de réponse ici.
+Fin de votre préparation
+Plus aucun coup adverse connu ici.
+La partie s’arrête ici. Votre coup du répertoire : {0}.
+à ~{0} Elo
+à votre niveau
+Coups des joueurs de Lichess {0}
+Coups de vos adversaires réels
+Branches de votre répertoire
+Arrêtée sur une erreur
+Partie interrompue
+{0} · {1}, sans réponse
+{2}Ajouter une réponse
+coup trouvé
+coups trouvés
+· Paramètres › Jeu : jeton Lichess pour jouer contre les coups de Lichess
+<b>{1} du premier coup</b>
 Aucune position {0} à réviser dans ce répertoire.
 Aucune ligne enregistrée pour cette ouverture.
+Aucune réponse enregistrée au premier coup.
 Bouchée {0} faite · {1} sur {2}
 Encore {0} ? Environ {1} min. Quitter garde le bilan.
 Encore {0}
@@ -2538,6 +2574,7 @@ Nouveau record de survie · {0}
 Survie · {0} bon{1} coup{2}
 Position retrouvée
 Pas encore : elle revient bientôt
+Adversaire du club · {0} coup{1} trouvé{2}
 Temps écoulé · {0} bon{1} coup{2}
 Séance terminée · {0}/{1} du premier coup
 Retour aux statistiques…
@@ -2548,6 +2585,8 @@ Temps restant
 {0} vie{1} sur {2}
 · record {0}
 {0}</b> bon{1} coup{2}{3}
+· ~{0} Elo
+Adversaire du club{0}
 Ligne complète · <b>{0}</b>
 {1}</b> {2} · {3} du premier coup
 ×{0} sans faute</b> ·
@@ -2701,6 +2740,10 @@ pas encore de record
 Survie
 3 vies, du plus sûr au plus fragile · {0}
 Aucune position déjà essayée
+les coups joués sur Lichess{0}
+les coups de vos adversaires réels
+{0} · {1}, jusqu’à la sortie du répertoire
+Aucune réponse au premier coup
 {0} à confirmer
 {0} position{1}
 La plus en retard
@@ -2712,6 +2755,7 @@ Tout le répertoire
 {0} · du plus sûr au plus fragile
 Contre-la-montre · positions au hasard
 {0} · 3 min
+Jusqu’à la sortie du répertoire
 Défi du jour
 Préparation…
 Erreurs à revoir

@@ -1393,3 +1393,18 @@ button.so-x-row:focus-visible, .so-x-mv:focus-visible, .so-x-add:focus-visible {
 @media (prefers-reduced-motion: no-preference) {
     html:not([data-motion="reduced"]) .md-won .md-coin { animation: op-stamp var(--dur-3) var(--ease-out) both .2s; }
 }
+
+/* ─── « Et si » et Adversaire du club (atelier « L'envie de revenir », lot 6) ─── */
+.sg-whatif { display: flex; align-items: center; gap: 8px; width: 100%; margin: -2px 0 6px; padding: 6px 10px 6px 12px; border: 0; border-left: 2px solid var(--brand-brass);
+    background: none; color: var(--brand-brass-deep); font: inherit; font-size: 12.5px; font-weight: 600; text-align: left; cursor: pointer; }
+[data-theme="dark"] .sg-whatif { color: var(--brand-brass); }
+.sg-whatif .ico { width: 13px; height: 13px; fill: none; flex: none; }
+@media (hover: hover) { .sg-whatif:hover { background: color-mix(in srgb, var(--brand-brass) 8%, transparent); } }
+.wi-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; border-color: color-mix(in srgb, var(--brand-brass) 45%, var(--border));
+    background: color-mix(in srgb, var(--brand-brass) 7%, var(--surface)); }
+.wi-card small { color: var(--text-muted); }
+.wi-card .btn { margin-top: 6px; }
+.trr-club { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--border); }
+.trr-club small { color: var(--text-muted); font-size: 12px; }
+.trr-club-exit { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 6px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 13px; }
+.trr-club-exit span { flex: 1 1 200px; color: var(--lv-fragile-ink); font-weight: 600; }

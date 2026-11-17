@@ -150,6 +150,17 @@ function _trPromosHTML(s) {
         <span><span class="st-eyebrow">Promotion · ${p.side === 'w' ? 'Blancs' : 'Noirs'}</span><b>${escapeHtml(p.name)}</b><small>${OpeningMarks.RANKS[p.from]} → ${OpeningMarks.RANKS[p.to]}</small></span></div>`).join('')}</div>`;
 }
 
+// Adversaire du club (lot 6) : la couleur filtrée, sinon celle qui a le plus de positions ; il faut une réponse au départ
+// (Blancs : mon premier coup ; Noirs : au moins une réponse à un premier coup blanc).
+function _trClubColor() {
+    const ok = c => { const db = readDBFor(currentRepertoire, c); return Object.values(db).some(e => e.path && e.path.length === (c === 'w' ? 1 : 2)); };
+    const n = c => Object.keys(readDBFor(currentRepertoire, c)).length;
+    const order = _trSides().length === 1 ? _trSides() : ['w', 'b'].sort((a, b) => n(b) - n(a));
+    return order.find(ok) || null;
+}
+
+const _trBackToTraining = () => goHome('training');     // Adversaire du club : Quitter l'Analyse revient au bilan
+
 const TRAIN_FILM_MAX = 20;
 function _trSummaryHTML(s, primary, next) {
     if (!s) return '';
@@ -178,7 +189,8 @@ function _trSummaryHTML(s, primary, next) {
     ].join('');
     const nMiss = missed.length;
     const acts = timed ? _trBtn(false, 'trainingEx', s.kind, 'Rejouer', 'rotate-ccw')
-        : s.kind === 'line' ? _trBtn(false, 'trainingReplayLine', null, 'Rejouer la ligne', 'play') : '';
+        : s.kind === 'line' ? _trBtn(false, 'trainingReplayLine', null, 'Rejouer la ligne', 'play')
+        : s.kind === 'club' ? _trBtn(false, 'trainingEx', 'club', 'Rejouer', 'rotate-ccw') : '';
     const ensuite = s.kind === 'timed' ? '' : _trNextHTML(_trNextItems(nMiss, next), primary);
     // Pellicule (atelier « L'envie de revenir », lot 2) : une bande de mini-échiquiers, ratées d'abord, puis les niveaux
     // qui ont bougé ; sous chaque cadre le coup et le niveau avant → après. Toucher un cadre rejoue la position.
@@ -202,7 +214,7 @@ function _trSummaryHTML(s, primary, next) {
                 <button type="button" class="icon-btn trr-close" data-action="trainingCloseSummary" aria-label="Fermer le bilan" title="Fermer le bilan">${ico('x')}</button>
             </div>
             ${badges ? `<div class="trr-badges">${badges}</div>` : ''}
-            ${_trPromosHTML(s)}${typeof _medalsWonHTML === 'function' ? _medalsWonHTML(s.medals) : ''}
+            ${s.kind === 'club' && typeof ClubMatch !== 'undefined' ? ClubMatch.summaryHTML(s) : ''}${_trPromosHTML(s)}${typeof _medalsWonHTML === 'function' ? _medalsWonHTML(s.medals) : ''}
             ${acts ? `<div class="trr-acts">${acts}</div>` : ''}
             ${ensuite}
             ${film ? `<div class="trr-film-wrap"><span class="st-eyebrow">La séance en images<small>Toucher une position pour la rejouer</small></span><ul class="trr-film" role="list">${film}</ul></div>` : ''}
@@ -339,6 +351,7 @@ function initTraining() {
     const record = Number(dataStore.getJSON(TRAIN_RECORD_KEY, 0)) || 0;
     const survRecord = Number(dataStore.getJSON(TRAIN_SURVIVAL_KEY, 0)) || 0;
     const survN = exRows.filter(r => r.e.attempts > 0).length;
+    const clubColor = _trClubColor(), clubElo = typeof ClubMatch !== 'undefined' ? ClubMatch.elo() : null;
     const freeOpts = [trainingSettings.fromStart ? 'début' : 'ciblée', trainingSettings.maxPlies ? `≤ ${trainingSettings.maxPlies}` : 'toutes',
                       trainingSettings.seqLen >= TRAIN_SEQ_END ? 'variante' : `${trainingSettings.seqLen} coup${trainingSettings.seqLen > 1 ? 's' : ''}`].join(' · ');
     const row = (kind, icon, lvl, title, n, small, opts = {}) => `
@@ -386,6 +399,7 @@ function initTraining() {
                 ${row('unsure', 'check', 'unsure', 'À confirmer', Math.min(unsure, TRAIN_WEAK_MAX), '', { empty: 'Aucune position à confirmer' })}
                 ${row('timed', 'lightbulb', 'progress', 'Contre-la-montre', null, `3 min · ${record ? `record ${record}` : 'pas encore de record'}`)}
                 ${row('survival', 'shield-check', 'solid', 'Survie', null, `3 vies, du plus sûr au plus fragile · ${survRecord ? `record ${survRecord}` : 'pas encore de record'}`, survN ? {} : { empty: 'Aucune position déjà essayée' })}
+                ${row('club', 'swords', '', 'Adversaire du club', null, `${clubColor === 'w' ? 'Blancs' : 'Noirs'} · ${typeof ClubMatch !== 'undefined' && ClubMatch.hasToken() ? (clubElo ? `Coups joués sur Lichess à ~${clubElo}` : 'Coups joués sur Lichess') : 'Coups de vos adversaires réels'} · Jusqu’à la sortie du répertoire`, clubColor ? {} : { empty: 'Aucune réponse au premier coup' })}
                 ${row('free', 'shuffle', '', 'Mode libre', null, freeOpts, { expanded: freeOpen })}
                 ${freePanel}
                 ${cta}
@@ -420,6 +434,7 @@ function initTraining() {
                               line: _movesLabel(firstLine.path, true), side: firstLine.color === 'w' ? 'Blancs' : 'Noirs' } : null,
         survival: start('Survie · trois vies', `${seenOn ? 'Vues en partie' : 'Tout le répertoire'} · du plus sûr au plus fragile`),
         timed:  start('Contre-la-montre · positions au hasard', `${seenOn ? 'Vues en partie' : 'Tout le répertoire'} · 3 min`),
+        club:   clubColor ? { r: { side: clubColor, path: null, k: INIT_FEN }, after: true, title: 'Adversaire du club', line: escapeHtml('Jusqu’à la sortie du répertoire'), side: clubColor === 'w' ? 'Blancs' : 'Noirs' } : null,
         free:   start('Mode libre', freeOpts)
     };
     const shown = [primary, 'due', 'weak', 'line'].find(k => k && _trPreviews[k]) || 'timed';
@@ -444,6 +459,7 @@ function startTrainingExercise(kind, limit) {
         || (Number.isInteger(b.e.relearn) ? 1 : 0) - (Number.isInteger(a.e.relearn) ? 1 : 0) || _trOrder(a, b);
     if (kind === 'line') { _trLineOpen = !_trLineOpen; initTraining(); return; }
     if (kind === 'free') { startTraining(_trColor); return; }
+    if (kind === 'club') { const c = _trClubColor(); if (!c || !ClubMatch.start(c)) initTraining(); return; }
     if (kind === 'timed') { startSession({ kind: 'timed', label: 'Contre-la-montre', colors: _trSides() }); return; }
     if (kind === 'survival') {
         // Du plus sûr au plus fragile, un peu mélangé (±8 points de maîtrise) pour que deux parties ne se ressemblent pas.

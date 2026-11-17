@@ -172,7 +172,7 @@ function startTraining(color) {
 function startSession(opts) {
     _clearSession();
     const items = (opts.items || []).filter(it => readDBFor(currentRepertoire, it.color)[it.key]);
-    if (opts.kind !== 'timed' && opts.kind !== 'line' && !items.length) return false;
+    if (opts.kind !== 'timed' && opts.kind !== 'line' && opts.kind !== 'club' && !items.length) return false;
     const S = trainingState.session = {
         kind: opts.kind, label: opts.label, returnTab: opts.returnTab || 'training',
         items: items.map(it => ({ color: it.color, key: it.key, res: null, second: false })),
@@ -186,7 +186,7 @@ function startSession(opts) {
     trainingState.lastKey = null;
     trainingState.combo   = 0;
     gameMode = 'training';
-    playerColor = S.kind === 'line' ? S.line.color : S.kind === 'timed' ? (_pickTrainingColor(S.colors) || 'w') : S.items[0].color;
+    playerColor = S.kind === 'line' || S.kind === 'club' ? S.line.color : S.kind === 'timed' ? (_pickTrainingColor(S.colors) || 'w') : S.items[0].color;
     loadDB();
     showGameScreen(playerColor);
     if (S.kind === 'timed') trainingState.tick = setInterval(_timedTick, 250);
@@ -235,6 +235,13 @@ function _nextSessionDrill() {
         if (!_startFullLine()) { setStatus('Aucune ligne enregistrée pour cette ouverture.', 'info'); _later(() => _endSession(), 1200); }
         return;
     }
+    if (S.kind === 'club') {                          // Adversaire du club (lot 6) : une partie, clubMatch.js
+        if (S.i > 0) { _endSession(); return; }
+        S.cur = 0;
+        S.items = [];
+        if (!ClubMatch.begin()) { setStatus('Aucune réponse enregistrée au premier coup.', 'info'); _later(() => _endSession(), 1200); }
+        return;
+    }
     if (S.kind === 'survival' && S.lives <= 0) { _endSession(); return; }
     if (_biteDue(S)) { _offerBite(S); return; }
     while (S.i < S.items.length) {
@@ -249,7 +256,7 @@ function _nextSessionDrill() {
 
 // Fin d'une bouchée : TRAIN_BITE positions closes depuis le début (ou la dernière pause), et assez de suite derrière.
 function _biteDue(S) {
-    if (!appSettings.trainBites || S.kind === 'timed' || S.kind === 'line' || S.kind === 'survival') return false;
+    if (!appSettings.trainBites || S.kind === 'timed' || S.kind === 'line' || S.kind === 'club' || S.kind === 'survival') return false;
     return S.i > 0 && S.i % TRAIN_BITE === 0 && S.biteAt !== S.i && S.items.length - S.i >= TRAIN_BITE_MIN_LEFT;
 }
 
@@ -277,7 +284,7 @@ function _sessionRecord(key, ok) {
     }
     const it = S.items[S.cur];
     if (it && it.key === key && !it.res) it.res = ok ? 'ok' : 'ko';
-    if (S.kind === 'line' && !S.items.some(x => x.key === key)) S.items.push({ color: playerColor, key, res: ok ? 'ok' : 'ko' });
+    if ((S.kind === 'line' || S.kind === 'club') && !S.items.some(x => x.key === key)) S.items.push({ color: playerColor, key, res: ok ? 'ok' : 'ko' });
 }
 
 // Première erreur sur une position de la liste : elle revient une fois en fin de séance.
@@ -286,7 +293,7 @@ function _sessionMistake(key) {
     if (!S) return;
     if (S.kind === 'timed') { S.end -= TRAIN_TIMED_PENALTY_MS; _renderSessionBar(); return; }
     if (S.kind === 'survival') { S.lives = Math.max(0, S.lives - 1); _renderSessionBar(); return; }   // pas de second passage
-    if (S.kind === 'line') return;
+    if (S.kind === 'line' || S.kind === 'club') return;
     const it = S.items[S.cur];
     if (it && it.key === key && !it.second && !S.items.some(x => x.second && x.key === key)) {
         S.items.push({ color: it.color, key, res: null, second: true });
@@ -328,7 +335,7 @@ function _endSession(early, stay) {
     const summary = {
         kind: S.kind, label: S.label, line: S.line, early: !!early, minutes: Math.max(1, Math.round((Date.now() - S.started) / 60000)),
         total: rows.length, ok: rows.filter(r => r.ok).length, rows, score: S.score, record, newRecord,
-        colors: S.colors, returnTab: S.returnTab, lives: S.lives, promos: _rankPromos()
+        colors: S.colors, returnTab: S.returnTab, lives: S.lives, promos: _rankPromos(), club: S.club || null
     };
     // Médailles (atelier « L'envie de revenir », lot 5) : après les rangs, pour que « Compagnon » ou « Maître » comptent déjà.
     summary.medals = typeof Medals !== 'undefined' ? Medals.check({ summary }) : [];
@@ -350,6 +357,7 @@ function _endSession(early, stay) {
     const msg = promo ? `Promotion · ${OpeningMarks.RANKS[promo.to]} · ${promo.name}` : daily ? (daily.ok ? (daily.streak > 1 ? `Défi du jour réussi · ${daily.streak} jours d’affilée` : 'Défi du jour réussi') : 'Défi du jour manqué · un nouveau demain')
         : summary.kind === 'survival' ? (summary.newRecord ? `Nouveau record de survie · ${summary.score}` : `Survie · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`)
         : summary.kind === 'frame' ? (summary.ok ? 'Position retrouvée' : 'Pas encore : elle revient bientôt')
+        : summary.kind === 'club' ? `Adversaire du club · ${summary.ok} coup${summary.ok > 1 ? 's' : ''} trouvé${summary.ok > 1 ? 's' : ''}`
         : summary.kind === 'timed' ? `Temps écoulé · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`
         : `Séance terminée · ${summary.ok}/${summary.total} du premier coup`;
     setStatus(msg, 'ok', back === 'stats' ? 'Retour aux statistiques…' : 'Bilan de la séance…');
@@ -395,6 +403,11 @@ function _renderSessionBar() {
         const rec = Number(dataStore.getJSON(TRAIN_SURVIVAL_KEY, 0)) || 0;
         el.innerHTML = `<div class="tr-prog-l"><span class="tr-lives" role="img" aria-label="${S.lives} vie${S.lives > 1 ? 's' : ''} sur ${TRAIN_SURVIVAL_LIVES}">${hearts}</span>`
             + `<span><b class="tr-prog-n">${S.score}</b> bon${S.score > 1 ? 's' : ''} coup${S.score > 1 ? 's' : ''}${rec ? ` · record ${rec}` : ''}</span></div>`;
+        return;
+    }
+    if (S.kind === 'club') {
+        const elo = S.club && S.club.elo;
+        el.innerHTML = `<div class="tr-prog-l"><span>Adversaire du club${elo ? ` · ~${elo} Elo` : ''}</span><span><b class="tr-prog-n">${okFirst}</b> ${okFirst > 1 ? 'coups trouvés' : 'coup trouvé'}</span></div>`;
         return;
     }
     if (S.kind === 'line') {
@@ -877,6 +890,7 @@ function _continueSequence() {
     const s = trainingState.seq;
     if (s.done < s.len) {
         const line = moveHistory.map(m => moveToStr(m.from, m.to, m.promo));
+        if (trainingState.session && trainingState.session.kind === 'club') { ClubMatch.next(line); return; }
         const opp  = _pickOppContinuation(line);
         if (opp) { _playOpponentReply(opp); return; }
         if (s.len > 1) setStatus('✓ Fin de la variante.', 'ok');
@@ -977,6 +991,12 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
         trainingState.keyErred = true;
         trainingState.drill.erred = true;
         const S = trainingState.session;
+        if (S && S.kind === 'club') {                 // Adversaire du club : la première erreur arrête la partie
+            _rejectMove(to, '✗ Pas le bon coup', ClubMatch.stopText(entry), from);
+            noteMistake(key);
+            ClubMatch.finish('mistake');
+            return;
+        }
         const told = !first ? '' : S && S.kind === 'timed' ? '−10 s. '
             : S && S.kind === 'survival' ? (S.lives > 0 ? `Plus que ${S.lives} vie${S.lives > 1 ? 's' : ''}. ` : 'Troisième erreur : la survie s’arrête après cette position. ')
             : second ? '' : 'Elle passe dans la file À revoir. ';

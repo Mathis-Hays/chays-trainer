@@ -160,9 +160,19 @@ const StatsGames = (function () {
             <div class="sg-tiles">${tile('Répertoire suivi', kept)}${tile('Vous êtes sorti du répertoire', left)}</div>
             <div class="sg-head"><h4>Par famille d'ouverture</h4><span class="sg-leg"><i class="sg-w"></i>Gains <i class="sg-d"></i>Nulles <i class="sg-l"></i>Pertes</span></div>
             ${openings.map(([k, list]) => wdl(k, GameArchive.tally(list))).join('')}
-            ${st.costs.length ? `<div class="sg-head"><h4>Ce qui vous coûte le plus</h4></div>${st.costs.map((c, i) => `<button type="button" class="sg-cost" data-action="statsGameLine" data-arg="${i}"><span><b>${c.family ? escapeHtml(c.family) : 'Autres positions'}</b><small>${_movesLabel(c.path.slice(-6), true) || ''}</small><small>${c.by === 'me' ? 'Votre coup sort du répertoire' : 'Réponse manquante'} · ${_plural(c.t.n, 'partie')} · ${pct(c.t.score)}</small></span>${ico('chevron-right')}</button>`).join('')}` : ''}
+            ${st.costs.length ? `<div class="sg-head"><h4>Ce qui vous coûte le plus</h4></div>${st.costs.map((c, i) => `<button type="button" class="sg-cost" data-action="statsGameLine" data-arg="${i}"><span><b>${c.family ? escapeHtml(c.family) : 'Autres positions'}</b><small>${_movesLabel(c.path.slice(-6), true) || ''}</small><small>${c.by === 'me' ? 'Votre coup sort du répertoire' : 'Réponse manquante'} · ${_plural(c.t.n, 'partie')} · ${pct(c.t.score)}</small></span>${ico('chevron-right')}</button>${whatIfHTML(c, i)}`).join('')}` : ''}
             <div class="sg-head"><h4>Selon la couleur et l'adversaire</h4></div>
             <div class="sg-tiles">${tile('Blancs', color('w'))}${tile('Noirs', color('b'))}${tile('Adversaire +50 Elo ou plus', gap(d => d > 50))}${tile('Adversaire −50 Elo ou moins', gap(d => d < -50))}</div>`;
+    }
+
+    // « Et si » (atelier « L'envie de revenir », lot 6) : seulement quand c'est mon coup qui a quitté le répertoire.
+    function rightMove(c) {
+        if (c.by !== 'me') return null;
+        try { return readDBFor(currentRepertoire, c.color)[Chess.key(Chess.replay(c.path))] || null; } catch (e) { return null; }
+    }
+    function whatIfHTML(c, i) {
+        const e = rightMove(c);
+        return e ? `<button type="button" class="sg-whatif" data-action="statsWhatIf" data-arg="${i}">${ico('play')}<span>Et si vous aviez joué ${formatSan(e.san, c.color)} ? Rejouer contre le moteur</span></button>` : '';
     }
 
     function content() {
@@ -208,6 +218,12 @@ const StatsGames = (function () {
         statsGamesSave: save,
         statsGamesSync: sync,
         statsGamesBackfill: backfill,
+        statsWhatIf: i => {
+            const c = st.costs && st.costs[Number(i)], e = c && rightMove(c);
+            if (!e) return;
+            const lvl = GameArchive.level();
+            WhatIf.start({ path: c.path.concat(e.move), color: c.color, elo: lvl ? lvl.r : 1500, back: statsBackToProgress });
+        },
         statsGameLine: i => { const c = st.costs && st.costs[Number(i)]; if (c) statsOpenLine(c.color, c.path); }
     });
     document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target && e.target.id === 'sg-user') save(); });

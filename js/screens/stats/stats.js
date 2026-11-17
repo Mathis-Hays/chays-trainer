@@ -599,6 +599,7 @@ function setStatsColor(c) {
 // Onglet Ouvertures : la puce du répertoire et le retour depuis l'Analyse passent par ici (liens déjà tolérés vers la coquille).
 const statsRepHTML = () => repertoireDropdownHTML('statsRep');
 const statsBackToOpenings = () => goHome('openings');
+const statsBackToProgress = () => goHome('stats');       // « Et si » (lot 6) : Quitter revient à Progrès
 
 // Progrès et Ouvertures partagent couleur, filtre de niveau et filtres des parties : les deux suivent.
 function statsRerender() {
