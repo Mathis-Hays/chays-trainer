@@ -564,7 +564,7 @@ function renderEndgameCard() {
         const goal3 = st >= 3 ? 'Trois étoiles.' : s.par ? `Troisième étoile : sans faute ni indice, en ${s.par + EG.starsSlack(s.par)} coups au plus (le plus court : ${s.par}).`
             : 'Troisième étoile : sans faute ni indice.';
         body = `<div class="eg-win">${_egStarsHTML(st, 'is-big')}<div><b>Exercice réussi${gain}</b><span>${escapeHtml(s.over)}</span></div></div>
-            <p class="eg-star-goal">${escapeHtml(goal3)}</p>
+            <p class="eg-star-goal">${escapeHtml(goal3)}</p>${typeof _medalsWonHTML === 'function' ? _medalsWonHTML(s.medals) : ''}
             <div class="eg-kpis"><div><b>${s.moves}</b><small>coup${s.moves > 1 ? 's' : ''}</small></div><div><b>${s.errors}</b><small>erreur${s.errors > 1 ? 's' : ''}</small></div><div><b>${s.hints}</b><small>indice${s.hints > 1 ? 's' : ''}</small></div></div>
             ${_egTheoryHTML(s, ex)}
             <div class="eg-nextup">${_egMini(nx, 'eg-pos')}<div><small>Suivant</small><b>${escapeHtml(nx.title)}</b></div></div>
@@ -892,6 +892,7 @@ function _egFinish(msg) {
         if (!p.best || s.moves < p.best) p.best = s.moves;
         if (s.stars > (p.stars || 0)) p.stars = s.stars;                    // la meilleure reste
     });
+    s.medals = typeof Medals !== 'undefined' ? Medals.check() : [];      // Lucena, Philidor, étoiles, toutes les finales (lot 5)
     renderEndgameCard();
     setStatus(`✓ ${msg}`, 'ok');
 }

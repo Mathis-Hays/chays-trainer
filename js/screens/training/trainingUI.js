@@ -202,7 +202,7 @@ function _trSummaryHTML(s, primary, next) {
                 <button type="button" class="icon-btn trr-close" data-action="trainingCloseSummary" aria-label="Fermer le bilan" title="Fermer le bilan">${ico('x')}</button>
             </div>
             ${badges ? `<div class="trr-badges">${badges}</div>` : ''}
-            ${_trPromosHTML(s)}
+            ${_trPromosHTML(s)}${typeof _medalsWonHTML === 'function' ? _medalsWonHTML(s.medals) : ''}
             ${acts ? `<div class="trr-acts">${acts}</div>` : ''}
             ${ensuite}
             ${film ? `<div class="trr-film-wrap"><span class="st-eyebrow">La séance en images<small>Toucher une position pour la rejouer</small></span><ul class="trr-film" role="list">${film}</ul></div>` : ''}

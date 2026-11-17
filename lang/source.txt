@@ -521,9 +521,53 @@ aucune erreur, moins de {0} essais
 Maîtrisées
 Maîtrisée
 aucune erreur en {0} essais ou plus, ou solide et réussie plusieurs révisions d'affilée
-Apprenti
+Maîtrise
+Rangs d’ouverture
+Régularité
+Exercices
+Finales
+Première gravure
+Une position maîtrisée
+Vingt-cinq
+25 positions maîtrisées
+La centaine
+100 positions maîtrisées
+Bibliothèque
+250 positions maîtrisées
+D’un trait
+Une ligne complète sans faute
+II
 Compagnon
+Une ouverture au rang de Compagnon
+III
 Maître
+Une ouverture au rang de Maître
+Trois maîtrises
+Trois ouvertures au rang de Maître
+Une semaine
+7 jours d’affilée
+Un mois
+30 jours d’affilée
+Cent jours
+100 jours d’affilée
+Mille révisions
+1 000 positions révisées
+Sans faute
+Une séance de 10 positions, toutes du premier coup
+Défis relevés
+7 défis du jour réussis d’affilée
+Survivant
+20 bons coups en Survie
+Contre la montre
+Le pont
+La position de Lucena gagnée
+Le rempart
+La défense Philidor tenue
+Constellation
+30 étoiles en finales
+Toutes les finales
+Chaque finale réussie au moins une fois
+Apprenti
 maîtrise {0} ({1} pour l’instant)
 au plus {0} positions fragiles
 au plus une position fragile
@@ -909,6 +953,12 @@ Supprimer définitivement cet élément ? Cette action est irréversible.
 s seront supprimés
 sera supprimé
 Vider la corbeille ? {0} élément{1} définitivement.
+Semaine au repos : tout reprend quand vous voulez.
+{0} positions de plus sont sues.
+Plus active que la semaine d’avant.
+Presque tout du premier coup.
+Une semaine régulière : {0} jours actifs.
+Chaque séance compte : la suivante consolide celle-ci.
 Plume
 Contour
 Ombrée
@@ -1370,12 +1420,12 @@ Trois étoiles.
 Troisième étoile : sans faute ni indice, en {0} coups au plus (le plus court : {1}).
 Troisième étoile : sans faute ni indice.
 <b>Exercice réussi{1}</b>
-coup{5}
-erreur{7}
-indice{9}
+coup{6}
+erreur{8}
+indice{0}
 Suivant
-{3} Suivant
-{4} Rejouer
+{4} Suivant
+{5} Rejouer
 {1}avec les {2}
 {0} Annuler ce coup
 {5} Recommencer
@@ -1525,7 +1575,6 @@ Impossible de joindre le site.
 Aujourd’hui
 Entraînement
 Progrès
-Finales
 Analyser mes parties
 Importer
 la présentation
@@ -2107,12 +2156,29 @@ Score <em>{0}</em> face à l'attendu
 games|bilan
 Voir le bilan
 st-todo n-{0}
+class="zero"
+Votre semaine
+La semaine dernière
+Positions révisées
+par rapport à la semaine d’avant
+Du premier coup
+Positions sues
+Solides et maîtrisées
+Temps
+≈ {0} min
+jour actif
+Semaines précédentes
+Médaille
+Nouvelle
+médaille gagnée
+médailles gagnées
+Vitrine
+Médailles gagnées
 Positions du répertoire
 Ouvertures
 Parties archivées
 Jours actifs sur les 30 derniers
 Vues
-Régularité
 tous répertoires
 avec les {0}
 Aucun essai pour « {0} »
@@ -2124,7 +2190,6 @@ Les {0} n'ont
 En retard
 à résorber avant la prévision
 Révisions prévues
-class="zero"
 Révisions à venir
 {1} prochains jours
 depuis le {2}
@@ -2134,7 +2199,7 @@ maîtrisées
 Comment chaque niveau est décidé
 Réussite : {7} % sur {8}
 Tout voir
-Maîtrise
+Médailles
 Aperçu · {0}
 {0} · maîtrise {1} / 100 ({2} err. / {3})
 Cette position
@@ -2189,7 +2254,6 @@ Tout
 Tous les sites
 Toutes les cadences
 Bilan
-Temps
 Qualité
 Positions
 Vue
@@ -2637,7 +2701,6 @@ pas encore de record
 Survie
 3 vies, du plus sûr au plus fragile · {0}
 Aucune position déjà essayée
-Exercices
 {0} à confirmer
 {0} position{1}
 La plus en retard
@@ -2766,7 +2829,6 @@ Essais
 Auj.
 Adverse
 Connue
-Nouvelle
 cubic-bezier(.72, 0, .18, 1)
 translateY(-12px) scale(.92)
 translate(0px, 0px) scale(1)

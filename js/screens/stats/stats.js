@@ -378,6 +378,61 @@ function _paintTodo() {
 // ─── ONGLETS ──────────────────────────────────────────────────────────────────
 // Maîtrise, Ouvertures, Parties, Régularité, à toutes les largeurs : chaque chiffre garde sa place.
 // Le compteur d'un onglet dit la taille de ce qu'il contient ; ceux qui dépendent des parties suivent leur arrivée.
+// ─── LA SEMAINE EN UNE CARTE (atelier « L'envie de revenir », lot 5, WeekCard) ──
+// La semaine en cours le dimanche, sinon la précédente ; comparée à celle d'avant ; une phrase ; les huit d'avant repliées.
+function _weekCardHTML(now) {
+    if (typeof WeekCard === 'undefined') return '';
+    const act = readActivity(), from = WeekCard.shown(now), w = WeekCard.week(act, currentRepertoire, from);
+    const hist = WeekCard.history(act, currentRepertoire, now, 8), prev = hist[0];
+    if (!w.tries && !hist.some(h => h.tries)) return '';
+    const span = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short' }));
+    const range = f => I18n.mark(`${span(f)} – ${span(_dayStart(f, 6))}`);
+    const top = Math.max(1, ...w.days), sunday = new Date(now).getDay() === 0;
+    const bars = w.days.map((a, i) => `<div title="${I18n.mark(`${new Date(_dayStart(from, i)).toLocaleDateString(I18n.locale(), { weekday: 'long' })} · ${a}`)}"><i style="height:${a ? 6 + Math.round(42 * a / top) : 2}px"${a ? '' : ' class="zero"'}></i><span>${new Date(_dayStart(from, i)).toLocaleDateString(I18n.locale(), { weekday: 'narrow' })}</span></div>`).join('');
+    const diff = prev.tries ? w.tries - prev.tries : null;
+    const kpi = (label, v, sub) => `<div class="st-wk-kpi"><span>${label}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+    const sure = w.sure === null ? '–' : I18n.mark(`${w.sure > 0 ? '+' : w.sure < 0 ? '−' : ''}${Math.abs(w.sure)}`);
+    const row = h => `<li><span>${range(h.from)}</span><b>${_plural(h.tries, 'position')}</b><small>${h.sure === null ? '' : I18n.mark(`${h.sure > 0 ? '+' : h.sure < 0 ? '−' : ''}${Math.abs(h.sure)}`)}</small></li>`;
+    return `<section class="st-sec st-card st-week edge-card" data-pane="overview">
+        <div class="st-h"><h3>${sunday ? 'Votre semaine' : 'La semaine dernière'}</h3><span class="st-sub">${range(from)}</span></div>
+        <div class="st-wk">
+            <div class="st-wk-days" role="img" aria-label="${I18n.pair(I18n.t('Positions révisées'), String(w.tries))}">${bars}</div>
+            <div class="st-wk-kpis">
+                ${kpi('Positions révisées', w.tries, diff === null ? '' : I18n.mark(`${diff >= 0 ? '+' : '−'}${Math.abs(diff)} ${I18n.t('par rapport à la semaine d’avant')}`))}
+                ${kpi('Du premier coup', w.rate === null ? '–' : `${w.rate} %`)}
+                ${kpi('Positions sues', sure, 'Solides et maîtrisées')}
+                ${kpi('Temps', w.minutes ? `≈ ${w.minutes} min` : '–', _plural(w.active, 'jour actif', 'jours actifs'))}
+            </div>
+        </div>
+        <p class="st-wk-line">${escapeHtml(WeekCard.line(w, prev))}</p>
+        <details class="st-wk-hist"><summary>Semaines précédentes</summary><ol>${hist.map(row).join('')}</ol></details>
+    </section>`;
+}
+
+// Médailles tout juste gagnées (bilan de séance, fin de finale) : la pièce frappée une fois, son nom, ce qu'elle dit.
+function _medalsWonHTML(list) {
+    if (!list || !list.length) return '';
+    return `<div class="md-won">${list.map(m => `<div class="md-won-i"><span class="md-coin" translate="no" aria-hidden="true">${escapeHtml(m.glyph)}</span>
+        <span><span class="st-eyebrow">Médaille</span><b>${escapeHtml(m.name)}</b><small>${escapeHtml(m.desc)}</small></span></div>`).join('')}</div>`;
+}
+
+// ─── VITRINE DE MÉDAILLES (lot 5, Medals) ──────────────────────────────────────
+// Les gagnées en laiton avec leur date, les autres en pointillé avec leur avancée ; « Nouvelle » trois jours.
+function _medalsHTML(now) {
+    if (typeof Medals === 'undefined') return '';
+    const list = Medals.list({}, now), got = list.filter(m => m.at).length;
+    const day = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short', year: 'numeric' }));
+    const one = m => `<li class="md${m.at ? ' is-on' : ''}${m.fresh ? ' is-new' : ''}">
+        <span class="md-coin" translate="no" aria-hidden="true">${escapeHtml(m.glyph)}</span>
+        <span class="md-t"><b>${escapeHtml(m.name)}</b><small>${escapeHtml(m.desc)}</small>
+        ${m.at ? `<em>${m.fresh ? `${I18n.t('Nouvelle')} · ` : ''}${day(m.at)}</em>`
+              : `<span class="md-bar" role="img" aria-label="${m.v} / ${m.goal}"><i style="width:${Math.round(100 * m.v / m.goal)}%"></i></span><em>${I18n.mark(`${m.v} / ${m.goal}`)}</em>`}</span></li>`;
+    return `<section class="st-sec st-card st-medals edge-card" data-pane="medals">
+        <div class="st-h"><h3>Vitrine</h3><span class="st-sub">${_plural(got, 'médaille gagnée', 'médailles gagnées')} sur ${list.length}</span></div>
+        ${Medals.CATS.map(([c, label]) => `<div class="md-cat"><span class="st-eyebrow">${label}</span><ul class="md-grid">${list.filter(m => m.cat === c).map(one).join('')}</ul></div>`).join('')}
+    </section>`;
+}
+
 function _activeDays() {
     const act = readActivity(), today = _dayStart(Date.now());
     let n = 0;
@@ -387,11 +442,12 @@ function _activeDays() {
 
 function _tabCounts(rows) {
     const games = StatsGames.games();
-    return { overview: rows.length, openings: StatsOpenings.count(), games: games && games.length ? games.length : '', regularity: `${_activeDays()}/${STATS_DAYS}` };
+    const medals = typeof Medals !== 'undefined' ? Medals.list({}) : [];
+    return { medals: `${medals.filter(m => m.at).length}/${medals.length}`, overview: rows.length, openings: StatsOpenings.count(), games: games && games.length ? games.length : '', regularity: `${_activeDays()}/${STATS_DAYS}` };
 }
 
 // Ce que compte chaque compteur d'onglet, dit en infobulle.
-const STATS_TAB_UNITS = { overview: 'Positions du répertoire', openings: 'Ouvertures', games: 'Parties archivées', regularity: 'Jours actifs sur les 30 derniers' };
+const STATS_TAB_UNITS = { medals: 'Médailles gagnées', overview: 'Positions du répertoire', openings: 'Ouvertures', games: 'Parties archivées', regularity: 'Jours actifs sur les 30 derniers' };
 function _tabsHTML(tabs, counts) {
     return `<div class="st-tabs" id="stats-tabs" role="tablist" aria-label="Vues">${tabs.map(([p, l]) =>
         `<button type="button" role="tab" class="st-tab" aria-selected="${statsPane === p}" data-action="statsPane" data-arg="${p}">${l}<span class="st-tab-n" id="st-tab-n-${p}" title="${STATS_TAB_UNITS[p]}">${counts[p]}</span></button>`).join('')}</div>`;
@@ -412,6 +468,7 @@ function initStats() {
     const body = document.getElementById('stats-body');
     if (!body) return;
     MasteryLog.record(currentRepertoire);                     // historique de maîtrise : relevé du jour (atelier, lot 3)
+    if (typeof Medals !== 'undefined') Medals.check();       // médailles déjà méritées (lot 5) : rangées, « Nouvelle » dans la vitrine
 
     const rows = _statsRows();
     const hasAct = Object.keys(readActivity()).length > 0;
@@ -510,7 +567,7 @@ function initStats() {
     // ── Par ouverture ── la fiche vit dans l'onglet Ouvertures (lot 3) ; ici, seulement de quoi nourrir le constat « À faire ».
     StatsOpenings.prime({ rows, counts, rp });
 
-    const tabs = [['overview', 'Maîtrise'], ['games', 'Parties'], ['regularity', 'Régularité']].filter(([p]) => p !== 'regularity' || reg);
+    const tabs = [['overview', 'Maîtrise'], ['games', 'Parties'], ['regularity', 'Régularité'], ['medals', 'Médailles']].filter(([p]) => p !== 'regularity' || reg);
     if (!tabs.some(([p]) => p === statsPane)) statsPane = 'overview';
     _renderStatsScope();
 
@@ -520,9 +577,11 @@ function initStats() {
         <div class="st-main">
             <section class="st-now" data-pane="overview">${masteryCard}<div class="st-side">${forecastCard}
                 <section class="st-todo" id="stats-todo" aria-label="À faire"></section></div></section>
+            ${_weekCardHTML(now)}
             <div class="st-weak-wrap" data-pane="overview">${weakHTML}</div>
             ${_gamesSection()}
             ${reg}
+            ${_medalsHTML(now)}
         </div>`;
     _paintTodo();
     StatsGames.mount();

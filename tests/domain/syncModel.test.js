@@ -225,6 +225,14 @@ t('défi du jour : par jour, le premier essai l\'emporte, symétrique ; jours de
     assert.deepStrictEqual(Object.keys(x).sort(), ['2026-11-15', '2026-11-16', '2026-11-17']);
 });
 
+t('médailles : une fois gagnée, la date la plus ancienne reste, symétrique', () => {
+    const K = 'chessTrainer_medals';
+    assert.strictEqual(S.kindOf(K), 'medals');
+    const x = S.merge(K, { m1: 5 }, { m1: 5, s7: 30 }, { m1: 5, s7: 20, lucena: 9 }), y = S.merge(K, { m1: 5 }, { m1: 5, s7: 20, lucena: 9 }, { m1: 5, s7: 30 });
+    assert.deepStrictEqual(x, y);
+    assert.deepStrictEqual(x, { lucena: 9, m1: 5, s7: 20 });
+});
+
 t('rangs et idées des ouvertures : champ par champ, le plus récent l\'emporte, symétrique', () => {
     const K = 'chessTrainer_openings';
     assert.strictEqual(S.kindOf(K), 'openings');

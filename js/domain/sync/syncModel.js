@@ -18,6 +18,7 @@
  *   chessTrainer_survivalRecord  'record'    record de la Survie (nombre) : le plus grand l'emporte
  *   chessTrainer_daily           'daily'     jour → { r, k, c, rep, at } : défi du jour, le premier essai (at le plus ancien) l'emporte
  *   chessTrainer_openings        'openings'  répertoire → { 'couleur|ouverture': { r?, ra?, i?, ia? } } : rang (ra) et idée (ia), le plus récent l'emporte, champ par champ
+ *   chessTrainer_medals          'medals'    médaille → date du gain : la plus ancienne l'emporte
  *   chessTrainer_masteryLog      'mastery'   'répertoire|jour' → { w: [6 niveaux], b: [6 niveaux], at } : par jour, le relevé le plus récent l'emporte
  * Tout le reste (mode clair / sombre, sons, options d'entraînement, état de sauvegarde…)
  * reste LOCAL à l'appareil.
@@ -52,6 +53,7 @@ const SyncModel = (function () {
         if (key === 'chessTrainer_daily')       return 'daily';
         if (key === 'chessTrainer_masteryLog')  return 'mastery';
         if (key === 'chessTrainer_openings')    return 'openings';
+        if (key === 'chessTrainer_medals')      return 'medals';
         if (typeof key === 'string' && key.startsWith('openingDB_'))  return 'db';
         if (typeof key === 'string' && key.startsWith('openingOpp_')) return 'opp';
         return null;
@@ -253,8 +255,11 @@ const SyncModel = (function () {
     }
     const mergeOpenings = (b, l, r) => mergeMap(b, l, r, (bb, ll, rr) => mergeMap(bb, ll, rr, mergeMark));
 
+    // ─── Médailles : une fois gagnée, la date la plus ancienne reste ──
+    const mergeMedals = (b, l, r) => mergeMap(b, l, r, (bb, ll, rr) => { const a = num(Number(ll)), c = num(Number(rr)); return a && c ? Math.min(a, c) : Math.max(a, c); });
+
     // ─── Point d'entrée ───────────────────────────────────────────────────────
-    const MERGERS = { db: mergeDB, opp: mergeOpp, list: mergeList, trash: mergeTrash, endgames: mergeEndgames, activity: mergeActivity, prefs: mergePrefs, notes: mergePrefs, games: mergeGames, record: mergeRecord, mastery: mergePrefs, daily: mergeDaily, openings: mergeOpenings };
+    const MERGERS = { db: mergeDB, opp: mergeOpp, list: mergeList, trash: mergeTrash, endgames: mergeEndgames, activity: mergeActivity, prefs: mergePrefs, notes: mergePrefs, games: mergeGames, record: mergeRecord, mastery: mergePrefs, daily: mergeDaily, openings: mergeOpenings, medals: mergeMedals };
 
     // Valeurs déjà décodées (null = absent). Renvoie la valeur fusionnée (null = supprimée).
     function merge(key, base, local, remote) {

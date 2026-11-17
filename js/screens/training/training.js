@@ -330,9 +330,12 @@ function _endSession(early, stay) {
         total: rows.length, ok: rows.filter(r => r.ok).length, rows, score: S.score, record, newRecord,
         colors: S.colors, returnTab: S.returnTab, lives: S.lives, promos: _rankPromos()
     };
+    // Médailles (atelier « L'envie de revenir », lot 5) : après les rangs, pour que « Compagnon » ou « Maître » comptent déjà.
+    summary.medals = typeof Medals !== 'undefined' ? Medals.check({ summary }) : [];
     const keep = S.keep;
     // Le cadre rejoué garde sa trace dans la pellicule : réussi ou non, et son niveau d'après.
     if (keep && summary.promos.length) keep.promos = (keep.promos || []).concat(summary.promos);
+    if (keep && summary.medals.length) keep.medals = (keep.medals || []).concat(summary.medals);
     if (keep) rows.forEach(r => { const f = keep.rows.find(x => x.key === r.key && x.color === r.color); if (f) Object.assign(f, { replay: r.ok, lvAfter: r.lvAfter, e: r.e }); });
     _clearSession();
     stopTraining();
