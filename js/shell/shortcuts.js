@@ -51,7 +51,8 @@ const Shortcuts = (function () {
         training: {
             s: () => showTrainingSolution(),
             p: () => nextDrill(),
-            q: () => quitTraining()
+            q: () => quitTraining(),
+            z: () => { if (trainingState.session) TrainFocus.toggle(); }
         },
         analysis: {
             a: () => analysisToggleEngine(),

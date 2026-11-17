@@ -48,6 +48,13 @@ let statsWeak   = null;      // vue complète « Points faibles » : { shown, y 
 
 // Repère de niveau : couleur ET forme (lisible sans distinguer les couleurs), cf. .lv-mark.
 const _lvMark = l => `<i class="lv-mark lv-${l}" aria-hidden="true"></i>`;
+// Gravure progressive (atelier « L'envie de revenir », lot 2) : le trait gravé dont la profondeur suit la maîtrise, doré une fois Maîtrisée.
+// À confirmer : jamais plus que rayé, tant que les essais manquent.
+function _lvEngrave(e) {
+    if (typeof Engrave === 'undefined') return '';
+    const lv = _level(e), m = masteryOf(e);
+    return Engrave.depth(lv === 'unsure' ? Math.min(m, 49) : m, lv === 'mastered');
+}
 
 const _lvPair = (l, n) => I18n.pair(I18n.t(STATS_LEVELS[l].label), n);
 
@@ -294,7 +301,7 @@ function _weakRowHTML(r) {
                 <button type="button" class="st-wrow lv-${r.lv}" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="weak" aria-label="Voir la position ${escapeHtml(mv)}, ${escapeHtml(from + r.gName)}">
                     ${_miniBoardHTML(r, false, { cls: 'st-wmini' })}
                     <span class="st-wrow-txt"><b>${escapeHtml(mv)}</b><small>${statsColor === 'all' ? from : ''}${r.gHtml}</small></span>
-                    <span class="st-errs"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, Math.round(masteryOf(r.e)))}%"></i></span><span class="st-n">${Math.round(masteryOf(r.e))} / 100</span>${ico('chevron-right')}</span>
+                    <span class="st-errs"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, Math.round(masteryOf(r.e)))}%"></i></span><span class="st-n">${_lvEngrave(r.e)}${Math.round(masteryOf(r.e))} / 100</span>${ico('chevron-right')}</span>
                 </button>`;
 }
 
@@ -306,7 +313,7 @@ function _weakCardHTML(r) {
                 <button type="button" class="st-wcard lv-${r.lv}" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="weak">
                     ${_miniBoardHTML(r, false, { cls: 'st-wcard-b' })}
                     <b class="st-wcard-q">${q}</b>
-                    <span class="st-wcard-s"><small>${r.gHtml}</small><span>${_lvMark(r.lv)}${m} / 100</span></span>
+                    <span class="st-wcard-s"><small>${r.gHtml}</small><span>${_lvMark(r.lv)}${_lvEngrave(r.e)}${m} / 100</span></span>
                 </button>`;
 }
 

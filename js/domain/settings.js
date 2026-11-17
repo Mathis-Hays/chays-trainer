@@ -116,7 +116,8 @@ const LOCAL_PREFS = {
     textSize: { ok: _oneOf(['s', 'm', 'l']), def: 'm' },
     contrast: { ok: _bool, def: false },
     announce: { ok: _oneOf(['off', 'sr', 'voice']), def: 'off' },                    // annonce des coups (sound.js)
-    thumbHand: { ok: _oneOf(['right', 'left']), def: 'right' },                       // main du pouce : côté de « Plus » dans le dock (téléphone)
+    thumbHand: { ok: _oneOf(['right', 'left']), def: 'right' },
+    trainFocus: { ok: _bool, def: false },                                              // mode Focus des séances (trainFocus.js)                       // main du pouce : côté de « Plus » dans le dock (téléphone)
     sideBar: { ok: _oneOf(['auto', 'rail', 'wide']), def: 'auto' },                   // barre latérale, à partir de 1 100 px (sideBarMode)
     engineNet:     { ok: _oneOf(['lite', 'full']), def: 'lite' },                       // réseau du moteur (complet : téléchargé sur l'appareil)
     engineThreads: { ok: v => Number.isInteger(v) && v >= 0 && v <= 64, def: 0 },       // 0 : automatique (moitié des cœurs)

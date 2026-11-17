@@ -2,10 +2,13 @@
  * core/engrave.js
  * ──────────────────────────────────────────────────────────────────────────
  * « Le trait gravé » (identité « Noyer gravé », novembre 2026) : la gravure du roi de la marque
- * (assets/brand/chays-logo.svg, #gravure-trait), seule, en laiton. Réservé aux moments de marque :
+ * (assets/brand/chays-logo.svg, #gravure-trait), seule, en laiton. Animation réservée aux moments de marque :
  * une position qui devient Maîtrisée pendant l'Entraînement (à la suite du titre de la barre d'état), et son décompte dans le bilan de séance.
+ * Gravure progressive (atelier « L'envie de revenir », lot 2) : le même trait, immobile, sert de signe de maîtrise
+ * à côté du score d'une position (explorateur, listes, bilan) : à peine rayé, puis creusé, puis doré.
  *
  *   Engrave.mark()      → <svg> immobile, petit, pour un badge
+ *   Engrave.depth(score, gold, label) → <svg> immobile dont la profondeur suit le score (0 à 100) ; gold : position Maîtrisée
  *   Engrave.play(host)  → trace le trait couché à la fin de host (un titre), puis l'efface ; animations
  *                         réduites : le trait apparaît déjà tracé, puis s'efface
  */
@@ -41,5 +44,15 @@ const Engrave = (function () {
         out.finished.then(() => el.remove(), () => el.remove());
     }
 
-    return { mark: () => svg('engrave-mark'), play };
+    // Trois paliers : rayé (sous 50), creusé (50 à 84), plein (85 et plus) ; doré quand la position est Maîtrisée.
+    // --d (0 à 1) affine l'épaisseur dans le palier. Deux tracés : la lèvre claire, décalée, puis l'entaille.
+    function depth(score, gold, label) {
+        const v = Math.max(0, Math.min(100, Math.round(Number(score) || 0)));
+        const tier = gold ? 'gold' : v < 50 ? 'scratch' : v < 85 ? 'cut' : 'deep';
+        const aria = label ? ` role="img" aria-label="${String(label).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])}"` : ' aria-hidden="true"';
+        return `<svg class="engrave-depth is-${tier}" style="--d:${(v / 100).toFixed(2)}" viewBox="228 150 82 168"${aria} focusable="false">`
+            + `<path class="eg-lip" d="${PATH}"/><path class="eg-cut" d="${PATH}"/></svg>`;
+    }
+
+    return { mark: () => svg('engrave-mark'), play, depth };
 })();

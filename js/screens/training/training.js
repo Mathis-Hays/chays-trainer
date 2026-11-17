@@ -172,7 +172,8 @@ function startSession(opts) {
         kind: opts.kind, label: opts.label, returnTab: opts.returnTab || 'training',
         items: items.map(it => ({ color: it.color, key: it.key, res: null, second: false })),
         i: 0, cur: -1, results: new Map(), line: opts.line || null, colors: opts.colors || ['w', 'b'],
-        started: Date.now(), end: opts.kind === 'timed' ? Date.now() + TRAIN_TIMED_MS : 0, score: 0
+        started: Date.now(), end: opts.kind === 'timed' ? Date.now() + TRAIN_TIMED_MS : 0, score: 0,
+        keep: opts.keep || null      // bilan à retrouver en fin de séance (un cadre de la pellicule rejoué)
     };
     trainingState.mixed   = false;
     trainingState.ok      = 0;
@@ -185,6 +186,7 @@ function startSession(opts) {
     if (S.kind === 'timed') trainingState.tick = setInterval(_timedTick, 250);
     _renderSessionBar();
     nextDrill();
+    if (typeof TrainFocus !== 'undefined') TrainFocus.sync();
     return true;
 }
 
@@ -197,6 +199,7 @@ function _clearSession() {
     if (trainingState.tick) clearInterval(trainingState.tick);
     trainingState.tick = null;
     trainingState.session = null;
+    if (typeof TrainFocus !== 'undefined') TrainFocus.sync();
 }
 
 // Position suivante de la séance (l'élément en cours est clos : réussi, raté ou passé).
@@ -312,16 +315,20 @@ function _endSession(early, stay) {
         total: rows.length, ok: rows.filter(r => r.ok).length, rows, score: S.score, record, newRecord,
         colors: S.colors, returnTab: S.returnTab
     };
+    const keep = S.keep;
+    // Le cadre rejoué garde sa trace dans la pellicule : réussi ou non, et son niveau d'après.
+    if (keep) rows.forEach(r => { const f = keep.rows.find(x => x.key === r.key && x.color === r.color); if (f) Object.assign(f, { replay: r.ok, lvAfter: r.lvAfter, e: r.e }); });
     _clearSession();
     stopTraining();
     _renderSessionBar();
     const back = summary.returnTab;
-    if (back === 'training' && (rows.length || !stay)) trainingState.lastSummary = summary;
+    if (back === 'training' && (rows.length || !stay)) trainingState.lastSummary = keep || summary;
     if (typeof Suite !== 'undefined') Suite.refresh();
     if (stay) return;
     if (early || !rows.length) { goHome(back); return; }
     playSound('end');
-    const msg = summary.kind === 'timed' ? `Temps écoulé · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`
+    const msg = summary.kind === 'frame' ? (summary.ok ? 'Position retrouvée' : 'Pas encore : elle revient bientôt')
+        : summary.kind === 'timed' ? `Temps écoulé · ${summary.score} bon${summary.score > 1 ? 's' : ''} coup${summary.score > 1 ? 's' : ''}`
         : `Séance terminée · ${summary.ok}/${summary.total} du premier coup`;
     setStatus(msg, 'ok', back === 'stats' ? 'Retour aux statistiques…' : 'Bilan de la séance…');
     _later(() => goHome(back), 1600);

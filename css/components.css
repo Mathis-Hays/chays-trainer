@@ -329,3 +329,18 @@
 .engrave-mark path { stroke-width: 12; }
 .vbadge.is-brass { --c: var(--brand-brass-deep); }
 [data-theme="dark"] .vbadge.is-brass { --c: var(--brand-brass); }
+
+/* Gravure progressive (Engrave.depth, atelier « L'envie de revenir », lot 2) : le signe de maîtrise d'une position.
+   Rayé (sous 50) : un fil clair ; creusé (50 à 84) et plein (85 et plus) : une entaille sombre bordée d'une lèvre claire ;
+   doré : la position est Maîtrisée. --d (0 à 1) épaissit le trait dans son palier. */
+.engrave-depth { display: inline-block; width: 8px; height: 16px; margin-right: 4px; vertical-align: -3px; overflow: visible; flex: none; }
+.engrave-depth path { fill: none; stroke-linecap: round; }
+.engrave-depth .eg-cut { stroke: var(--text-muted); stroke-width: calc(5px + var(--d) * 6px); opacity: .55; }
+.engrave-depth .eg-lip { stroke: transparent; stroke-width: 0; transform: translate(5px, 6px); }
+.engrave-depth.is-cut .eg-cut, .engrave-depth.is-deep .eg-cut { stroke: var(--text); opacity: .8; stroke-width: calc(9px + var(--d) * 8px); }
+.engrave-depth.is-deep .eg-cut { opacity: 1; stroke-width: calc(14px + var(--d) * 6px); }
+.engrave-depth.is-cut .eg-lip, .engrave-depth.is-deep .eg-lip { stroke: var(--surface); stroke-width: 7px; opacity: .9; }
+.engrave-depth.is-gold .eg-cut { stroke: var(--brand-brass-deep); stroke-width: 20px; opacity: 1; }
+.engrave-depth.is-gold .eg-lip { stroke: var(--brand-brass); stroke-width: 8px; opacity: .9; }
+[data-theme="dark"] .engrave-depth.is-gold .eg-cut { stroke: var(--brand-brass); }
+[data-theme="dark"] .engrave-depth.is-gold .eg-lip { stroke: var(--brand-brass-deep); }

@@ -110,8 +110,49 @@ async function boot() {
         const c = ring.querySelector('circle.v'), dash = Number(c.getAttribute('stroke-dasharray')), off = Number(c.getAttribute('stroke-dashoffset'));
         assert(Math.abs(off - dash / 3) < .2, 'un tiers de l\'anneau vide');
         assert.strictEqual($('.trr-bilan .vbadge.is-err').textContent, '1 à revoir');
-        assert($('.trr-bilan details.trr-detail'), 'liste « avant → après » repliable');
-        assert(!$('.trr-bilan details.trr-detail').open, 'repliée sur téléphone (matchMedia faux)');
+        // Pellicule (atelier « L'envie de revenir », lot 2) : un cadre par position, la ratée en tête, mini-échiquier et gravure.
+        const frames = $$('.trr-bilan .trr-film .trr-frame');
+        assert.strictEqual(frames.length, 3);
+        assert(frames[0].classList.contains('is-ko'), 'la ratée en tête');
+        assert(frames.every(f => f.querySelector('.st-mini') && f.querySelector('.engrave-depth')), 'mini-échiquier et trait gravé sous chaque cadre');
+        assert(!$('.trr-bilan details.trr-detail'), 'plus de liste repliée');
+    });
+
+    await t('pellicule : toucher un cadre rejoue la position seule, puis le même bilan revient avec la trace du cadre', () => {
+        seed({ dueIn: 3 });
+        summary(1);
+        render();
+        const before = w.eval('trainingState.lastSummary'), frame = $('.trr-film .trr-frame.is-ko');
+        frame.click();
+        const S = w.eval('trainingState.session');
+        assert(S && S.kind === 'frame' && S.items.length === 1, 'séance d’une seule position');
+        assert.strictEqual(S.keep, before);
+        const key = S.items[0].key;
+        w.eval(`trainingState.session.results.set(${JSON.stringify(key)}, { key: ${JSON.stringify(key)}, color: 'w', ok: true, lvBefore: 'progress' }); _endSession(false, true)`);
+        const after = w.eval('trainingState.lastSummary');
+        assert.strictEqual(after, before, 'le bilan d’origine revient');
+        assert.strictEqual(after.rows.find(r => r.key === key).replay, true);
+        render();
+        assert.strictEqual($('.trr-film .trr-frame-re').textContent, 'Rejouée');
+    });
+
+    await t('mode Focus : seulement pendant une séance, préférence gardée d’une séance à l’autre, Échap en sort', () => {
+        const keys = seed({ dueIn: 3 }), root = w.document.documentElement;
+        const start = () => w.eval(`trainingState.lastSummary = null; startSession({ kind: 'review', label: 'Révision', items: [{ color: 'w', key: ${JSON.stringify(keys[0])} }] })`);
+        w.eval(`setPref('trainFocus', false)`);
+        start();
+        assert(!root.classList.contains('train-focus'), 'coupé par défaut');
+        w.eval('TrainFocus.toggle()');
+        assert(root.classList.contains('train-focus'), 'bouton Focus');
+        assert.strictEqual($('.tr-focus-btn').getAttribute('aria-pressed'), 'true');
+        w.eval('abandonSession()');
+        assert(!root.classList.contains('train-focus'), 'hors séance : rien de caché');
+        start();
+        assert(root.classList.contains('train-focus'), 'la séance suivante s’ouvre en Focus');
+        w.document.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        assert(!root.classList.contains('train-focus'), 'Échap');
+        assert.strictEqual(w.eval('appSettings.trainFocus'), false);
+        w.eval('abandonSession()');
     });
 
     await t('filtre d\'ouverture : puce retirable dans la barre de contexte', () => {

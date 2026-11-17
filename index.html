@@ -389,6 +389,8 @@
             <div class="game-main">
 
                 <div class="board-col">
+                    <!-- Mode Focus (trainFocus.js) : seule sortie visible, dans le coin de l'échiquier -->
+                    <button type="button" class="tr-focus-exit" onclick="TrainFocus.toggle()" title="Quitter le mode Focus (Z, Échap)" aria-label="Quitter le mode Focus"><svg class="ico" aria-hidden="true"><use href="#i-x"/></svg></button>
                     <div class="tr-progress" id="tr-progress" hidden></div>
                     <!-- Pièces prises et avantage matériel (captures.js) : place gardée même vide, l'échiquier ne saute pas -->
                     <div class="cap-row cap-top" id="cap-top" role="img"></div>
@@ -464,6 +466,9 @@
                             </button>
                             <button class="btn btn-tool tb-flip" onclick="flipBoard()" title="Retourner l'échiquier (F)">
                                 <svg class="ico"><use href="#i-arrow-up-down"/></svg><span class="btn-label"><span class="desktop-only">Retourner</span><span class="mobile-only">Tourner</span></span>
+                            </button>
+                            <button class="btn btn-tool tr-focus-btn" onclick="TrainFocus.toggle()" aria-pressed="false" title="Mode Focus : seulement l'échiquier et la consigne (Z)">
+                                <svg class="ico"><use href="#i-eye"/></svg><span class="btn-label">Focus</span>
                             </button>
                             <button class="btn btn-tool is-exit" onclick="quitTraining()" title="Quitter l'entraînement (Q)">
                                 <svg class="ico"><use href="#i-x"/></svg><span class="btn-label">Quitter</span>
@@ -758,6 +763,7 @@
 <script src="js/screens/openings/openingsTab.js"></script>
 <script src="js/screens/training/training.js"></script>
 <script src="js/screens/training/trainingUI.js"></script>
+<script src="js/screens/training/trainFocus.js"></script>
 <script src="js/shell/suite.js"></script>
 <script src="js/shell/dock.js"></script>
 <script src="js/shell/gameCard.js"></script>

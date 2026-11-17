@@ -181,7 +181,7 @@ const StatsOpenings = (function () {
                 body = `<div class="so-x-h">Votre coup</div><div class="so-x-line">
                     <button type="button" class="so-x-row is-mine" data-action="opExplore" data-arg="${arg(path.concat(m.uci))}">
                         <span class="so-x-san">${_moveLabel({ ply, san: m.san }, false, true)}</span>
-                        <span class="so-x-mid"><span class="so-x-bar lv-${lv}"><i style="width:${Math.max(3, score)}%"></i></span><span class="so-x-info">${score} / 100${m.n ? ` · ${_plural(m.n, 'partie')}` : ''}</span></span>
+                        <span class="so-x-mid"><span class="so-x-bar lv-${lv}"><i style="width:${Math.max(3, score)}%"></i></span><span class="so-x-info">${_lvEngrave(m.entry)}${score} / 100${m.n ? ` · ${_plural(m.n, 'partie')}` : ''}</span></span>
                         <span class="so-x-lv">${_lvMark(lv)}${STATS_LEVELS[lv].one}</span></button>
                     <button type="button" class="st-ibtn" data-action="statsPreview" data-arg="${escapeHtml(g.side + ':' + m.key)}" data-origin="${escapeHtml(g.name)}" title="Voir la position" aria-label="Voir la position">${ico('eye')}</button></div>`;
             }
@@ -284,7 +284,7 @@ const StatsOpenings = (function () {
             return `<div class="st-row">
                 <span class="st-move">${_moveLabel(r.e, false, true)}<small class="so-after">${afterHTML(r.e.path)}</small></span>
                 <span class="st-lvl">${_lvMark(r.lv)}${STATS_LEVELS[r.lv].one}</span>
-                <span class="st-errs lv-${r.lv}" title="${r.e.failures} err. / ${r.e.attempts}"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, m)}%"></i></span><span class="st-n">${m} / 100</span></span>
+                <span class="st-errs lv-${r.lv}" title="${r.e.failures} err. / ${r.e.attempts}"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, m)}%"></i></span><span class="st-n">${_lvEngrave(r.e)}${m} / 100</span></span>
                 <span class="so-games">${games(r)}</span>
                 <span class="st-when ${d ? 'on' : ''}">${d ? 'Aujourd’hui' : dueInLabel(dueOf(r.e))}</span>
                 <span class="st-acts">

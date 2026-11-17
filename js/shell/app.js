@@ -407,6 +407,7 @@ function applyModeUI() {
     if (typeof _applySideTab === 'function') _applySideTab();     // l'arbre n'est disponible qu'en mode Jouer
     if (document.getElementById('topnav-tabs-setup').classList.contains('in-game')) _gameTabs(true);     // onglet du mode
     if (typeof Suite !== 'undefined') Suite.refresh();
+    if (typeof TrainFocus !== 'undefined') TrainFocus.sync();     // mode Focus : seulement pendant une séance
 }
 
 // Affiche l'écran de jeu (commun aux modes jouer / aperçu / entraînement).

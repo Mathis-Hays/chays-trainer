@@ -142,6 +142,7 @@ function _trNextHTML(items, primary) {
         </button>`).join('')}</div>`;
 }
 
+const TRAIN_FILM_MAX = 20;
 function _trSummaryHTML(s, primary, next) {
     if (!s) return '';
     const side = r => r.color === 'w' ? 'Blancs' : 'Noirs';
@@ -171,13 +172,20 @@ function _trSummaryHTML(s, primary, next) {
     const acts = timed ? _trBtn(false, 'trainingEx', 'timed', 'Rejouer', 'rotate-ccw')
         : s.kind === 'line' ? _trBtn(false, 'trainingReplayLine', null, 'Rejouer la ligne', 'play') : '';
     const ensuite = timed ? '' : _trNextHTML(_trNextItems(nMiss, next), primary);
-    // Ratées d'abord, puis les niveaux qui ont bougé.
+    // Pellicule (atelier « L'envie de revenir », lot 2) : une bande de mini-échiquiers, ratées d'abord, puis les niveaux
+    // qui ont bougé ; sous chaque cadre le coup et le niveau avant → après. Toucher un cadre rejoue la position.
     const rows = s.rows.slice().sort((a, b) => (a.ok - b.ok) || (Math.abs(rank(b.lvAfter) - rank(b.lvBefore)) - Math.abs(rank(a.lvAfter) - rank(a.lvBefore))));
-    const list = rows.filter(r => !r.ok || r.lvAfter !== r.lvBefore).slice(0, 12).map(r => `
-        <li class="trr-move">${ico(r.ok ? 'check' : 'x', r.ok ? 'is-ok' : 'is-err')}<span class="sr-only">${r.ok ? 'Réussie' : 'Ratée'}</span>
-            <span class="trr-move-san">${_moveLabel(r.e, false, true)}</span><span class="trr-move-op">${where(r)}</span>
-            <span class="trr-move-lv">${r.lvAfter !== r.lvBefore ? `<i class="lv-mark lv-${r.lvBefore}" title="${STATS_LEVELS[r.lvBefore].one}"></i><span class="trr-arr" aria-label="devient">→</span>` : ''}${chip(r.lvAfter)}</span></li>`).join('');
-    const wide = typeof window.matchMedia === 'function' && window.matchMedia('(min-width: 600px)').matches;
+    const film = timed ? '' : rows.slice(0, TRAIN_FILM_MAX).map(r => {
+        const moved = r.lvAfter !== r.lvBefore, mv = _moveLabel(r.e, false, true);
+        const board = typeof _miniBoardHTML === 'function' ? _miniBoardHTML({ side: r.color, path: r.e.path && r.e.path.length ? r.e.path : null, k: r.key }, false, { cls: 'trr-frame-b' }) : '';
+        return `<li><button type="button" class="trr-frame ${r.ok ? 'is-ok' : 'is-ko'}" data-action="trainingFrame" data-arg="${escapeHtml(r.color + ':' + r.key)}"
+                aria-label="${r.ok ? 'Réussie' : 'Ratée'} · ${escapeHtml(_moveLabel(r.e))} · ${escapeHtml(STATS_LEVELS[r.lvAfter].one)} · rejouer la position">
+            ${board}
+            <span class="trr-frame-cap">${ico(r.ok ? 'check' : 'x', r.ok ? 'is-ok' : 'is-err')}<span class="trr-move-san">${mv}</span></span>
+            ${r.replay === undefined ? '' : `<span class="trr-frame-re ${r.replay ? 'is-ok' : 'is-err'}">${r.replay ? 'Rejouée' : 'Encore ratée'}</span>`}
+            <span class="trr-frame-lv">${moved ? `<i class="lv-mark lv-${r.lvBefore}" title="${STATS_LEVELS[r.lvBefore].one}"></i><span class="trr-arr" aria-hidden="true">→</span>` : ''}${typeof _lvEngrave === 'function' ? _lvEngrave(r.e) : ''}${chip(r.lvAfter)}</span>
+        </button></li>`;
+    }).join('');
     return `
         <section class="trr-bilan edge-card" data-focus="retry" aria-label="Bilan de la dernière séance">
             <div class="trr-bilan-head">${ring}
@@ -188,7 +196,7 @@ function _trSummaryHTML(s, primary, next) {
             ${badges ? `<div class="trr-badges">${badges}</div>` : ''}
             ${acts ? `<div class="trr-acts">${acts}</div>` : ''}
             ${ensuite}
-            ${list ? `<details class="trr-detail"${wide ? ' open' : ''}><summary>${ico('chevron-down')}<span>Avant → après</span></summary><ul class="trr-moves">${list}</ul></details>` : ''}
+            ${film ? `<div class="trr-film-wrap"><span class="st-eyebrow">La séance en images<small>Toucher une position pour la rejouer</small></span><ul class="trr-film" role="list">${film}</ul></div>` : ''}
         </section>`;
 }
 
@@ -493,6 +501,15 @@ registerActions({
         _trLaunch(el, () => {
             trainingState.lastSummary = null;
             if (!startSession({ kind: 'retry', label: 'Erreurs à revoir', items })) initTraining();
+        });
+    },
+    // Un cadre de la pellicule : la position seule, puis retour au même bilan (keep).
+    trainingFrame: (arg, el) => {
+        const s = trainingState.lastSummary, i = String(arg || '').indexOf(':');
+        if (!s || i < 0) return;
+        const color = arg.slice(0, i), key = arg.slice(i + 1);
+        _trLaunch(null, () => {
+            if (!startSession({ kind: 'frame', label: 'Position du bilan', items: [{ color, key }], keep: s })) initTraining();
         });
     },
     trainingCloseSummary: () => { trainingState.lastSummary = null; initTraining(); },
