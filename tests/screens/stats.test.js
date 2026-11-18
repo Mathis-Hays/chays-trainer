@@ -9,7 +9,7 @@ const ctx = { console, registerActions() {}, Bus: { on() {}, emit() {} }, escape
               document: { addEventListener() {}, getElementById: () => null, querySelectorAll: () => [] } };
 ctx.masteryOf = e => Number.isFinite(e.mastery) ? e.mastery : e.attempts > 0 ? 100 * (1 - e.failures / e.attempts) : 60;
 vm.createContext(ctx);
-for (const f of [scriptPath('chessEngine.js'), scriptPath('modes.js'), scriptPath('boardLogic.js'), scriptPath('openingNames.js'), scriptPath('levels.js'), scriptPath('stats.js')])
+for (const f of [scriptPath('chessEngine.js'), scriptPath('modes.js'), scriptPath('boardLogic.js'), scriptPath('openingNames.js'), scriptPath('review.js'), scriptPath('levels.js'), scriptPath('stats.js')])
     vm.runInContext(readVars(f), ctx, { filename: f });
 const { _level, openingNameOf, resolveOpeningNames, _assignOpenings } = ctx;
 const path = s => s.split(' ');
@@ -29,18 +29,20 @@ t('nom d\'ouverture : l\'entrée la plus longue qui commence le chemin', () => {
     assert.strictEqual(openingNameOf(path('a2a3')), null);
 });
 
-t('niveaux : le score de maîtrise l\'emporte sur les compteurs, une erreur ancienne s\'efface', () => {
-    assert.strictEqual(_level({ attempts: 10, failures: 8, mastery: 90, interval: 3 }), 'solid');
-    assert.strictEqual(_level({ attempts: 100, failures: 1, mastery: 40, interval: 3 }), 'weak');
+t('niveaux E3 : la série de réussites d\'affilée (run) décide, plus le score', () => {
+    assert.strictEqual(_level({ attempts: 10, failures: 8, mastery: 90, interval: 3, run: 1 }), 'fragile');
+    assert.strictEqual(_level({ attempts: 100, failures: 1, mastery: 40, interval: 3, run: 6 }), 'mastered');
+    assert.strictEqual(_level({ attempts: 4, failures: 1, run: 0 }), 'weak', 'dernier essai raté');
 });
 
-t('niveaux : sans score, seuils de taux d\'erreur inchangés', () => {
+t('niveaux sans série enregistrée : déduite (sans erreur → essais, sinon le score)', () => {
     const lv = (a, f, interval) => _level({ attempts: a, failures: f, interval });
     assert.strictEqual(lv(0, 0), 'unsure');
     assert.strictEqual(lv(2, 0), 'unsure');
-    assert.strictEqual(lv(3, 0), 'mastered');
-    assert.strictEqual(lv(10, 1), 'solid');
-    assert.strictEqual(lv(10, 1, 7), 'mastered');          // solide et réussie plusieurs révisions d'affilée
+    assert.strictEqual(lv(3, 0), 'solid');
+    assert.strictEqual(lv(5, 0), 'mastered');
+    assert.strictEqual(lv(10, 1), 'solid');                 // score 90 → série 3
+    assert.strictEqual(lv(10, 1, 7), 'mastered');           // score 90, intervalle de 7 jours → série 5
     assert.strictEqual(lv(10, 2), 'progress');
     assert.strictEqual(lv(3, 1), 'fragile');
     assert.strictEqual(lv(2, 1), 'fragile');

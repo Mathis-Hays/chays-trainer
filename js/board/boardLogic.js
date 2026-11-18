@@ -21,10 +21,11 @@
 
 // Replace l'échiquier (avec historique navigable) après la suite de coups UCI donnée.
 // opts.animateLast : le dernier coup est animé (position qui arrive d'un coup, comme au contre-la-montre).
+// opts.fen : position de départ des coups (Analyse depuis une position posée) ; sinon la position initiale.
 function loadPositionFromPath(moves, opts) {
     clearErrorFx();
     _resetHint();
-    parseFEN(INIT_FEN);
+    parseFEN((opts && opts.fen) || INIT_FEN);
     moveHistory = []; lastFrom = -1; lastTo = -1;
     selected = null; legalMoves = []; hintPiece = null; awaitingPromotion = null;
     resetNavCursor();
@@ -40,6 +41,7 @@ function loadPositionFromPath(moves, opts) {
 function handleClick(idx) {
     const mode = GameModes.current();
     if (mode.inputBlocked() || mode.backToLive()) return;       // aperçu, cinématique ; séance : toucher ramène au présent
+    if (mode.onSquare) { mode.onSquare(idx); return; }            // éditeur de position : poser, retirer, déplacer
 
     // Si on visualise une position passée (navigation Précédent/Suivant),
     // jouer ici doit relancer la partie réelle à partir de cette position :
@@ -261,18 +263,27 @@ function noteMistake(key) {
     if (after && _mistakeRun.n >= after && _hintKey !== key) showHint();
 }
 
-// ─── INDICE PUIS SOLUTION ─────────────────────────────────────────────────────
-// Un même bouton (et la touche Espace) : 1er appui = indice (type de pièce à jouer), le bouton devient
-// alors « Solution » ; 2e appui = le coup attendu est surligné (halo doré). Dévoiler la solution compte
-// une erreur sur la position, une seule fois ; le coup joué ensuite ne compte pas comme une réussite.
-// Jouer et Entraînement (showTrainingSolution) ; les finales ont leurs propres indices (endgameHint).
+// ─── INDICE EN TROIS PALIERS ──────────────────────────────────────────────────
+// Un même bouton (et la touche Espace), trois paliers (chantier « Échiquier et séance », 18 novembre 2026) :
+//   1er appui : type de pièce à jouer (« déplacez un Fou »), les pièces de ce type soulignées ;
+//   2e appui : la pièce exacte, case cerclée de laiton ;
+//   3e appui : la solution, coup attendu surligné (halo doré).
+// Le libellé dit ce que donnera l'appui suivant (Indice, Pièce, Solution) et trois points marquent le palier.
+// Ce que coûte chaque palier est décidé par le mode : l'Entraînement note (hintLevel(), recordReview) dans les seules
+// séances de révision (TRAIN_SCORED, training.js) ; Jouer ne compte rien, ni l'indice ni la solution (showSolution).
+// Les finales ont leurs propres indices (endgameHint).
 
 const PIECE_HINT = { P: 'un Pion', N: 'un Cavalier', B: 'un Fou', R: 'une Tour', Q: 'une Dame', K: 'le Roi' };
+const PIECE_THE  = { P: 'le Pion', N: 'le Cavalier', B: 'le Fou', R: 'la Tour', Q: 'la Dame', K: 'le Roi' };
 
 let _suggestHintKey = null;   // position où un coup vient d'être refusé : l'Indice y est mis en avant
-let _hintKey      = null;     // position pour laquelle l'indice a été donné (le bouton affiche alors « Solution »)
+let _hintKey      = null;     // position pour laquelle l'indice a été donné
+let _hintStep     = 0;        // palier atteint sur _hintKey : 1 = type de pièce, 2 = pièce exacte
 let _solutionKey  = null;     // position dont la solution a été dévoilée en mode Jouer
 let _solutionMove = null;     // { key, from, to } : coup surligné par le halo
+
+// Palier d'indice reçu dans la position réelle : 0 (aucun), 1 (type), 2 (pièce exacte). La solution se lit à part.
+function hintLevel(key = positionKey()) { return _hintKey === key ? _hintStep : 0; }
 
 function showHint() {
     const mode = GameModes.current();
@@ -287,13 +298,31 @@ function showHint() {
     const key   = positionKey();
     const entry = openingDB[key];
     if (!entry) { setStatus("Aucun indice — cette position n'est pas encore dans la base.", 'info'); return; }
-    if (_hintKey === key) { showSolution(); return; }
-    _hintKey = key;
+    if (_hintKey === key && _hintStep >= 2) { showSolution(); return; }
+    const step  = _hintKey === key ? 2 : 1;
+    _hintKey = key; _hintStep = step;
     const piece = (board[squareToIdx(entry.move.slice(0, 2))] || '').toUpperCase();
     selected = null; legalMoves = []; hintPiece = null;
     renderBoard();
-    const cost = GameModes.current().solutionCost();
-    setStatus(`Indice : déplacez ${PIECE_HINT[piece] || 'une pièce'}.`, 'hint', 'Appuyez encore pour voir la solution.' + cost);
+    // Le détail met bout à bout des phrases entières (coût du mode) : chacune est traduite, puis l'ensemble est marqué.
+    const say = (...parts) => I18n.mark(parts.filter(Boolean).map(s => I18n.t(s)).join(''));
+    if (step === 1) setStatus(`Indice : déplacez ${PIECE_HINT[piece] || 'une pièce'}.`, 'hint', say('Appuyez encore pour voir laquelle.', mode.hintCost(1)));
+    else setStatus(`Indice : ${PIECE_THE[piece] || 'la pièce'} de ${entry.move.slice(0, 2)}.`, 'hint',
+        say('Appuyez encore pour voir la solution.', mode.hintCost(2), mode.solutionCost()));
+}
+
+// Repères de l'indice sur l'échiquier réel (lus par renderBoard) : { type: [cases], ring: case } ou null.
+function hintMarks() {
+    const key = positionKey();
+    if (_hintKey !== key || !_hintStep || navCursor !== -1 || turn !== playerColor || _solutionMove && _solutionMove.key === key) return null;
+    const entry = openingDB[key];
+    if (!entry) return null;
+    const from = squareToIdx(entry.move.slice(0, 2)), p = board[from];
+    if (!p) return null;
+    if (_hintStep >= 2) return { type: [], ring: from };
+    const type = [];
+    board.forEach((q, i) => { if (q === p) type.push(i); });
+    return { type, ring: -1 };
 }
 
 function showSolution() {
@@ -323,18 +352,23 @@ function _syncHintBtn() {
     const el  = document.getElementById('board');
     if (el) el.classList.toggle('show-solution', fx);
     const mode = GameModes.current();
-    const sol = mode.hintToSolution && _hintKey === key && turn === playerColor && navCursor === -1;
+    const live = _hintKey === key && turn === playerColor && navCursor === -1;
+    const step = live ? _hintStep : 0;                              // palier déjà donné : le bouton annonce le suivant
+    const sol = mode.hintToSolution && step >= 2;
     const off = _hintBlocked();
-    const suggest = !off && !sol && _suggestHintKey === key && navCursor === -1;
+    const suggest = !off && !step && _suggestHintKey === key && navCursor === -1;
+    const pips = n => `<span class="hint-pips" aria-hidden="true">${[1, 2, 3].map(i => `<i${i <= n ? ' class="on"' : ''}></i>`).join('')}</span>`;
     document.querySelectorAll('.tb-hint').forEach(b => {
         b.disabled = !!off;
         b.classList.toggle('is-suggest', suggest);
         b.title = off || (sol ? `Voir la solution (Espace)${mode.solutionNote}`
-                              : `Indice (Espace)${mode.hintNote}`);
-        const state = sol ? 'sol' : off ? 'off' : 'hint';           // indisponible : le libellé le dit, la raison est en infobulle
+                        : step ? `Montrer la pièce (Espace)${mode.pieceNote}`
+                        : `Indice (Espace)${mode.hintNote}`);
+        const state = sol ? 'sol' : step ? 'piece' : off ? 'off' : 'hint';   // indisponible : le libellé le dit, la raison est en infobulle
         if (b.dataset.sol === state) return;
         b.dataset.sol = state;
-        b.innerHTML   = sol ? `${ico('flame')}<span class="btn-label">Solution</span>`
+        b.innerHTML   = sol ? `${ico('flame')}<span class="btn-label">Solution</span>${pips(2)}`
+                      : step ? `${ico('lightbulb')}<span class="btn-label">Pièce</span>${pips(1)}`
                       : `${ico('lightbulb')}<span class="btn-label">Indice${off ? '<span class="hint-off"> indisponible</span>' : ''}</span>`;
     });
     Bus.emit('ui:refresh');          // le centre du dock suit l'Indice (téléphone)
@@ -349,7 +383,7 @@ function _hintBlocked() {
     return openingDB[Chess.key(pos)] ? '' : 'Position inconnue : jouez votre coup pour l\'enregistrer';
 }
 
-function _resetHint() { _hintKey = null; _solutionKey = null; _solutionMove = null; }
+function _resetHint() { _hintKey = null; _hintStep = 0; _solutionKey = null; _solutionMove = null; }
 
 // ─── CONFIRMATION MODALE ──────────────────────────────────────────────────────
 

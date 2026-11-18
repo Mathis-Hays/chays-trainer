@@ -2,8 +2,8 @@
  * domain/games/gameInsights.js
  * ──────────────────────────────────────────────────────────────────────────
  * Calculs du bilan général et du temps (Statistiques › Parties), purs : ni écran ni stockage.
- *   Bilan : byGap, heat (jour × tranche de 4 h), sessions, ends, records, volume.
- *   Temps : timeCurve, exitClock, zeitnot, leadAtMove, thinking. Une horloge se lit en part du temps initial, comparable d'une cadence à l'autre.
+ *   Bilan : byGap, heat (jour × tranche de 4 h), sessions, ends, records, volume, aboveElo (mois joués au-dessus de mon Elo).
+ *   Temps : timeCurve, exitClock, zeitnot, leadAtMove, leadSides (en retard, à égalité, en avance au coup 20), thinking. Une horloge se lit en part du temps initial, comparable d'une cadence à l'autre.
  * Une partie : celle de GameArchive ; une ligne : { g, a } (StatsGames.analysed). Résumés : OpeningReport.summarize.
  */
 
@@ -92,9 +92,18 @@ const GameInsights = (function () {
             months.push({ at: from, n: of.length, delta: of.length >= 2 ? last.me - start : null });
         }
         const active = months.filter(m => m.delta !== null && m.n >= MIN).sort((a, b) => b.n - a.n);
-        if (active.length < 4) return { months, high: null, low: null };
+        if (active.length < 4) return { months, high: null, low: null, threshold: null };
         const half = Math.floor(active.length / 2);
-        return { months, high: avg(active.slice(0, half).map(m => m.delta)), low: avg(active.slice(half).map(m => m.delta)) };
+        // threshold : nombre de parties du mois chargé le moins joué (« N parties et plus ») ; highN / lowN : mois de chaque côté.
+        return { months, high: avg(active.slice(0, half).map(m => m.delta)), low: avg(active.slice(half).map(m => m.delta)), threshold: active[half - 1].n, highN: half, lowN: active.length - half };
+    }
+
+    // Chantier « Progrès : niveau et temps », carte 1 : chaque mois, niveau joué moins mon Elo moyen du mois (OpeningReport.months :
+    // champs perf, me, gap ; il faut MIN_PERF parties avec Elo). above : mois au-dessus ; best : le meilleur mois.
+    function aboveElo(months) {
+        const known = months.filter(m => Number.isFinite(m.gap));
+        const best = known.slice().sort((a, b) => b.gap - a.gap)[0] || null;
+        return { months: months.map(m => ({ at: m.at, n: m.n, gap: Number.isFinite(m.gap) ? m.gap : null, perf: m.perf, me: m.me })), known: known.length, above: known.filter(m => m.gap > 0).length, best };
     }
 
     // ─── TEMPS ───────────────────────────────────────────────────────────────
@@ -147,6 +156,26 @@ const GameInsights = (function () {
         return groupSum(out);
     }
 
+    // Les cinq tranches regroupées en trois situations : en retard de 5 points de temps ou plus, à égalité, en avance de 5 points ou plus.
+    function leadSides(list, move = LEAD_MOVE) {
+        const out = [[], [], []];
+        list.filter(clockable).forEach(g => {
+            const a = g.clk[myPly(g, move)], b = g.clk[oppPly(g, move)];
+            if (!Number.isFinite(a) || !Number.isFinite(b)) return;
+            const d = (a - b) / base(g);
+            out[d <= -5 ? 0 : d < 5 ? 1 : 2].push(g);
+        });
+        const [behind, even, ahead] = groupSum(out);
+        return { behind, even, ahead, gain: behind.n >= MIN && ahead.n >= MIN ? ahead.score - behind.score : null };
+    }
+
+    // Temps initial le plus fréquent (secondes), pour dire le seuil du zeitnot en secondes.
+    function usualBase(list) {
+        const count = new Map();
+        list.filter(clockable).forEach(g => count.set(base(g), (count.get(base(g)) || 0) + 1));
+        return [...count.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+    }
+
     // Temps passé sur un coup, en secondes : horloge d'avant moins horloge d'après, plus l'incrément.
     function spent(g, i) {
         if (!Number.isFinite(g.clk[i])) return null;
@@ -171,5 +200,5 @@ const GameInsights = (function () {
         return { n: first.length, first: avg(first), usual: avg(usual), thought: sum(thought), quick: sum(quick) };
     }
 
-    return { MIN, LEAD_MOVE, byGap, heat, sessions, ends, records, volume, timeCurve, exitClock, zeitnot, leadAtMove, thinking };
+    return { MIN, LEAD_MOVE, ZEITNOT, byGap, heat, sessions, ends, records, volume, aboveElo, timeCurve, exitClock, zeitnot, leadAtMove, leadSides, usualBase, thinking };
 })();

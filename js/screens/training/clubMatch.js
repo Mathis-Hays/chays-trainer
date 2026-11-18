@@ -3,7 +3,7 @@
  * ──────────────────────────────────────────────────────────────────────────
  * Adversaire du club (atelier « L'envie de revenir », lot 6) : une séance de l'Entraînement (kind 'club') où je joue
  * ma ligne depuis le début contre un adversaire qui choisit les coups réellement joués à mon niveau, jusqu'à sortir
- * du répertoire. Chaque coup compte comme une révision ; la première erreur arrête la partie.
+ * du répertoire. Rien n’est noté dans le répertoire (TRAIN_SCORED, training.js) ; la première erreur arrête la partie.
  * Coups adverses, dans l'ordre : explorateur Lichess à mes tranches d'Elo (fetchExplorer, jeton requis), sinon mes
  * propres parties (_freqTable, 3 au moins), sinon les branches de mon répertoire (_pickOppContinuation).
  * Tirage pondéré par le nombre de parties ; les coups joués moins de MIN_SHARE du temps sont écartés.

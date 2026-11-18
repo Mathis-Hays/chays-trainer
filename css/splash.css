@@ -6,16 +6,16 @@
    couleurs de l'identité Noyer (roi #dbc09a, laiton #c99a4b sur #2c1f16), glisse vers celles du thème pendant le vol
    (js/core/introTimeline.js).
 
-     Première ouverture du jour, « la plume » (script en ligne d'index.html), temps resserrés en novembre 2026 :
+     Première ouverture sur l'appareil, « la plume » (script en ligne d'index.html), temps resserrés en novembre 2026 :
      0          icône de l'écran système, au pixel près (.sp-handoff : même PNG, 240 px, centrée) ;
                 la pièce (.sp-piece, 71,7 × 163,9 px) est posée exactement dessus
      0–0,93 s   la pièce se trace par-dessus l'icône, qui s'efface (0,18 → 0,48) ; un point de laiton (.sp-nib)
                 conduit le trait ; l'encre monte de la base vers la croix (0,39 → 0,87)
      0,63–1,05  la scène remonte pour centrer pièce + signature ; la plume écrit la signature (0,94 → 1,19)
      1,2 s      fin de la suspension (spHold) : la sortie attend aussi que l'app soit prête ; un toucher l'écourte
-     + 0,4 s    atterrissage (× 0,5) : vol vers la barre du haut, voile qui s'efface, accueil en cascade
-     Ouvertures suivantes (html.splash-quick) : roi déjà dessiné, la gravure se réécrit (0,3 s), suspension de
-     0,3 s, atterrissage × 0,4 : environ 0,7 s quand l'app est prête.
+     + 0,4 s    atterrissage (× 0,5) : vol vers la barre du haut, voile qui s'efface, blocs de l'accueil en cascade (barres jamais animées)
+     Ouvertures suivantes (html.splash-quick) : roi déjà dessiné, la gravure se réécrit (0,3 s), aucune
+     suspension (splash.js) : l'atterrissage (0,35 s) part dès que l'app est prête (app:ready, accueil dessiné).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 @property --ct-encre  { syntax: '<color>'; inherits: true; initial-value: #dbc09a; }
@@ -38,7 +38,9 @@ html.splashing { background: var(--sp-bg); }
     animation: spHold 1.2s linear both;             /* minuteur visuel, lu par splash.js */
 }
 @keyframes spHold { from { opacity: 1; } to { opacity: 1; } }
-.splashing #logo-nav, .splashing .topnav-wm { visibility: hidden; }     /* les cibles gardent leur place */
+/* Les cibles gardent leur place ; dès la sortie, introTimeline.js les cache seulement le temps du vol (fill: 'backwards') :
+   le vrai logo ne dépend plus de la fin de .splashing pour réapparaître. */
+.splashing:not(.splash-out) #logo-nav, .splashing:not(.splash-out) .topnav-wm { visibility: hidden; }
 
 .sp-veil { position: absolute; inset: 0; background: var(--sp-bg); }
 
@@ -70,8 +72,7 @@ html.splashing { background: var(--sp-bg); }
           background: #f3d79a; box-shadow: 0 0 8px 2px color-mix(in srgb, var(--ct-laiton) 75%, transparent); pointer-events: none; }
 .sp-outline .plein { fill-opacity: 0; }
 
-/* Ouvertures suivantes : le roi est déjà là (pas de tracé), la signature reste cachée, sortie rapide */
-.splashing.splash-quick .splash { animation-duration: .3s; }
+/* Ouvertures suivantes : le roi est déjà là (pas de tracé), la signature reste cachée, sortie dès que l'app est prête */
 .splash-quick .sp-handoff { animation-duration: .2s; animation-delay: 0s; }
 .splash-quick .sp-stage { animation: none; transform: translateY(var(--sp-shift)); }
 .splash-quick .sp-wm { visibility: hidden; }

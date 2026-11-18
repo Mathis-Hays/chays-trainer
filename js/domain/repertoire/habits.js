@@ -5,22 +5,21 @@
  * Atelier « L'envie de revenir », lot 1 (16 novembre 2026).
  *   streak(act, now)                série de jours actifs, avec un joker par semaine (lundi → dimanche) :
  *                                   un jour manqué seul ne casse pas la série ; deux de suite, ou deux la même semaine, si.
- *   comeback(act, due, now, goal)   retour en douceur : après HABITS_AWAY_DAYS jours sans essai, le retard n'est pas posé
- *                                   d'un bloc ; une première part de HABITS_COMEBACK_FIRST positions, puis le reste réparti
- *                                   sur les HABITS_SPREAD_DAYS jours qui suivent le retour. Rien n'est effacé ni décalé :
- *                                   seul Aujourd'hui limite sa Révision du jour, l'Entraînement garde la file entière.
+ *   comeback(act, now)              retour après HABITS_AWAY_DAYS jours sans essai (« Bon retour ») ; la part du jour est
+ *                                   celle du plafond commun (reviewPlan, objectif quotidien), rien n'est effacé ni décalé.
  */
 
 'use strict';
 
 const Habits = (function () {
     const AWAY_DAYS = 3;          // jours depuis le dernier essai à partir desquels on parle de retour
-    const COMEBACK_FIRST = 8;     // positions de la première séance de reprise (et plancher des jours suivants)
     const SPREAD_DAYS = 7;        // le retard est réparti sur la semaine qui suit le retour
 
     // Jours du calendrier (robuste aux changements d'heure) : minuit du jour de t, décalé de n jours.
     const day = (t, n = 0) => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + n).getTime(); };
-    const active = (act, t) => !!(act[dayStamp(t)] || {}).a;
+    // Jour actif : une révision notée (a) ou un passage hors révision (p : Survie, défi du jour…), décision du 18 novembre 2026.
+    const played = d => !!d && ((d.a || 0) > 0 || (d.p || 0) > 0);
+    const active = (act, t) => played(act[dayStamp(t)]);
     const weekOf = t => dayStamp(day(t, -((new Date(t).getDay() + 6) % 7)));      // lundi de la semaine
     const between = (a, b) => Math.round((day(b) - day(a)) / DAY_MS);              // jours de a à b
 
@@ -48,7 +47,7 @@ const Habits = (function () {
 
     // Dernier jour actif strictement avant t (minuit), ou null.
     function lastActiveBefore(act, t) {
-        const keys = Object.keys(act).filter(k => act[k] && act[k].a > 0 && k < dayStamp(t)).sort();
+        const keys = Object.keys(act).filter(k => played(act[k]) && k < dayStamp(t)).sort();
         if (!keys.length) return null;
         const [y, m, d] = keys[keys.length - 1].split('-').map(Number);
         return new Date(y, m - 1, d).getTime();
@@ -66,20 +65,16 @@ const Habits = (function () {
         return null;
     }
 
-    // Retour en douceur. due : positions de la Révision du jour en ce moment ; goal : objectif quotidien.
-    // null quand il n'y a rien à retenir ; sinon { first, away, quota, left, held, daysLeft } :
-    //   first : c'est le jour du retour ; left : positions proposées maintenant ; held : les autres, gardées pour la suite.
-    function comeback(act, due, now = Date.now(), goal = 10) {
+    // Retour : le jour actif (ou aujourd'hui) qui suit AWAY_DAYS jours au moins sans essai, dans la semaine écoulée.
+    // null sinon ; { first : c'est aujourd'hui, away : jours d'absence, daysLeft : jours restants de la semaine du retour }.
+    // Depuis le chantier « Révision du jour » (novembre 2026), le plafond du jour (reviewPlan, objectif quotidien) répartit
+    // le retard : la reprise ne calcule plus sa propre part, elle ne sert plus qu'au titre « Bon retour ».
+    function comeback(act, now = Date.now()) {
         const r = returnDay(act, now);
-        if (!r || !due) return null;
-        const today = day(now), done = (act[dayStamp(today)] || { a: 0 }).a;
-        const daysLeft = Math.max(1, SPREAD_DAYS - between(r.t, today));
-        const first = r.t === today;
-        const quota = first ? COMEBACK_FIRST : Math.max(COMEBACK_FIRST, Math.min(goal * 3, Math.ceil((due + done) / daysLeft)));
-        const left = Math.max(0, quota - done);
-        if (due <= left) return null;                 // tout tient dans la part du jour : séance normale
-        return { first, away: r.away, quota, left, held: due - left, daysLeft };
+        if (!r) return null;
+        const today = day(now);
+        return { first: r.t === today, away: r.away, daysLeft: Math.max(1, SPREAD_DAYS - between(r.t, today)) };
     }
 
-    return { streak, comeback, AWAY_DAYS, COMEBACK_FIRST, SPREAD_DAYS };
+    return { streak, comeback, AWAY_DAYS, SPREAD_DAYS };
 })();

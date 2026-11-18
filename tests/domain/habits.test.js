@@ -1,4 +1,4 @@
-// Lancer : node tests/domain/habits.test.js   — série avec joker et retour en douceur (Habits, atelier « L'envie de revenir », lot 1)
+// Lancer : node tests/domain/habits.test.js   — série avec joker et jour du retour (Habits, atelier « L'envie de revenir », lot 1)
 const { scriptPath, readVars } = require('../_app.js');
 const vm = require('vm'), fs = require('fs'), assert = require('assert');
 let n = 0;
@@ -53,33 +53,36 @@ t('aucune activité : série nulle', () => {
     assert.deepStrictEqual(JSON.parse(JSON.stringify(Habits.streak({}, NOW))), { n: 0, jokers: [], jokerFree: true });
 });
 
-t('retour après 5 jours : 8 positions pour reprendre, le reste gardé', () => {
-    const c = Habits.comeback(act([-5]), 72, NOW, 10);
+t('jour de seule Survie (ou défi du jour, mode libre…) : la série continue, comme un jour de révision', () => {
+    const a = act([-1, -2]);
+    a[day(0)] = { a: 0, f: 0, p: 4 };                               // aujourd'hui : passages hors révision seulement
+    assert.strictEqual(Habits.streak(a, NOW).n, 3);
+    const b = act([0, -2]);
+    b[day(-1)] = { a: 0, f: 0, p: 1 };
+    assert.strictEqual(Habits.streak(b, NOW).n, 3, 'hier en Survie : pas de joker dépensé');
+    assert.strictEqual(Habits.streak(b, NOW).jokers.length, 0);
+});
+
+// Depuis le chantier « Révision du jour » (novembre 2026), la part du jour vient du plafond commun (reviewPlan) :
+// comeback ne dit plus que le retour (titre « Bon retour »), sans part ni retard gardé (tests/domain/dailyPlan.test.js).
+t('retour après 5 jours : « Bon retour » aujourd\'hui, sans part propre', () => {
+    const c = Habits.comeback(act([-5]), NOW);
     assert.strictEqual(c.first, true);
     assert.strictEqual(c.away, 5);
-    assert.strictEqual(c.left, Habits.COMEBACK_FIRST);
-    assert.strictEqual(c.held, 64);
+    assert.strictEqual(c.left, undefined, 'plus de part du jour propre à la reprise');
+    assert.strictEqual(Habits.comeback(act([0, -5], 8), NOW).first, true, 'essais déjà faits : toujours le jour du retour');
 });
 
-t('jour du retour, part déjà faite en partie : il reste la différence ; faite en entier : left = 0', () => {
-    assert.strictEqual(Habits.comeback(act([0, -5], 5), 64, NOW, 10).left, 3);
-    const done = Habits.comeback(act([0, -5], 8), 64, NOW, 10);
-    assert.strictEqual(done.left, 0);
-    assert.strictEqual(done.held, 64);
-});
-
-t('jours suivants : le retard est réparti sur ce qui reste de la semaine', () => {
-    const c = Habits.comeback(act([-1, -2, -6]), 60, NOW, 10);       // retour il y a 2 jours, 5 jours restants
+t('jours suivants de la semaine du retour : first faux, jours restants', () => {
+    const c = Habits.comeback(act([-1, -2, -6]), NOW);              // retour il y a 2 jours, 5 jours restants
     assert.strictEqual(c.first, false);
     assert.strictEqual(c.daysLeft, 5);
-    assert.strictEqual(c.quota, 12);
 });
 
-t('pas de retour en douceur : absence courte, premier lancement, retard qui tient dans la part, semaine écoulée', () => {
-    assert.strictEqual(Habits.comeback(act([-2]), 72, NOW, 10), null);
-    assert.strictEqual(Habits.comeback({}, 72, NOW, 10), null);
-    assert.strictEqual(Habits.comeback(act([-5]), 6, NOW, 10), null);
-    assert.strictEqual(Habits.comeback(act([-1, -2, -3, -4, -5, -6, -7, -12]), 72, NOW, 10), null);
+t('pas de retour : absence courte, premier lancement, semaine écoulée', () => {
+    assert.strictEqual(Habits.comeback(act([-2]), NOW), null);
+    assert.strictEqual(Habits.comeback({}, NOW), null);
+    assert.strictEqual(Habits.comeback(act([-1, -2, -3, -4, -5, -6, -7, -12]), NOW), null);
 });
 
 console.log(`\n${n} tests réussis.`);

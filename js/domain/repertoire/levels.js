@@ -8,31 +8,31 @@
 
 const STATS_CONFIRM_TRIES = 3;
 
+// Échelle E3 (chantier « Révision du jour », 18 novembre 2026) : une seule règle, la série de réussites d'affilée
+// (runOf, review.js). Chaque réussite monte d'un cran, une erreur fait redescendre tout en bas. Le score sur 100
+// ne sert plus qu'au tri de la file du jour. Mêmes six cases et mêmes couleurs : l'historique ne change pas de format.
+const STATS_SOLID_RUN    = 3;
+
+const STATS_MASTERED_RUN = 5;
+
 // Du plus fragile au plus sûr (ordre des barres, des filtres et des listes).
 const STATS_LEVELS = {
-    weak:     { label: 'À retravailler', one: 'À retravailler', rule: 'maîtrise sous 50 sur 100' },
-    fragile:  { label: 'Fragiles',       one: 'Fragile',        rule: 'maîtrise de 50 à 69 sur 100' },
-    progress: { label: 'En progrès',     one: 'En progrès',     rule: 'maîtrise de 70 à 84 sur 100' },
-    solid:    { label: 'Solides',        one: 'Solide',         rule: 'maîtrise de 85 sur 100 ou plus' },
-    unsure:   { label: 'À confirmer',    one: 'À confirmer',    rule: `aucune erreur, moins de ${STATS_CONFIRM_TRIES} essais` },
-    mastered: { label: 'Maîtrisées',     one: 'Maîtrisée',      rule: `aucune erreur en ${STATS_CONFIRM_TRIES} essais ou plus, ou solide et réussie plusieurs révisions d'affilée` }
+    weak:     { label: 'À retravailler', one: 'À retravailler', rule: 'dernier essai raté' },
+    fragile:  { label: 'Fragiles',       one: 'Fragile',        rule: '1 réussite d’affilée depuis la dernière erreur' },
+    progress: { label: 'En progrès',     one: 'En progrès',     rule: '2 réussites d’affilée' },
+    solid:    { label: 'Solides',        one: 'Solide',         rule: `${STATS_SOLID_RUN} ou ${STATS_MASTERED_RUN - 1} réussites d’affilée` },
+    unsure:   { label: 'À confirmer',    one: 'À confirmer',    rule: `moins de ${STATS_CONFIRM_TRIES} essais, sans erreur` },
+    mastered: { label: 'Maîtrisées',     one: 'Maîtrisée',      rule: `${STATS_MASTERED_RUN} réussites d’affilée ou plus` }
 };
 
 const STATS_LEVEL_ORDER = Object.keys(STATS_LEVELS);
 
+// Sans erreur et moins de 3 essais : À confirmer (aussi sans aucune réussite comptée, essais faits avec la pièce montrée).
 function _level(e) {
-    if (!e.failures) return e.attempts >= STATS_CONFIRM_TRIES ? 'mastered' : 'unsure';
-    const m = masteryOf(e);
-    if (m < STATS_WEAK_BELOW)     return 'weak';
-    if (m < STATS_FRAGILE_BELOW)  return 'fragile';
-    if (m < STATS_PROGRESS_BELOW) return 'progress';
-    return e.attempts >= STATS_CONFIRM_TRIES && (e.interval || 0) >= STATS_SOLID_DAYS ? 'mastered' : 'solid';
+    const run = runOf(e);
+    if (!e.failures && (e.attempts < STATS_CONFIRM_TRIES || !run)) return 'unsure';
+    if (!run) return 'weak';
+    if (run === 1) return 'fragile';
+    if (run === 2) return 'progress';
+    return run < STATS_MASTERED_RUN ? 'solid' : 'mastered';
 }
-
-const STATS_WEAK_BELOW     = 50;
-
-const STATS_FRAGILE_BELOW  = 70;
-
-const STATS_PROGRESS_BELOW = 85;
-
-const STATS_SOLID_DAYS    = 7;

@@ -87,10 +87,22 @@ t('valeur inconnue (version plus récente sur un autre appareil) : repli sur la 
 
 t('nouvelles préférences : valeurs par défaut et validation', () => {
     const c = boot({ chessTrainer_prefs: JSON.stringify({ dailyGoal: { v: 99, at: 1 }, notation: { v: 'fig', at: 1 }, pseudo: { v: 'Mathilde', at: 1 } }) });
-    assert.strictEqual(c.run('appSettings.dailyGoal'), 10);                // hors bornes : défaut
+    assert.strictEqual(c.run('appSettings.dailyGoal'), 30);                // hors bornes : défaut (Normal)
     assert.strictEqual(c.run('appSettings.notation'), 'fig');
     assert.strictEqual(c.run('appSettings.pseudo'), 'Mathilde');
     assert.strictEqual(c.run('appSettings.textSize'), 'm');
+});
+
+t('objectif du jour (chantier « Révision du jour ») : paliers 15, 30, 60 ; ancienne valeur convertie à la lecture, sans réécriture', () => {
+    const goal = v => boot({ chessTrainer_prefs: JSON.stringify({ dailyGoal: { v, at: 5 } }) });
+    [[10, 30], [5, 15], [15, 15], [20, 15], [25, 30], [30, 30], [45, 30], [50, 60], [60, 60]].forEach(([old, now]) => {
+        assert.strictEqual(goal(old).run('appSettings.dailyGoal'), now, `ancienne valeur ${old}`);
+    });
+    const c = goal(20);
+    c.run('saveSettings()');
+    assert.strictEqual(JSON.parse(c.run(`dataStore.get('chessTrainer_prefs')`)).dailyGoal.at, 5, 'le choix n\'est pas réécrit ni redaté');
+    assert.strictEqual(boot({ chessTrainer_settings: JSON.stringify({ dailyGoal: 40 }) }).run('appSettings.dailyGoal'), 30, 'ancien emplacement local');
+    assert.strictEqual(boot({}).run('appSettings.dailyGoal'), 30, 'nouvelle installation : Normal');
 });
 
 t('mode : ancienne clé aux valeurs inversées convertie une fois, mode système', () => {

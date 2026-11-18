@@ -72,6 +72,21 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert(!/^(Autres positions\|?)+$/.test(names), names);
     });
 
+    await t('lancement suivant : la signature gardée (chessTrainer_pathsSeen) évite de relire la base ; une base changée est relue', () => {
+        repairPathsCalls();
+        w.eval(`_pathsSeen.clear()`);                                   // comme au lancement suivant
+        assert.strictEqual(w.eval(`repairPaths(currentRepertoire)`), 0);
+        assert.strictEqual(w.eval(`window.__reads`), 0, 'aucune lecture de la base');
+        w.eval(`_pathsSeen.clear(); (() => { const db = readDBFor(currentRepertoire, 'b'); Object.values(db)[0].attempts += 1;
+            dataStore.set(dbKeyFor(currentRepertoire, 'b'), JSON.stringify(db)); })(); window.__reads = 0`);
+        w.eval(`repairPaths(currentRepertoire)`);
+        assert.strictEqual(w.eval(`window.__reads`), 2, 'base changée : les deux couleurs relues');
+        assert(w.eval(`JSON.parse(dataStore.get('chessTrainer_pathsSeen'))[currentRepertoire]`));
+    });
+    function repairPathsCalls() {
+        w.eval(`window.__reads = 0; (() => { const orig = readDBFor; window.readDBFor = (...a) => { window.__reads++; return orig(...a); }; })()`);
+    }
+
     await t('aucune erreur JS', () => { assert.deepStrictEqual(errors, []); });
     w.close();
     console.log(`\n${n} tests réussis.`);

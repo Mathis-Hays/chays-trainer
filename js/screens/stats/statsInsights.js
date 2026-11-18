@@ -3,7 +3,11 @@
  * ──────────────────────────────────────────────────────────────────────────
  * Statistiques › Parties : filtres communs (période, site, cadence), posés dans la barre de contexte de l'onglet à côté de la
  * couleur, et lus aussi par Ouvertures et par « À faire » ; vues Bilan, Temps, Qualité et Positions.
- * Qualité : Stockfish évalue les parties pendant que la vue est ouverte et visible (GameEval), Chess.com d'abord ; les résultats sont gardés.
+ * Qualité : Stockfish évalue les parties (GameEval, deux passes, ouvertures en cache) pendant que la vue est ouverte et visible, et
+ * en arrière-plan après le lancement (Bus.afterIntro, 20 parties) ; la période affichée d'abord ; les résultats sont gardés.
+ * Cartes refaites en novembre 2026 (chantiers « Progrès : niveau et temps » et « Progrès : qualité et médailles ») : écart à l'Elo
+ * par mois, mois chargés, force de l'adversaire ; temps à la sortie du répertoire, zeitnot défini, coup 20 en trois situations ;
+ * précision en grand chiffre, trois cadrans des phases, fautes par tranche de 10 coups, escalier de la sortie ; terrains et pièges.
  * Choisir un site ou une cadence règle aussi la courbe d'Elo (préférences eloSite, eloSpeed). Calculs : GameInsights, OpeningReport.
  * Période, site et cadence sont retrouvés au prochain lancement (chessTrainer_gameFilters, propre à l'appareil).
  * Chaque carte répond à une question et le dit en une phrase ; une phrase n'apparaît qu'avec assez de parties (GameInsights.MIN).
@@ -60,18 +64,23 @@ const StatsInsights = (function () {
 
     // ─── GRAPHIQUES ──────────────────────────────────────────────────────────
     const monthName = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { month: 'short' }));
-
-    function perfChart(months) {
-        const pts = months.filter(m => m.perf !== null);
-        if (pts.length < 2) return '<p class="st-sub">Pas encore assez de mois joués.</p>';
-        const W = 300, H = 118, L = 4, R = 36, T = 10, B = 18, vals = pts.map(p => p.perf), lo = Math.floor(Math.min(...vals) / 50) * 50, hi = Math.max(lo + 50, Math.ceil(Math.max(...vals) / 50) * 50);
-        const x = i => L + i * (W - L - R) / Math.max(1, months.length - 1), y = v => T + (hi - v) * (H - T - B) / (hi - lo), at = m => months.indexOf(m);
-        const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(at(p)).toFixed(1)},${y(p.perf).toFixed(1)}`).join(''), end = pts[pts.length - 1];
-        return `<div class="st-trend"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${I18n.pair(I18n.t('Niveau joué'), `${pts[0].perf} → ${end.perf}`)}">
-            ${[lo, (lo + hi) / 2, hi].map(v => `<line class="g" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${W - R + 4}" y="${y(v) + 3}">${Math.round(v)}</text>`).join('')}
-            <path class="ln" d="${line}"/>${pts.map(p => `<circle class="pt${p === end ? ' end' : ''}" cx="${x(at(p))}" cy="${y(p.perf)}" r="${p === end ? 3.5 : 2.5}"><title>${I18n.mark(`${monthName(p.at)} · ${p.perf} · ${p.n}`)}</title></circle>`).join('')}
-            <text class="ax" x="${L}" y="${H - 4}">${monthName(months[0].at)}</text><text class="ax" x="${W - R}" y="${H - 4}" text-anchor="end">${monthName(months[months.length - 1].at)}</text></svg></div>`;
+    const monthLong = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { month: 'long' }));
+    const svgOf = (W, H, label, g, cls = '') => `<svg class="so-chart${cls ? ' ' + cls : ''}" viewBox="0 0 ${W} ${H}" role="img" aria-label="${label}">${g}</svg>`;
+    // Barre arrondie de 4 px côté données, ancrée à la ligne de base : verticale (y0 base, y1 bout) ou horizontale (x0 base, x1 bout).
+    function vBar(x, y0, y1, w, cls, tip) {
+        const top = Math.min(y0, y1), h = Math.abs(y1 - y0), r = Math.min(4, h, w / 2), up = y1 < y0;
+        const d = up ? `M${x},${y0}V${top + r}Q${x},${top} ${x + r},${top}H${x + w - r}Q${x + w},${top} ${x + w},${top + r}V${y0}Z`
+                     : `M${x},${y0}V${y1 - r}Q${x},${y1} ${x + r},${y1}H${x + w - r}Q${x + w},${y1} ${x + w},${y1 - r}V${y0}Z`;
+        return `<path class="${cls}" d="${d}"><title>${tip}</title></path>`;
     }
+    function hBar(x0, x1, y, h, cls, tip) {
+        const len = Math.abs(x1 - x0), r = Math.min(4, len, h / 2);
+        const d = x1 >= x0 ? `M${x0},${y}H${x1 - r}Q${x1},${y} ${x1},${y + r}V${y + h - r}Q${x1},${y + h} ${x1 - r},${y + h}H${x0}Z`
+                           : `M${x0},${y}H${x1 + r}Q${x1},${y} ${x1},${y + r}V${y + h - r}Q${x1},${y + h} ${x1 + r},${y + h}H${x0}Z`;
+        return `<path class="${cls}" d="${d}"><title>${tip}</title></path>`;
+    }
+    const side = v => (v >= 0 ? 'si-up' : 'si-down');
+    const big = (label, value, sub, cls) => `<div class="si-big"><small>${label}</small><b class="${cls || ''}">${value}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
 
     // Barres de score sur 0-100 %, avec le score attendu en repère s'il est connu.
     function scoreBars(items) {
@@ -81,10 +90,9 @@ const StatsInsights = (function () {
             const x = L + band * i + (band - bw) / 2;
             g += `<text x="${x + bw / 2}" y="${H - 6}" text-anchor="middle">${label}</text>`;
             if (!t.n) return;
-            const top = y(t.score), r = Math.min(3, y(0) - top);
-            g += `<g><title>${I18n.mark(`${label} · ${t.n} · ${Math.round(t.score)} %${t.expected === null ? '' : ` / ${Math.round(t.expected)} %`}`)}</title><path class="so-bar-real" d="M${x},${y(0)}V${top + r}Q${x},${top} ${x + r},${top}H${x + bw - r}Q${x + bw},${top} ${x + bw},${top + r}V${y(0)}Z"/>${t.expected === null ? '' : `<line class="so-exp" x1="${x - 3}" x2="${x + bw + 3}" y1="${y(t.expected)}" y2="${y(t.expected)}"/>`}<text class="v" x="${x + bw / 2}" y="${top - 4}" text-anchor="middle">${Math.round(t.score)}</text></g>`;
+            g += `<g>${vBar(x, y(0), y(t.score), bw, 'so-bar-real', I18n.mark(`${label} · ${t.n} · ${Math.round(t.score)} %${t.expected === null ? '' : ` / ${Math.round(t.expected)} %`}`))}${t.expected === null ? '' : `<line class="so-exp" x1="${x - 3}" x2="${x + bw + 3}" y1="${y(t.expected)}" y2="${y(t.expected)}"/>`}<text class="v" x="${x + bw / 2}" y="${y(t.score) - 4}" text-anchor="middle">${Math.round(t.score)}</text></g>`;
         });
-        return `<svg class="so-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Score par tranche">${g}</svg>`;
+        return svgOf(W, H, 'Score par tranche', g);
     }
 
     function heatHTML(h) {
@@ -96,45 +104,96 @@ const StatsInsights = (function () {
         return card('so-c6', 'Quand jouez-vous le mieux ?', take, `<div class="si-heat" role="img" aria-label="Score par jour et par tranche horaire"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}${h.grid.map((row, d) => `<span class="d">${days[d]}</span>${row.map((t, s) => `<i style="${color(t)}" title="${I18n.mark(`${days[d]}, ${slots[s]} h · ${t.n} · ${t.n ? pct(t.score) : '–'}`)}"></i>`).join('')}`).join('')}</div><div class="si-ramp">Sous 50 % <i></i> Au-dessus</div>`);
     }
 
-    function clockChart(curve, exitMove) {
+    // Courbe du temps restant ; à la sortie du répertoire, l'avance moyenne en étiquette (chantier « Progrès : niveau et temps », carte 4).
+    function clockChart(curve, exitMove, lead) {
         const pts = curve.points, W = 360, H = 170, L = 4, R = 72, T = 10, B = 22, last = pts[pts.length - 1].move, top = Math.max(100, ...pts.map(p => Math.max(p.me, p.opp)));
         const x = m => L + (m - 1) * (W - L - R) / Math.max(1, last - 1), y = v => T + (top - v) * (H - T - B) / top;
         const path = k => pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.move).toFixed(1)},${y(p[k]).toFixed(1)}`).join(''), end = pts[pts.length - 1], near = Math.abs(y(end.me) - y(end.opp)) < 14, nudge = near ? 7 : 0, high = end.me >= end.opp;
         let g = [0, 50, 100].map(v => `<line class="${v ? 'g' : 'b'}" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L + 2}" y="${y(v) - 3}">${v} %</text>`).join('');
-        if (exitMove && exitMove <= last) g += `<line class="b" x1="${x(exitMove)}" x2="${x(exitMove)}" y1="${T}" y2="${H - B}"/><text x="${x(exitMove) + 4}" y="${T + 9}">Sortie du répertoire</text>`;
+        const at = exitMove && exitMove <= last ? pts.find(p => p.move === exitMove) : null, roomy = at && x(exitMove) > L + 44;
+        if (at) g += `<line class="b si-dash" x1="${x(exitMove)}" x2="${x(exitMove)}" y1="${T}" y2="${H - B}"/>${roomy ? `<text x="${x(exitMove) + 4}" y="${H - B - 4}">Sortie du répertoire</text>` : ''}`;
         g += `<path class="si-line opp" d="${path('opp')}"/><path class="si-line me" d="${path('me')}"/><circle class="si-dot opp" cx="${x(last)}" cy="${y(end.opp)}" r="4"/><circle class="si-dot me" cx="${x(last)}" cy="${y(end.me)}" r="4"/>
             <text class="v" x="${x(last) + 8}" y="${y(end.me) + 3 + (high ? -nudge : nudge)}">Vous</text><text class="v" x="${x(last) + 8}" y="${y(end.opp) + 3 + (high ? nudge : -nudge)}">Adversaire</text>`;
+        if (at && lead !== null) {
+            // L'étiquette au-dessus des courbes s'il y a la place, sinon en dessous ; « à la sortie » quand la ligne n'a pas sa légende.
+            const label = I18n.mark(`${signed(lead)} % ${I18n.t(roomy ? 'ici' : 'à la sortie')}`), pw = roomy ? 66 : 108, px = x(exitMove) + 6, above = Math.min(y(at.me), y(at.opp)) - 22;
+            const py = above >= T + 2 ? above : Math.max(y(at.me), y(at.opp)) + 8;
+            g += `<line class="si-mark" x1="${x(exitMove)}" x2="${x(exitMove)}" y1="${y(at.me)}" y2="${y(at.opp)}"/><rect class="si-pill" x="${px}" y="${py}" width="${pw}" height="18" rx="9"/><text class="si-pill-t" x="${px + pw / 2}" y="${py + 12.5}" text-anchor="middle">${label}</text>`;
+        }
         const step = last > 40 ? 20 : 10;
         for (let m = step; m <= last; m += step) g += `<text x="${x(m)}" y="${H - 6}" text-anchor="middle">${m}</text>`;
         pts.forEach(p => { g += `<rect x="${x(p.move) - 3}" y="${T}" width="6" height="${H - T - B}" fill="transparent"><title>${I18n.mark(`${p.move} · ${Math.round(p.me)} % / ${Math.round(p.opp)} %`)}</title></rect>`; });
-        return `<svg class="so-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Temps restant par coup">${g}</svg>`;
-    }
-
-    function volumeCharts(v) {
-        const W = 360, L = 4, R = 4, band = (W - L - R) / v.months.length, bw = band * .62, maxN = Math.max(1, ...v.months.map(m => m.n)), maxD = Math.max(10, ...v.months.map(m => Math.abs(m.delta || 0)));
-        const every = v.months.length > 6 ? 2 : 1;
-        const top = 60, topBars = v.months.map((m, i) => { const h = m.n * (top - 4) / maxN, x = L + band * i + (band - bw) / 2; return m.n ? `<rect class="so-bar-real" x="${x}" y="${top - h}" width="${bw}" height="${h}" rx="2"><title>${I18n.mark(`${monthName(m.at)} · ${m.n}`)}</title></rect>` : ''; }).join('');
-        const mid = 34, delta = v.months.map((m, i) => { if (m.delta === null) return ''; const h = Math.max(1, Math.abs(m.delta) * 30 / maxD), x = L + band * i + (band - bw) / 2; return `<rect class="${m.delta >= 0 ? 'so-bar-real' : 'so-bar-me'}" x="${x}" y="${m.delta >= 0 ? mid - h : mid}" width="${bw}" height="${h}" rx="2"><title>${I18n.mark(`${monthName(m.at)} · ${signed(m.delta)}`)}</title></rect>`; }).join('');
-        const ticks = v.months.map((m, i) => (v.months.length - 1 - i) % every ? '' : `<text x="${L + band * i + band / 2}" y="82" text-anchor="middle">${monthName(m.at)}</text>`).join('');
-        return `<p class="si-cap">Parties par mois</p><svg class="so-chart" viewBox="0 0 ${W} ${top + 2}" role="img" aria-label="Parties par mois"><line class="b" x1="${L}" x2="${W - R}" y1="${top}" y2="${top}"/>${topBars}</svg>
-            <p class="si-cap">Variation d'Elo</p><svg class="so-chart" viewBox="0 0 ${W} 88" role="img" aria-label="Variation d'Elo par mois"><line class="b" x1="${L}" x2="${W - R}" y1="${mid}" y2="${mid}"/>${delta}${ticks}</svg>`;
+        return svgOf(W, H, 'Temps restant par coup', g);
     }
 
     // ─── BILAN ───────────────────────────────────────────────────────────────
+    // Carte 1 : niveau joué moins mon Elo du mois, en barres qui partent de « votre Elo ».
+    function aboveChart(a) {
+        const ms = a.months, W = 360, H = 150, L = 4, R = 48, T = 16, B = 20, lim = Math.max(50, ...ms.map(m => Math.ceil(Math.abs(m.gap || 0) / 50) * 50)), mid = T + (H - T - B) / 2, k = (H - T - B) / 2 / lim;
+        const band = (W - L - R) / ms.length, bw = Math.min(30, band * .56), every = ms.length > 6 ? 2 : 1, lastKnown = ms.filter(m => m.gap !== null).pop();
+        let g = `<line class="b" x1="${L}" x2="${W - R}" y1="${mid}" y2="${mid}"/><text x="${W - R + 4}" y="${mid + 3}">votre Elo</text>`;
+        ms.forEach((m, i) => {
+            const x = L + band * i + (band - bw) / 2;
+            if ((ms.length - 1 - i) % every === 0) g += `<text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle">${monthName(m.at)}</text>`;
+            if (m.gap === null) return;
+            const yv = mid - m.gap * k;
+            g += vBar(x, mid, Math.abs(yv - mid) < 1 ? mid - (m.gap >= 0 ? 1 : -1) : yv, bw, side(m.gap), I18n.mark(`${monthLong(m.at)} · ${signed(m.gap)} Elo · ${I18n.t('niveau joué')} ${m.perf} · Elo ${m.me} · ${m.n}`));
+            if ((a.best && m.at === a.best.at) || m === lastKnown || ms.length <= 6) g += `<text class="v" x="${x + bw / 2}" y="${m.gap >= 0 ? yv - 4 : yv + 11}" text-anchor="middle">${signed(m.gap)}</text>`;
+        });
+        return svgOf(W, H, 'Niveau joué moins votre Elo, par mois', g);
+    }
+
+    // Carte 6 : écart à l'attendu par force de l'adversaire, en barres qui partent de zéro.
+    const GAP_NAMES = ['Bien plus fort', 'Plus fort', 'Même niveau', 'Plus faible', 'Bien plus faible'];
+    // Constat de la tranche la plus coûteuse : une phrase entière par tranche (traductions).
+    const GAP_TAKES = [(s, e) => `Vous perdez des points contre les adversaires bien plus forts : ${s} au lieu des ${e} attendus.`,
+                       (s, e) => `Vous perdez des points contre les adversaires plus forts : ${s} au lieu des ${e} attendus.`,
+                       (s, e) => `Vous perdez des points contre les adversaires de votre niveau : ${s} au lieu des ${e} attendus.`,
+                       (s, e) => `Vous perdez des points contre les adversaires plus faibles : ${s} au lieu des ${e} attendus.`,
+                       (s, e) => `Vous perdez des points contre les adversaires bien plus faibles : ${s} au lieu des ${e} attendus.`];
+    const GAP_TIPS = ['+150 Elo ou plus', '+50 à +150 Elo', '±50 Elo', '−50 à −150 Elo', '−150 Elo ou plus'];
+    function gapChart(gaps) {
+        const W = 360, L = 112, R = 40, rowH = 26, T = 4, H = T + rowH * gaps.length + 2, zero = L + (W - L - R) / 2, lim = Math.max(10, ...gaps.filter(fair).map(t => Math.ceil(Math.abs(t.delta || 0) / 5) * 5)), k = (W - L - R) / 2 / lim;
+        let g = `<line class="b" x1="${zero}" x2="${zero}" y1="0" y2="${H}"/>`;
+        gaps.forEach((t, i) => {
+            const y = T + i * rowH;
+            g += `<text class="lab" x="0" y="${y + 14}">${GAP_NAMES[i]}<title>${GAP_TIPS[i]}</title></text>`;
+            if (!fair(t) || t.delta === null) { g += `<text x="${zero + 6}" y="${y + 14}">–</text>`; return; }
+            const x1 = zero + t.delta * k;
+            g += hBar(zero, Math.abs(x1 - zero) < 1 ? zero + (t.delta >= 0 ? 1 : -1) : x1, y + 4, 14, side(t.delta), I18n.mark(`${GAP_NAMES[i]} (${GAP_TIPS[i]}) · ${pct(t.score)} / ${pct(t.expected)} · ${t.n}`));
+            g += `<text class="v" x="${t.delta >= 0 ? x1 + 5 : x1 - 5}" y="${y + 15}" text-anchor="${t.delta >= 0 ? 'start' : 'end'}">${I18n.mark(`${signed(t.delta)} %`)}</text>`;
+        });
+        return svgOf(W, H, 'Écart de score à l’attendu selon la force de l’adversaire', g);
+    }
+
+    // Carte 5 : parties par mois, mois chargés en couleur.
+    function busyStrip(v) {
+        const ms = v.months, W = 360, H = 58, base = 40, band = W / ms.length, bw = Math.min(26, band * .5), maxN = Math.max(1, ...ms.map(m => m.n)), every = ms.length > 6 ? 2 : 1;
+        let g = `<line class="b" x1="0" x2="${W}" y1="${base}" y2="${base}"/>`;
+        ms.forEach((m, i) => {
+            const x = band * i + (band - bw) / 2, busy = v.threshold !== null && m.n >= v.threshold && m.delta !== null;
+            if (m.n) g += vBar(x, base, base - Math.max(2, m.n * 34 / maxN), bw, busy ? 'si-busy' : 'si-mid', I18n.mark(`${monthLong(m.at)} · ${m.n}${m.delta === null ? '' : ` · ${signed(m.delta)} Elo`}`));
+            if ((ms.length - 1 - i) % every === 0) g += `<text x="${x + bw / 2}" y="${H - 4}" text-anchor="middle">${monthName(m.at)}</text>`;
+        });
+        return svgOf(W, H, 'Parties par mois', g);
+    }
+
     function bilanHTML(games, list) {
         if (list.length < MIN) return '<p class="st-sub">Trop peu de parties avec ces filtres.</p>';
-        const s = OpeningReport.summarize(list), months = OpeningReport.months(list, st.period || 12, Date.now());
-        const LABEL = ['+150', '+50/+150', '±50', '−150/−50', '−150'], gaps = GameInsights.byGap(list).map((t, i) => ({ label: LABEL[i], t }));
-        const worst = gaps.filter(x => fair(x.t) && x.t.delta !== null).sort((a, b) => a.t.delta - b.t.delta)[0];
-        const gapTake = worst && worst.t.delta < -2 ? `Votre plus gros manque : écart ${worst.label}, ${pct(worst.t.score)} au lieu de ${pct(worst.t.expected)} attendus.` : 'Vous tenez ce que votre Elo prédit, quel que soit l\'adversaire.';
+        const s = OpeningReport.summarize(list), months = OpeningReport.months(list, st.period || 12, Date.now()), above = GameInsights.aboveElo(months);
+        const gaps = GameInsights.byGap(list), worstI = gaps.map((t, i) => i).filter(i => fair(gaps[i]) && gaps[i].delta !== null).sort((a, b) => gaps[a].delta - gaps[b].delta)[0];
+        const worst = worstI === undefined ? null : gaps[worstI];
+        const gapTake = worst && worst.delta < -2 ? GAP_TAKES[worstI](pct(worst.score), pct(worst.expected)) : 'Vous tenez ce que votre Elo prévoit, quel que soit l\'adversaire.';
+        const aboveTake = above.known >= 2 ? `${above.above} mois sur ${above.known}, vous avez joué mieux que votre classement.${above.best && above.best.gap > 0 ? ` Meilleur : ${monthLong(above.best.at)}, ${signed(above.best.gap)}.` : ''}` : '';
         const se = GameInsights.sessions(list), rankNames = ['1re partie', '2e partie', '3e partie', '4e partie', '5e et plus'], afterNames = ['Après 1 défaite', 'Après 2 défaites', 'Après 3 et plus'];
         const first = se.ranks[0], fifth = se.ranks[4];
         const sessionTake = fair(first) && fair(fifth) ? `Votre score passe de ${pct(first.score)} à la première partie à ${pct(fifth.score)} à partir de la cinquième.` : `Sessions sur la période : ${se.count}.`;
         const bars = (names, list2) => names.map((n, i) => fair(list2[i]) ? hbar(n, list2[i].score, list2[i].n) : '').join('');
         const en = GameInsights.ends(list), endRows = [['resign', 'Abandon'], ['mate', 'Mat'], ['time', 'Temps'], ['abandon', 'Forfait'], ['other', 'Autre']];
         const endBars = part => endRows.filter(([k]) => part[k] >= .5).sort((a, b) => part[b[0]] - part[a[0]]).map(([k, l]) => hbar(l, part[k])).join('');
-        const scope = eloScope(games), vol = scope.length ? GameInsights.volume(scope, st.period || 12, Date.now()) : null;
-        const volTake = vol && vol.high !== null ? `Vos mois les plus joués rapportent ${signed(vol.high)} Elo en moyenne, les autres ${signed(vol.low)}.` : 'Il faut quatre mois joués au moins pour comparer.';
+        const scope = eloScope(games), volAll = scope.length ? GameInsights.volume(scope, st.period || 12, Date.now()) : null, vol = volAll && volAll.months.some(m => m.n) ? volAll : null;
+        const volTake = vol && vol.high !== null ? (vol.high > vol.low ? `Quand vous jouez beaucoup, vous montez : ${signed(vol.high)} Elo par mois, contre ${signed(vol.low)} les mois calmes.` : `Les mois chargés ne vous font pas monter : ${signed(vol.high)} Elo par mois, contre ${signed(vol.low)} les mois calmes.`) : 'Il faut quatre mois joués au moins pour comparer.';
+        const volBig = vol && vol.high !== null ? `<div class="si-duo">${big('Mois chargés', I18n.mark(signed(vol.high)), I18n.mark(`${vol.threshold} ${I18n.t('parties et plus')} · ${_plural(vol.highN, 'mois', 'mois')}`), side(vol.high))}${big('Mois calmes', I18n.mark(signed(vol.low)), I18n.mark(`${I18n.t('moins de')} ${vol.threshold} · ${_plural(vol.lowN, 'mois', 'mois')}`), side(vol.low))}</div>` : '';
         return `<div class="so-kpis">
                 <div class="so-card so-kpi"><span>Score</span><b>${pct(s.score)}</b><small>${_plural(s.n, 'partie')}</small></div>
                 <div class="so-card so-kpi"><span>Face à l'attendu</span><b>${delta(s.delta)}</b><small>${s.expected === null ? 'Elo inconnu' : `Attendu : ${pct(s.expected)}`}</small></div>
@@ -142,12 +201,12 @@ const StatsInsights = (function () {
                 <div class="so-card so-kpi"><span>Gains</span><b>${s.w}</b><small>${_plural(s.d, 'nulle')} · ${_plural(s.l, 'perte')}</small></div>
             </div>
             <div class="so-grid">
-                ${card('so-c6', 'Votre niveau mois par mois', '', perfChart(months))}
-                ${card('so-c6', 'Contre qui perdez-vous des points ?', gapTake, `${legend([['so-bar-real', 'Score réel'], ['so-exp', 'Score attendu']])}${scoreBars(gaps)}<p class="si-cap">Elo de l'adversaire moins le vôtre</p>`)}
-                ${heatHTML(GameInsights.heat(list))}
-                ${card('so-c6', 'Savez-vous vous arrêter ?', sessionTake, `${bars(rankNames, se.ranks)}${se.after.some(fair) ? `<p class="si-cap">Juste après des défaites</p>${bars(afterNames, se.after)}` : ''}`)}
+                ${card('so-c6 si-above', 'Vos mois au-dessus de votre Elo', aboveTake, above.known >= 2 ? `${aboveChart(above)}<p class="si-cap">Niveau joué moins votre Elo moyen du mois (3 parties au moins)</p>` : '<p class="st-sub">Pas encore assez de mois joués.</p>')}
                 ${en.wins.n + en.losses.n ? card('so-c6', 'Comment finissent vos parties ?', en.losses.n && en.wins.n ? `${pct(en.losses.time)} de vos défaites et ${pct(en.wins.time)} de vos gains se jouent au temps.` : '', `<div class="si-two"><div><h6>Gains</h6>${endBars(en.wins)}</div><div><h6>Défaites</h6>${endBars(en.losses)}</div></div>`) : ''}
-                ${vol ? card('so-c6', 'Jouer plus vous fait-il monter ?', volTake, volumeCharts(vol)) : ''}
+                ${card('so-c6', 'Savez-vous vous arrêter ?', sessionTake, `${bars(rankNames, se.ranks)}${se.after.some(fair) ? `<p class="si-cap">Juste après des défaites</p>${bars(afterNames, se.after)}` : ''}`)}
+                ${heatHTML(GameInsights.heat(list))}
+                ${vol ? card('so-c6 si-volume', 'Vos mois chargés vous font-ils monter ?', volTake, `${volBig}${busyStrip(vol)}${vol.threshold !== null ? legend([['si-busy', 'Mois chargés'], ['si-mid', 'Mois calmes']]) : ''}`) : ''}
+                ${card('so-c6 si-gaps', 'Face aux plus forts, face aux plus faibles', gapTake, `${gapChart(gaps)}<p class="si-cap">Points de score gagnés ou perdus par rapport à ce que votre Elo prévoit, selon l'adversaire</p>`)}
             </div>`;
     }
 
@@ -167,19 +226,54 @@ const StatsInsights = (function () {
     }
 
     // ─── TEMPS ───────────────────────────────────────────────────────────────
+    const duration = s => s >= 60 && s % 60 === 0 ? `${s / 60} min` : s >= 60 ? `${Math.floor(s / 60)} min ${Math.round(s % 60)} s` : `${Math.round(s)} s`;
+    // « 1 partie sur 3 » quand la part s'y prête, sinon un pourcentage.
+    function shareWords(k, n) {
+        const r = n ? k / n : 0, d = r ? Math.round(1 / r) : 0;
+        return r > 0 && r <= .5 && Math.abs(1 / r - d) < .15 ? `1 partie sur ${d}` : `${pct(100 * r)} de vos parties`;
+    }
+
+    // Carte 5 : score avec et sans zeitnot.
+    function zeitnotBars(z) {
+        const rows = [['Avec zeitnot', z.withIt, 'si-down'], ['Sans zeitnot', z.without, 'si-up']].filter(([, t]) => fair(t)), W = 360, L = 100, R = 44, H = 8 + rows.length * 30, k = (W - L - R) / 100;
+        let g = `<line class="g si-dash" x1="${L + 50 * k}" x2="${L + 50 * k}" y1="0" y2="${H - 4}"/><text x="${L + 50 * k}" y="${H + 8}" text-anchor="middle">50 %</text>`;
+        rows.forEach(([n, t, cls], i) => { const y = 6 + i * 30; g += `<text class="lab" x="0" y="${y + 12}">${n}</text>${hBar(L, L + Math.max(1, t.score * k), y, 16, cls, I18n.mark(`${n} · ${pct(t.score)} · ${t.n}`))}<text class="v" x="${L + t.score * k + 5}" y="${y + 12}">${pct(t.score)}</text>`; });
+        return rows.length ? svgOf(W, H + 10, 'Score avec et sans zeitnot', g) : '';
+    }
+
+    // Carte 6 : score selon la pendule au coup 20, en trois situations.
+    function sidesChart(s) {
+        const rows = [['En retard', s.behind, 'si-down'], ['À égalité', s.even, 'si-mid'], ['En avance', s.ahead, 'si-up']], W = 360, H = 150, T = 18, B = 34, base = H - B, k = (base - T) / 100, band = W / 3, bw = Math.min(60, band * .44);
+        let g = `<line class="b" x1="0" x2="${W}" y1="${base}" y2="${base}"/><line class="g si-dash" x1="0" x2="${W}" y1="${base - 50 * k}" y2="${base - 50 * k}"/><text x="${W}" y="${base - 50 * k - 4}" text-anchor="end">50 %</text>`;
+        rows.forEach(([n, t, cls], i) => {
+            const x = band * i + (band - bw) / 2;
+            g += `<text class="lab" x="${x + bw / 2}" y="${base + 14}" text-anchor="middle">${n}</text><text x="${x + bw / 2}" y="${base + 27}" text-anchor="middle">${_plural(t.n, 'partie')}</text>`;
+            if (fair(t)) g += `${vBar(x, base, base - Math.max(1, t.score * k), bw, cls, I18n.mark(`${n} · ${pct(t.score)} · ${t.n}`))}<text class="v" x="${x + bw / 2}" y="${base - t.score * k - 5}" text-anchor="middle">${pct(t.score)}</text>`;
+        });
+        return svgOf(W, H, 'Score selon votre pendule au coup 20', g);
+    }
+
     function tempsHTML(list, rows) {
         const curve = GameInsights.timeCurve(list);
         if (curve.points.length < 5) return '<p class="st-sub">Pas assez de parties avec horloge pour ces filtres. Les parties par correspondance n\'en ont pas.</p>';
-        const exit = GameInsights.exitClock(rows), z = GameInsights.zeitnot(list), lead = GameInsights.leadAtMove(list), th = GameInsights.thinking(rows);
+        const exit = GameInsights.exitClock(rows), z = GameInsights.zeitnot(list), sides = GameInsights.leadSides(list), th = GameInsights.thinking(rows), baseS = GameInsights.usualBase(list);
         const exitMove = rows.length ? Math.max(1, Math.round(rows.reduce((a, r) => a + r.a.path.length, 0) / rows.length / 2)) : 0;
-        const at20 = curve.points.find(p => p.move === GameInsights.LEAD_MOVE);
-        const LABEL = ['−20', '−20/−5', '±5', '+5/+20', '+20'], bars = lead.map((t, i) => ({ label: LABEL[i], t: { ...t, expected: null } }));
-        const behind = lead[0], ahead = lead[4];
+        const at20 = curve.points.find(p => p.move === GameInsights.LEAD_MOVE), hasExit = exit.n >= MIN && exit.lead !== null;
+        const twenty = !at20 ? '' : Math.abs(at20.me - at20.opp) < 3 ? (hasExit ? `Au coup ${at20.move}, l'écart a fondu.` : `Au coup ${at20.move}, vous êtes à égalité de temps avec vos adversaires.`) : `Au coup ${at20.move}, il vous reste ${pct(at20.me)} de votre temps, contre ${pct(at20.opp)} à vos adversaires.`;
+        const lead = hasExit ? I18n.mark(`${Math.abs(Math.round(exit.lead))} %`) : '';
+        const exitTime = !hasExit ? '' : exit.lead >= 0 ? `En sortant de votre répertoire, il vous reste ${lead} de temps de plus que l'adversaire.` : `En sortant de votre répertoire, il vous reste ${lead} de temps de moins que l'adversaire.`;
+        const timeTake = hasExit && twenty ? I18n.mark(`${I18n.t(exitTime)} ${I18n.t(twenty)}`) : exitTime || twenty;      // deux phrases : chacune traduite
+        const zShare = z.games >= MIN ? shareWords(z.withIt.n, z.games) : '';
+        const zScore = fair(z.withIt) && fair(z.without), zMany = z.withIt.n > 1, zIn = pct(z.withIt.score), zOut = pct(z.without.score);
+        const zTake = !zShare ? '' : !z.withIt.n ? 'Vous ne passez jamais en zeitnot.'
+            : zScore ? (zMany ? `${zShare} vous mettent en zeitnot, et vous y marquez ${zIn} contre ${zOut} sinon.` : `${zShare} vous met en zeitnot, et vous y marquez ${zIn} contre ${zOut} sinon.`)
+            : zMany ? `${zShare} vous mettent en zeitnot.` : `${zShare} vous met en zeitnot.`;
+        const zChip = baseS ? `<div class="si-chip">Zeitnot : moins de <b>10 %</b> du temps de départ, soit <b>${I18n.mark(duration(baseS * GameInsights.ZEITNOT))}</b> en ${I18n.mark(duration(baseS))}</div>` : '';
+        const sidesTake = sides.gain === null ? '' : sides.gain >= 0 ? `Avoir plus de temps que l'adversaire au coup 20 vous rapporte ${I18n.mark(signed(sides.gain))} points de score.` : `Avoir plus de temps que l'adversaire au coup 20 ne vous aide pas : ${I18n.mark(signed(sides.gain))} points de score.`;
         return `<div class="so-grid">
-            ${card(exit.n >= MIN ? 'so-c7' : 'so-c12 si-cap-w', 'Où dépensez-vous votre temps ?', at20 ? `Au coup ${at20.move}, il vous reste ${pct(at20.me)} de votre temps, contre ${pct(at20.opp)} à vos adversaires.` : '', `${legend([['si-key me', 'Vous'], ['si-key opp', 'Adversaire']])}${clockChart(curve, exitMove)}<p class="si-cap">Temps restant en % du temps initial, par numéro de coup</p>`)}
-            ${exit.n >= MIN ? card('so-c5', 'Votre préparation vous fait-elle gagner du temps ?', `À la sortie du répertoire, votre horloge a ${signed(exit.lead)} points de temps face à l'adversaire.`, `<div class="sg-tiles">${tile('Avance moyenne', `${signed(exit.lead)} %`, 'du temps initial')}${fair(exit.ahead) ? tile('Score en avance', pct(exit.ahead.score), _plural(exit.ahead.n, 'partie')) : ''}${fair(exit.behind) ? tile('Score en retard', pct(exit.behind.score), _plural(exit.behind.n, 'partie')) : ''}</div>`) : ''}
-            ${card('so-c6', 'Tombez-vous en zeitnot ?', z.share === null ? '' : `${pct(z.share)} de vos coups sont joués sous 10 % du temps, ${pct(z.oppShare)} chez vos adversaires.`, `<div class="sg-tiles">${fair(z.withIt) ? tile('Score avec zeitnot', pct(z.withIt.score), _plural(z.withIt.n, 'partie')) : ''}${fair(z.without) ? tile('Score sans zeitnot', pct(z.without.score), _plural(z.without.n, 'partie')) : ''}</div>`)}
-            ${card('so-c6', 'Le temps au coup 20 compte-t-il ?', fair(behind) && fair(ahead) ? `En retard d'au moins 20 points : ${pct(behind.score)}. En avance d'autant : ${pct(ahead.score)}.` : '', `${scoreBars(bars)}<p class="si-cap">Votre temps moins celui de l'adversaire, en points</p>`)}
+            ${card('so-c12 si-cap-w', 'Où dépensez-vous votre temps ?', timeTake, `${legend([['si-key me', 'Vous'], ['si-key opp', 'Adversaire']])}${clockChart(curve, exitMove, hasExit ? exit.lead : null)}<p class="si-cap">Temps restant en % du temps de départ, par numéro de coup${hasExit ? ` ; à la sortie du répertoire, votre avance moyenne (${_plural(exit.n, 'partie')})` : ''}</p>`)}
+            ${card('so-c6 si-zeit', 'Manquez-vous de temps à la pendule ?', zTake, `${zChip}${zeitnotBars(z)}`)}
+            ${card('so-c6 si-sides', 'L\'avance au coup 20 vous aide-t-elle ?', sidesTake, `${sidesChart(sides)}<p class="si-cap">Score selon votre pendule face à la sienne au coup 20 (écart de 5 % du temps de départ ou plus)</p>`)}
             ${th.n >= MIN ? card('so-c12', 'Réfléchissez-vous quand la préparation s\'arrête ?', `Premier coup hors répertoire : ${num1(th.first)} s, contre ${num1(th.usual)} s ensuite.`, `<div class="sg-tiles">${tile('Premier coup', `${num1(th.first)} s`)}${tile('Coups suivants', `${num1(th.usual)} s`)}${fair(th.thought) ? tile('Score en réfléchissant', pct(th.thought.score), _plural(th.thought.n, 'partie')) : ''}${fair(th.quick) ? tile('Score en jouant vite', pct(th.quick.score), _plural(th.quick.n, 'partie')) : ''}</div>`) : ''}
         </div>`;
     }
@@ -187,57 +281,127 @@ const StatsInsights = (function () {
     // ─── QUALITÉ ─────────────────────────────────────────────────────────────
     const fmt1 = v => v === null ? '–' : num1(v);
     const pawn = cp => I18n.mark(`${cp >= 0 ? '+' : '−'}${num1(Math.abs(cp) / 100)}`);
+    const points = v => I18n.mark(`${num1(Math.abs(v))} ${Math.abs(v) >= 2 ? I18n.t('points') : I18n.t('point')}`);
 
     function evalBarHTML(games) {
         const left = GameEval.pending(games).length, total = games.filter(g => g.ev || g.sans.length >= 8).length, done = total - left;
-        if (!left) return `<p class="st-sub si-eval" id="si-eval">Toutes vos parties sont analysées (Stockfish, profondeur ${GameEval.DEPTH}).</p>`;
-        return `<div class="so-card si-eval" id="si-eval"><div class="si-eval-h"><b>Analyse Stockfish</b><span>${done} / ${total}</span>
-                <button type="button" class="st-link" data-action="statsInEval">${st.paused ? 'Reprendre' : 'Mettre en pause'}</button></div>
-            <span class="si-track"><i style="width:${total ? Math.round(100 * done / total) : 0}%"></i></span>
-            ${st.evalError || st.paused ? `<p class="st-sub">${st.evalError ? escapeHtml(st.evalError) : 'En pause.'}</p>` : ''}</div>`;
+        if (!left) return `<p class="st-sub si-eval" id="si-eval">Toutes vos parties sont analysées (Stockfish).</p>`;
+        const state = st.evalError ? escapeHtml(st.evalError) : st.paused ? 'En pause.' : GameEval.running() ? 'Analyse en cours' : 'Analyse prête à reprendre';
+        return `<div class="si-eval si-eval-line" id="si-eval" role="status"><span class="si-eval-t"><b>Analyse Stockfish</b> · ${state} · ${I18n.mark(`${done} / ${total}`)}</span>
+            <span class="si-track" aria-hidden="true"><i style="width:${total ? Math.round(100 * done / total) : 0}%"></i></span>
+            <button type="button" class="st-link" data-action="statsInEval">${st.paused ? 'Reprendre' : 'Mettre en pause'}</button>
+            <small>Profondeur ${GameEval.FAST}, puis ${GameEval.DEPTH} sur les coups qui coûtent ; la période affichée d'abord, en arrière-plan après le lancement.</small></div>`;
     }
 
+    // Point 2 : grand chiffre, courbe à échelle fixe (60 à 90 %), ruban des adversaires.
     function accuracyChart(months) {
         const pts = months.filter(m => m.accuracy !== null);
         if (pts.length < 2) return '<p class="st-sub">Pas encore assez de mois analysés.</p>';
-        const W = 300, H = 118, L = 4, R = 36, T = 10, B = 18, vals = pts.map(p => p.accuracy), lo = Math.floor(Math.min(...vals) / 5) * 5, hi = Math.max(lo + 5, Math.ceil(Math.max(...vals) / 5) * 5);
-        const x = m => L + months.indexOf(m) * (W - L - R) / Math.max(1, months.length - 1), y = v => T + (hi - v) * (H - T - B) / (hi - lo), end = pts[pts.length - 1];
-        const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(p.accuracy).toFixed(1)}`).join('');
-        return `<div class="st-trend"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Précision par mois">
-            ${[lo, (lo + hi) / 2, hi].map(v => `<line class="g" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text class="ax" x="${W - R + 4}" y="${y(v) + 3}">${Math.round(v)} %</text>`).join('')}
-            <path class="ln" d="${line}"/>${pts.map(p => `<circle class="pt${p === end ? ' end' : ''}" cx="${x(p)}" cy="${y(p.accuracy)}" r="${p === end ? 3.5 : 2.5}"><title>${I18n.mark(`${monthName(p.at)} · ${Math.round(p.accuracy)} % · ${p.n}`)}</title></circle>`).join('')}
-            <text class="ax" x="${L}" y="${H - 4}">${monthName(months[0].at)}</text><text class="ax" x="${W - R}" y="${H - 4}" text-anchor="end">${monthName(months[months.length - 1].at)}</text></svg></div>`;
+        const opp = months.filter(m => m.oppAccuracy !== null), vals = pts.map(p => p.accuracy).concat(opp.map(p => p.oppAccuracy));
+        const W = 360, H = 130, L = 4, R = 38, T = 8, B = 18, lo = Math.min(60, Math.floor(Math.min(...vals) / 10) * 10), hi = Math.max(90, Math.ceil(Math.max(...vals) / 10) * 10);
+        const x = m => L + months.indexOf(m) * (W - L - R) / Math.max(1, months.length - 1), y = v => T + (hi - Math.max(lo, Math.min(hi, v))) * (H - T - B) / (hi - lo), end = pts[pts.length - 1];
+        let g = [lo, (lo + hi) / 2, hi].map(v => `<line class="g" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${W - R + 4}" y="${y(v) + 3}">${Math.round(v)} %</text>`).join('');
+        if (opp.length >= 2) {
+            const band = 1.5, upper = opp.map(p => `${x(p).toFixed(1)},${y(p.oppAccuracy + band).toFixed(1)}`), lower = opp.slice().reverse().map(p => `${x(p).toFixed(1)},${y(p.oppAccuracy - band).toFixed(1)}`);
+            const mid = opp[Math.floor(opp.length / 2)];
+            const below = mid.accuracy === null || mid.accuracy >= mid.oppAccuracy;      // l'étiquette du côté opposé à ma courbe
+            g += `<path class="si-ribbon" d="M${upper.join('L')}L${lower.join('L')}Z"><title>Vos adversaires</title></path><text x="${x(mid)}" y="${below ? y(mid.oppAccuracy - band) + 11 : y(mid.oppAccuracy + band) - 4}" text-anchor="middle">adversaires</text>`;
+        }
+        g += `<path class="si-line acc" d="${pts.map((p, i) => `${i ? 'L' : 'M'}${x(p).toFixed(1)},${y(p.accuracy).toFixed(1)}`).join('')}"/>`;
+        g += pts.map(p => `<circle class="si-dot acc" cx="${x(p)}" cy="${y(p.accuracy)}" r="${p === end ? 4.5 : 3}"><title>${I18n.mark(`${monthLong(p.at)} · ${Math.round(p.accuracy)} %${p.oppAccuracy === null ? '' : ` · ${I18n.t('adversaires')} ${Math.round(p.oppAccuracy)} %`} · ${p.n}`)}</title></circle>`).join('');
+        g += `<text x="${L}" y="${H - 3}">${monthName(months[0].at)}</text><text x="${W - R}" y="${H - 3}" text-anchor="end">${monthName(months[months.length - 1].at)}</text>`;
+        return svgOf(W, H, 'Précision par mois et ruban des adversaires', g);
+    }
+    function accuracyCard(q, months) {
+        const tr = GameQuality.trend(months), title = !tr ? 'Votre précision progresse-t-elle ?' : { up: 'Votre précision monte', down: 'Votre précision baisse', flat: 'Votre précision tient' }[tr.dir];
+        const span = tr && tr.change !== null ? Math.max(1, Math.round((tr.at - tr.from) / (30.44 * 864e5))) : 0;
+        const now = new Date(), thisMonth = tr && new Date(tr.at).getMonth() === now.getMonth() && new Date(tr.at).getFullYear() === now.getFullYear();
+        const when = thisMonth ? 'Ce mois-ci' : `En ${monthLong(tr.at)}`;
+        const take = tr && tr.vsOpp !== null ? (tr.vsOpp >= 0 ? `${when}, vous jouez ${points(tr.vsOpp)} plus juste que vos adversaires.` : `${when}, vous jouez ${points(tr.vsOpp)} moins juste que vos adversaires.`) : `Sur ${I18n.t(_plural(q.games, 'partie analysée', 'parties analysées'))}.`;
+        const hero = tr ? `<div class="si-hero"><b>${pct(tr.value)}</b>${tr.change === null ? '' : Math.abs(tr.change) < .5 ? `<span class="so-delta">${I18n.t('stable')}</span>` : `<span class="so-delta ${tr.change >= 0 ? 'up' : 'down'}"><i aria-hidden="true">${tr.change >= 0 ? '▲' : '▼'}</i>${I18n.mark(`${signed(tr.change)} pts`)}</span><span>${I18n.mark(`${I18n.t('en')} ${_plural(span, 'mois', 'mois')}`)}</span>`}</div>` : '';
+        return card('so-c6 si-acc', title, take, `${hero}${accuracyChart(months)}<p class="si-cap">Précision du site quand elle existe, sinon calcul Chays ; ruban : vos adversaires</p>`);
     }
 
-    function phaseChart(q) {
-        const names = ['Ouverture', 'Milieu de partie', 'Finale'], W = 360, H = 118, L = 104, R = 16, T = 8, B = 22, x = v => L + Math.max(0, v - 40) * (W - L - R) / 60, row = (H - T - B) / 3;
-        let g = [40, 70, 100].map(v => `<line class="g" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/><text x="${x(v)}" y="${H - 6}" text-anchor="middle">${v} %</text>`).join('');
-        names.forEach((n, i) => {
-            const a = q.me.phases[i], b = q.opp.phases[i], y = T + row * (i + .5);
-            g += `<text x="0" y="${y + 3.5}">${n}</text>`;
-            if (a === null || b === null) return;
-            g += `<g><title>${I18n.mark(`${Math.round(a)} % / ${Math.round(b)} %`)}</title><line class="b" x1="${x(a)}" x2="${x(b)}" y1="${y}" y2="${y}"/><circle class="si-dot opp" cx="${x(b)}" cy="${y}" r="5"/><circle class="si-dot me" cx="${x(a)}" cy="${y}" r="5"/></g>`;
+    // Point 3 : trois cadrans, l'arc pour moi, le trait pour l'adversaire, sur 40 à 100 %.
+    const PHASES = ['Ouverture', 'Milieu', 'Finale'], PHASE_IN = ['en ouverture', 'au milieu de partie', 'en finale'];
+    function dialsChart(d) {
+        const W = 360, H = 112, r = 40, cy = 60, lo = 40, hi = 100, ang = v => Math.PI * (1 - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo));
+        let g = '';
+        d.dials.forEach((p, i) => {
+            const cx = 60 + i * 120, pt = (v, rr) => [cx + rr * Math.cos(ang(v)), cy - rr * Math.sin(ang(v))], [x1, y1] = pt(lo, r), [x2, y2] = pt(hi, r);
+            g += `<path class="si-dial-track" d="M${x1.toFixed(1)},${y1.toFixed(1)}A${r},${r} 0 0 1 ${x2.toFixed(1)},${y2.toFixed(1)}"/>`;
+            if (p.me !== null) {
+                const [xa, ya] = pt(p.me, r);
+                g += `<path class="si-dial ${p.gap === null || Math.abs(p.gap) < 1 ? 'si-mid' : side(p.gap)}" d="M${x1.toFixed(1)},${y1.toFixed(1)}A${r},${r} 0 0 1 ${xa.toFixed(1)},${ya.toFixed(1)}"><title>${I18n.mark(`${PHASES[i]} · ${Math.round(p.me)} %${p.opp === null ? '' : ` / ${Math.round(p.opp)} %`}`)}</title></path>`;
+            }
+            if (p.opp !== null) { const [xo, yo] = pt(p.opp, r + 7), [xi, yi] = pt(p.opp, r - 7); g += `<line class="si-needle" x1="${xi.toFixed(1)}" y1="${yi.toFixed(1)}" x2="${xo.toFixed(1)}" y2="${yo.toFixed(1)}"/>`; }
+            g += `<text class="si-dial-v" x="${cx}" y="${cy - 6}" text-anchor="middle">${p.me === null ? '–' : Math.round(p.me)}</text><text class="lab" x="${cx}" y="${cy + 14}" text-anchor="middle">${PHASES[i]}</text>`;
+            g += `<text x="${cx}" y="${cy + 30}" text-anchor="middle">${p.gap === null ? '' : Math.abs(p.gap) < .5 ? I18n.t('au niveau') : I18n.mark(`${signed(p.gap)} ${I18n.t('vs adv.')}`)}</text>`;
         });
-        return `<svg class="so-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Précision par phase">${g}</svg>`;
+        return svgOf(W, H + 2, 'Précision par phase : vous et vos adversaires', g);
     }
 
-    function evalCurve(pts) {
-        const W = 360, H = 150, L = 4, R = 40, T = 8, B = 22, last = pts[pts.length - 1].move, lim = Math.max(50, ...pts.map(p => Math.ceil(Math.abs(p.cp) / 50) * 50));
-        const x = m => L + (m - 1) * (W - L - R) / Math.max(1, last - 1), y = v => T + (lim - v) * (H - T - B) / (2 * lim), line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.move).toFixed(1)},${y(p.cp).toFixed(1)}`).join('');
-        let g = [lim, 0, -lim].map(v => `<line class="${v ? 'g' : 'b'}" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${W - R + 5}" y="${y(v) + 3}">${pawn(v)}</text>`).join('');
-        g += `<path class="si-line me" d="${line}"/>`;
-        for (let m = 10; m <= last; m += 10) g += `<text x="${x(m)}" y="${H - 6}" text-anchor="middle">${m}</text>`;
+    // Point 4 : erreurs et gaffes pour 10 coups, par tranche de 10 coups ; la courbe d'évaluation en second plan.
+    const sliceName = m => (m.to === null ? `${m.from - 1}+` : `${m.from}–${m.to}`);
+    function momentsChart(q, top) {
+        const ms = q.moments, W = 360, H = 130, T = 16, B = 20, base = H - B, max = Math.max(.5, ...ms.map(m => m.per10 || 0)), k = (base - T) / max, band = W / ms.length, bw = Math.min(36, band * .6);
+        let g = `<line class="b" x1="0" x2="${W}" y1="${base}" y2="${base}"/>`;
+        ms.forEach((m, i) => {
+            const x = band * i + (band - bw) / 2, thin = m.n < GameQuality.MIN_SLICE;
+            g += `<text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle">${sliceName(m)}</text>`;
+            if (m.per10 === null) return;
+            g += vBar(x, base, base - Math.max(1, m.per10 * k), bw, top && m === top.slice ? 'si-down' : thin ? 'si-mid si-thin' : 'si-mid', I18n.mark(`${I18n.t('Coups')} ${sliceName(m)} · ${num1(m.per10)} · ${m.errors} / ${m.n}`));
+            g += `<text class="${top && m === top.slice ? 'v' : ''}" x="${x + bw / 2}" y="${base - m.per10 * k - 4}" text-anchor="middle">${num1(m.per10)}</text>`;
+        });
+        return svgOf(W, H, 'Erreurs et gaffes pour 10 coups, par tranche de coups', g);
+    }
+    function evalArea(pts) {
+        const W = 360, H = 96, L = 4, R = 36, T = 6, B = 18, last = pts[pts.length - 1].move, lim = Math.max(50, ...pts.map(p => Math.ceil(Math.abs(p.cp) / 50) * 50));
+        const x = m => L + (m - 1) * (W - L - R) / Math.max(1, last - 1), y = v => T + (lim - v) * (H - T - B) / (2 * lim), z = y(0);
+        const line = pts.map(p => `${x(p.move).toFixed(1)},${y(p.cp).toFixed(1)}`).join('L'), area = `M${x(pts[0].move)},${z}L${line}L${x(last)},${z}Z`;
+        // Le moment où l'avantage tourne : la courbe passe sous zéro et y reste trois coups au moins.
+        const flip = pts.find((p, i) => i && p.move >= 6 && pts[i - 1].cp >= 0 && p.cp < 0 && pts.slice(i, i + 4).length === 4 && pts.slice(i, i + 4).every(q => q.cp < 0));
+        let g = `<defs><clipPath id="si-cu"><rect x="0" y="0" width="${W}" height="${z}"/></clipPath><clipPath id="si-cd"><rect x="0" y="${z}" width="${W}" height="${H}"/></clipPath></defs>
+            <path class="si-area up" d="${area}" clip-path="url(#si-cu)"/><path class="si-area down" d="${area}" clip-path="url(#si-cd)"/>
+            <line class="b" x1="${L}" x2="${W - R}" y1="${z}" y2="${z}"/><path class="si-line ev" d="M${line}"/><text x="${W - R + 5}" y="${z + 3}">0</text>
+            <text x="${W - R + 5}" y="${y(lim) + 8}">${pawn(lim)}</text><text x="${W - R + 5}" y="${y(-lim)}">${pawn(-lim)}</text>`;
+        if (flip) g += `<line class="b si-dash" x1="${x(flip.move)}" x2="${x(flip.move)}" y1="${T}" y2="${H - B}"/><text class="v" x="${x(flip.move) + 4}" y="${T + 9}">${I18n.mark(`${I18n.t('coup')} ${flip.move}`)}</text>`;
+        for (let m = 10; m <= last; m += 10) g += `<text x="${x(m)}" y="${H - 5}" text-anchor="middle">${m}</text>`;
         pts.forEach(p => { g += `<rect x="${x(p.move) - 4}" y="${T}" width="8" height="${H - T - B}" fill="transparent"><title>${I18n.mark(`${p.move} · ${pawn(p.cp)}`)}</title></rect>`; });
-        return `<svg class="so-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Évaluation moyenne par coup">${g}</svg>`;
+        return { svg: svgOf(W, H, 'Évaluation moyenne de votre point de vue, par coup', g), flip };
+    }
+
+    // Point 5 : escalier ; la largeur dit combien de parties, la hauteur le score.
+    const EXIT_NAMES = ['Nettement moins bien', 'Un peu moins bien', 'Égal', 'Un peu mieux', 'Nettement mieux'], EXIT_CLS = ['si-down', 'si-down si-soft', 'si-mid', 'si-up si-soft', 'si-up'];
+    function stairsChart(ex) {
+        const W = 360, H = 150, T = 16, B = 34, base = H - B, k = (base - T) / 100, gap = 2;
+        let x = 0, g = `<line class="g si-dash" x1="0" x2="${W}" y1="${base - 50 * k}" y2="${base - 50 * k}"/>`;
+        ex.buckets.forEach((t, i) => {
+            if (!t.n) return;
+            const w = t.n / ex.n * W, bw = Math.max(1, w - gap);
+            g += vBar(x + gap / 2, base, base - Math.max(1, t.score * k), bw, EXIT_CLS[i], I18n.mark(`${EXIT_NAMES[i]} · ${_plural(t.n, 'partie')} · ${pct(t.score)}`));
+            if (bw >= 26) g += `<text class="v" x="${x + w / 2}" y="${base - t.score * k - 4}" text-anchor="middle">${Math.round(t.score)}</text><text x="${x + w / 2}" y="${base + 13}" text-anchor="middle">${t.n}</text>`;
+            x += w;
+        });
+        g += `<line class="b" x1="0" x2="${W}" y1="${base}" y2="${base}"/><text class="lab" x="0" y="${H - 4}">← ${I18n.t('moins bien sorti')}</text><text class="lab" x="${W}" y="${H - 4}" text-anchor="end">${I18n.t('mieux sorti')} →</text>`;
+        return svgOf(W, H, 'Score selon la sortie d’ouverture', g);
     }
 
     function qualiteHTML(games, list, rows) {
         const bar = evalBarHTML(games), q = GameQuality.quality(list);
         if (q.games < MIN) return `${bar}<p class="st-sub">Les résultats apparaissent dès ${MIN} parties analysées avec ces filtres.</p>`;
-        const worst = [0, 1, 2].filter(i => q.me.phases[i] !== null && q.opp.phases[i] !== null).sort((a, b) => (q.me.phases[a] - q.opp.phases[a]) - (q.me.phases[b] - q.opp.phases[b]))[0];
-        const phase = I18n.t(['l\'ouverture', 'le milieu de partie', 'la finale'][worst]), gapPhase = q.me.phases[worst] - q.opp.phases[worst];
-        const months = GameQuality.months(list, st.period || 12, Date.now()), buckets = GameQuality.exitBuckets(rows), LABEL = ['−1', '−1/−0,3', '±0,3', '+0,3/+1', '+1'], bars = buckets.map((t, i) => ({ label: LABEL[i], t: { ...t, expected: null } }));
-        const best = buckets[4], low = buckets[0], c = q.conversion, r = q.resistance;
+        const months = GameQuality.months(list, st.period || 12, Date.now()), ph = GameQuality.phaseGaps(q), top = GameQuality.moment(q), ex = GameQuality.exitSummary(rows);
+        const c = q.conversion, r = q.resistance;
+        const phaseTitle = ph.worst === null ? 'Au niveau partout' : `Vous perdez pied ${PHASE_IN[ph.worst]}`;
+        const phaseTake = ph.worst === null ? 'Vous jouez au moins aussi précisément que vos adversaires dans chaque phase.' : `${PHASES[ph.worst]} : ${points(ph.dials[ph.worst].gap)} sous vos adversaires.`;
+        const momentTitle = !top ? 'À quel moment la partie vous échappe-t-elle ?' : top.slice.to === null ? `Vos fautes arrivent après le coup ${top.slice.from - 1}` : `Vos fautes arrivent entre les coups ${top.slice.from} et ${top.slice.to}`;
+        const per10 = top ? I18n.mark(num1(top.slice.per10)) : '', more = top && top.ratio !== null && top.ratio >= 1.5 ? `, ${I18n.mark(num1(top.ratio))} fois plus qu'en ouverture.` : '.';
+        const momentTake = !top ? 'Il faut plus de coups analysés par tranche pour situer vos fautes.'
+            : top.slice.per10 >= 2 ? `${per10} erreurs ou gaffes pour 10 coups${more}` : `${per10} erreur ou gaffe pour 10 coups${more}`;
+        const area = q.curve.length >= 5 ? evalArea(q.curve) : null;
+        const exitFair = fair(ex.better) && fair(ex.worse) && ex.gain !== null;
+        const exitTitle = !exitFair ? 'Votre sortie d\'ouverture décide-t-elle du résultat ?' : ex.gain > 0 ? `Une bonne sortie vaut ${I18n.mark(signed(ex.gain))} points de score` : 'Une bonne sortie ne vous rapporte rien de plus';
+        const exitTake = ex.n >= MIN ? `Vous sortez à l'avantage dans ${pct(ex.betterShare)} de vos parties.` : '';
         return `${bar}<div class="so-kpis">
                 <div class="so-card so-kpi"><span>Précision</span><b>${pct(q.me.accuracy)}</b><small>Adversaires : ${pct(q.opp.accuracy)}</small></div>
                 <div class="so-card so-kpi"><span>Gaffes pour 40 coups</span><b>${fmt1(q.me.blunder)}</b><small>Adversaires : ${fmt1(q.opp.blunder)}</small></div>
@@ -245,12 +409,12 @@ const StatsInsights = (function () {
                 <div class="so-card so-kpi"><span>Imprécisions pour 40 coups</span><b>${fmt1(q.me.inaccuracy)}</b><small>Adversaires : ${fmt1(q.opp.inaccuracy)}</small></div>
             </div>
             <div class="so-grid">
-                ${card('so-c6', 'Votre précision progresse-t-elle ?', `Sur ${I18n.t(_plural(q.games, 'partie analysée', 'parties analysées'))}. Précision du site quand elle existe, sinon calcul Chays.`, accuracyChart(months))}
-                ${card('so-c6', 'Où perdez-vous en qualité ?', gapPhase < 0 ? `Votre plus grand écart est dans ${phase} : ${num1(Math.abs(gapPhase))} points sous vos adversaires.` : 'Vous jouez au moins aussi précisément que vos adversaires dans chaque phase.', `${legend([['si-key me', 'Vous'], ['si-key opp', 'Adversaire']])}${phaseChart(q)}`)}
+                ${accuracyCard(q, months)}
+                ${card('so-c6 si-phases', phaseTitle, phaseTake, `${dialsChart(ph)}${legend([['si-key arc', 'Vous, mieux que vos adversaires'], ['si-key arc down', 'Vous, moins bien'], ['si-key needle', 'Vos adversaires']])}`)}
+                ${card('so-c6 si-moments', momentTitle, momentTake, `${momentsChart(q, top)}<p class="si-cap">Erreurs et gaffes pour 10 de vos coups, par tranche de 10 coups</p>${area ? `<p class="si-cap si-cap-h">${area.flip ? `L'avantage tourne vers le coup ${area.flip.move}` : 'Évaluation moyenne, de votre point de vue'}</p>${area.svg}` : ''}`)}
+                ${ex.n ? card('so-c6 si-exit', exitTitle, exitTake, `${stairsChart(ex)}${legend(EXIT_NAMES.map((n, i) => [`si-sw ${EXIT_CLS[i]}`, n]))}<p class="si-cap">Évaluation au dernier coup de votre répertoire ; largeur : nombre de parties, hauteur : score (pointillé : 50 %)</p>`) : ''}
                 ${card('so-c6', 'Transformez-vous vos avantages ?', '', `<div class="sg-tiles">${c.n ? tile('Avantages convertis', pct(c.score), _plural(c.n, 'partie')) : ''}${r.n ? tile('Positions sauvées', pct(r.score), _plural(r.n, 'partie')) : ''}</div>`)}
                 ${card('so-c6', 'Voyez-vous les fautes adverses ?', '', `<div class="sg-tiles">${q.chances ? tile('Fautes adverses punies', pct(q.punished), _plural(q.chances, 'occasion')) : ''}${q.errors ? tile('Vos fautes non punies', pct(q.unpunished), _plural(q.errors, 'faute')) : ''}</div>`)}
-                ${q.curve.length >= 5 ? card('so-c6', 'À quel moment la partie vous échappe-t-elle ?', '', `${evalCurve(q.curve)}<p class="si-cap">Numéro du coup</p>`) : ''}
-                ${buckets.some(fair) ? card('so-c6', 'Votre sortie d\'ouverture décide-t-elle du résultat ?', fair(best) && fair(low) ? `Après une sortie à +1 ou mieux : ${pct(best.score)}. À −1 ou moins : ${pct(low.score)}.` : '', `${scoreBars(bars)}<p class="si-cap">Évaluation à la sortie, en pions</p>`) : ''}
             </div>`;
     }
 
@@ -258,45 +422,111 @@ const StatsInsights = (function () {
     const STRUCTURES = { 'iqp+': 'Votre pion isolé en d', 'iqp-': 'Pion isolé adverse en d', 'hang+': 'Vos pions pendants', 'hang-': 'Pions pendants adverses', carlsbad: 'Structure de Carlsbad', maroczy: 'Étau de Maroczy', french: 'Chaîne française', kid: 'Chaîne est-indienne', open: 'Centre ouvert' };
     const ENDGAMES = { pawn: ['Finales de pions', 'pions'], rook: ['Finales de tours', 'tours'], queen: ['Finales de Dame', 'dame'], minor: ['Pièces mineures', 'mineures'], rookMinor: ['Tour + pièce', 'tour-piece'] };
     const IMBALANCES = [['exch+', 'Un échange de plus'], ['exch-', 'Un échange de moins'], ['minors+', 'Deux pièces contre une tour'], ['minors-', 'Une tour contre deux pièces'], ['piece+', 'Une pièce de plus'], ['piece-', 'Une pièce de moins'], ['pawn+', 'Un pion de plus'], ['pawn-', 'Un pion de moins'], ['even', 'Égalité matérielle']];
-    const shortDelta = d => d === null ? '–' : I18n.mark(`${d >= 0 ? '+' : '−'}${num1(Math.abs(d))}`);
-    const posRow = (label, t, extra) => `<div class="si-pos"><span>${label}</span><span class="si-track"><i style="width:${Math.max(1, Math.round(t.score))}%"></i></span><b>${pct(t.score)}</b><span class="so-delta ${t.delta === null ? '' : t.delta >= 0 ? 'up' : 'down'}">${t.delta === null ? '' : `<i aria-hidden="true">${t.delta >= 0 ? '▲' : '▼'}</i>`}${shortDelta(t.delta)}</span><small>${t.n}</small>${extra || ''}</div>`;
-    const head = '<div class="si-pos si-pos-h" aria-hidden="true"><span></span><span>Score</span><span></span><span>Écart</span><span>Parties</span></div>';
+    const CASTLES = { same: 'Roques du même côté', opposite: 'Roques opposés', meNone: 'Vous sans roque', oppNone: 'Adversaire sans roque' };
+    // Nom d'un type de « Vos terrains, vos pièges » (GamePositions.terrains), ou '' s'il n'est pas affiché.
+    function typeName(id) {
+        const [k, v] = id.split(':');
+        if (k === 'q') return v === 'off' ? 'Sans dames' : 'Avec dames';
+        if (k === 'c') return CASTLES[v] || '';
+        if (k === 'st') return STRUCTURES[v] || '';
+        if (k === 'eg') return ENDGAMES[v] ? ENDGAMES[v][0] : '';
+        if (k === 'imb') { const x = IMBALANCES.find(([key]) => key === v); return x && v !== 'even' ? x[1] : ''; }
+        return '';
+    }
+    // L'écart, dit « vs votre Elo » : votre score moins celui que les Elo prévoient, en points.
+    const vsElo = d => d === null ? '–' : Math.abs(d) < .5 ? I18n.t('comme prévu') : I18n.mark(signed(d));
+    const vsEloWords = d => {
+        if (d === null) return '';
+        if (Math.abs(d) < .5) return 'comme vos Elo le prévoient';
+        const pts = I18n.mark(`${Math.abs(Math.round(d))} ${Math.abs(Math.round(d)) >= 2 ? I18n.t('points') : I18n.t('point')}`);
+        return d >= 0 ? `${pts} de mieux que vos Elo ne le prévoient` : `${pts} de moins que vos Elo ne le prévoient`;
+    };
+    const saidOf = (label, d) => I18n.pair(I18n.t(label), I18n.t(vsEloWords(d)));
+    // Échelle commune aux lignes d'une carte : le plus grand écart, arrondi à 5 points (10 au moins).
+    const divLim = ts => Math.max(10, ...ts.filter(t => t && t.delta !== null).map(t => Math.ceil(Math.abs(t.delta) / 5) * 5));
+    // Une ligne : nom, parties, barre qui part de « comme prévu », écart ; le score brut en infobulle.
+    const posRow = (label, t, extra, lim = divLim([t])) => {
+        const w = t.delta === null ? 0 : Math.min(50, Math.abs(t.delta) / lim * 50), tip = I18n.mark(`${I18n.t(label)} · ${pct(t.score)}${t.expected === null ? '' : ` / ${pct(t.expected)}`} · ${_plural(t.n, 'partie')}`);
+        return `<div class="si-pos" title="${tip}"><span>${label}</span><small>${t.n}</small><span class="si-div" aria-hidden="true">${t.delta === null ? '' : `<i class="${t.delta >= 0 ? 'up' : 'down'}" style="${t.delta >= 0 ? 'left' : 'right'}:50%;width:${Math.max(.8, w).toFixed(1)}%"></i>`}</span><b class="${t.delta === null ? '' : t.delta >= 0 ? 'up' : 'down'}">${vsElo(t.delta)}</b>${extra || ''}</div>`;
+    };
+    const head = '<div class="si-pos si-pos-h" aria-hidden="true"><span></span><small>Parties</small><span class="si-div-h"><em>comme prévu</em></span><b>vs votre Elo</b></div>';
+    const pair = (a, la, b, lb) => a.delta !== null && b.delta !== null ? I18n.mark(`${saidOf(la, a.delta)}. ${saidOf(lb, b.delta)}.`) : '';
+
+    function terrainsHTML(r) {
+        const x = GamePositions.terrains(r, MIN, id => !!typeName(id));
+        if (!x.best.length && !x.worst.length) return '';
+        const col = (cls, title, items, empty) => `<div class="si-ter ${cls}"><h6>${title}</h6>${items.length ? items.map(y => `<div class="si-ter-i" title="${I18n.mark(`${pct(y.t.score)}${y.t.expected === null ? '' : ` / ${pct(y.t.expected)}`} · ${_plural(y.t.n, 'partie')}`)}"><span>${typeName(y.id)}<small>${_plural(y.t.n, 'partie')}</small></span><b>${vsElo(y.t.delta)}</b></div>`).join('') : `<p class="st-sub">${empty}</p>`}</div>`;
+        const best = x.best[0], worst = x.worst[0];
+        const take = I18n.mark(`${best ? saidOf(typeName(best.id), best.t.delta) : saidOf(typeName(worst.id), worst.t.delta)}.`);
+        return card('so-c12 si-terrains', 'Vos terrains, vos pièges', take, `<div class="si-ters">${col('up', 'Vos terrains', x.best, 'Aucun type de position au-dessus de vos Elo.')}${col('down', 'Vos pièges', x.worst, 'Aucun type de position sous vos Elo.')}</div><p class="si-cap">vs votre Elo : votre score moins celui que vos Elo et ceux de vos adversaires prévoient, en points ; ${MIN} parties au moins</p>`);
+    }
 
     function positionsHTML(list) {
         const r = GamePositions.report(list);
         if (r.games < MIN) return `<p class="st-sub">${GamePositions.running() ? 'Lecture des positions de vos parties…' : 'Trop peu de parties avec ces filtres.'}</p>`;
         const q = r.queens, c = r.castling, known = l => l.filter(x => fair(x.t)).sort((a, b) => (b.t.delta ?? 0) - (a.t.delta ?? 0));
         const st = known(r.structures.filter(x => STRUCTURES[x.key])), eg = known(r.endgames.filter(x => ENDGAMES[x.key])), im = IMBALANCES.map(([k, l]) => ({ l, x: r.imbalances.find(y => y.key === k) })).filter(y => y.x && fair(y.x.t));
-        const castleRows = [['Mêmes côtés', c.same], ['Côtés opposés', c.opposite], ['Vous sans roque', c.meNone], ['Adversaire sans roque', c.oppNone]].filter(([, t]) => fair(t));
+        const castleRows = [['same', c.same], ['opposite', c.opposite], ['meNone', c.meNone], ['oppNone', c.oppNone]].filter(([, t]) => fair(t));
         const worstEg = eg[eg.length - 1], top = st[0], low = st[st.length - 1];
         return `<div class="so-grid">
-            ${fair(q.off) && fair(q.on) ? card('so-c6', 'Préférez-vous jouer avec ou sans dames ?', `Dames échangées : ${pct(q.off.score)}. Dames sur l'échiquier : ${pct(q.on.score)}.`, `${head}${posRow('Sans dames', q.off)}${posRow('Avec dames', q.on)}`) : ''}
-            ${castleRows.length ? card('so-c6', 'Où êtes-vous à l\'aise pour roquer ?', fair(c.same) && fair(c.opposite) ? `Côtés opposés : ${pct(c.opposite.score)}. Mêmes côtés : ${pct(c.same.score)}.` : '', `${head}${castleRows.map(([l, t]) => posRow(l, t)).join('')}`) : ''}
-            ${st.length ? card('so-c6', 'Quelles structures vous réussissent ?', st.length > 1 && top.t.delta !== null ? `La plus rentable : ${STRUCTURES[top.key]}. La moins rentable : ${STRUCTURES[low.key]}.` : 'Structure de pions au coup 15', `${head}${st.map(x => posRow(STRUCTURES[x.key], x.t)).join('')}`) : ''}
-            ${eg.length ? card('so-c6', 'Quelles finales vous coûtent des points ?', worstEg.t.delta !== null && worstEg.t.delta < 0 ? `La plus coûteuse : ${ENDGAMES[worstEg.key][0]} (${shortDelta(worstEg.t.delta)} %).` : 'Vous tenez ce qu\'on attend de vous dans chaque type de finale.', `${head}${eg.map(x => posRow(ENDGAMES[x.key][0], x.t, `<button type="button" class="st-link si-go" data-action="statsGoEndgame" data-arg="${ENDGAMES[x.key][1]}">S'entraîner</button>`)).join('')}`) : ''}
-            ${im.length ? card('so-c12', 'Comment jouez-vous les déséquilibres ?', 'Premier déséquilibre matériel tenu au moins trois coups', `${head}${im.map(y => posRow(y.l, y.x.t)).join('')}`) : ''}
+            ${terrainsHTML(r)}
+            ${fair(q.off) && fair(q.on) ? card('so-c6', 'Préférez-vous jouer avec ou sans dames ?', pair(q.off, 'Sans dames', q.on, 'Avec dames'), `${head}${posRow('Sans dames', q.off, '', divLim([q.off, q.on]))}${posRow('Avec dames', q.on, '', divLim([q.off, q.on]))}`) : ''}
+            ${castleRows.length ? card('so-c6', 'Où êtes-vous à l\'aise pour roquer ?', fair(c.same) && fair(c.opposite) ? pair(c.opposite, 'Roques opposés', c.same, 'Mêmes côtés') : '', `${head}${castleRows.map(([k, t]) => posRow(CASTLES[k], t, '', divLim(castleRows.map(x => x[1])))).join('')}`) : ''}
+            ${st.length ? card('so-c6', 'Quelles structures vous réussissent ?', st.length > 1 && top.t.delta !== null ? `La plus rentable : ${STRUCTURES[top.key]} (${vsElo(top.t.delta)}). La moins rentable : ${STRUCTURES[low.key]} (${vsElo(low.t.delta)}).` : 'Structure de pions au coup 15', `${head}${st.map(x => posRow(STRUCTURES[x.key], x.t, '', divLim(st.map(y => y.t)))).join('')}`) : ''}
+            ${eg.length ? card('so-c6', 'Quelles finales vous coûtent des points ?', worstEg.t.delta !== null && worstEg.t.delta < 0 ? `La plus coûteuse : ${ENDGAMES[worstEg.key][0]}, ${vsEloWords(worstEg.t.delta)}.` : 'Vous tenez ce que vos Elo prévoient dans chaque type de finale.', `${head}${eg.map(x => posRow(ENDGAMES[x.key][0], x.t, `<button type="button" class="st-link si-go" data-action="statsGoEndgame" data-arg="${ENDGAMES[x.key][1]}">S'entraîner</button>`, divLim(eg.map(y => y.t)))).join('')}`) : ''}
+            ${im.length ? card('so-c12', 'Comment jouez-vous les déséquilibres ?', 'Premier déséquilibre matériel tenu au moins trois coups', `${head}${im.map(y => posRow(y.l, y.x.t, '', divLim(im.map(z => z.x.t)))).join('')}`) : ''}
         </div>`;
     }
 
-    // Lance ou poursuit l'analyse quand la vue Qualité est à l'écran.
+    // Lance ou poursuit l'analyse : quand la vue Qualité est à l'écran, et en arrière-plan après le lancement (point 1, option D),
+    // BG_COUNT parties au plus, tant que l'app est visible et que l'échiquier n'a pas besoin du moteur. La période affichée d'abord (option F).
+    const BG_COUNT = 20, BG_DELAY = 6000, BG_RETRY = 60e3, BG_TRIES = 10, REPAINT_EVERY = 5;
     const viewVisible = () => { const el = document.getElementById('si-view'); return !!el && el.offsetParent !== null && !document.hidden; };
-    const shouldRun = () => st.view === 'qualite' && !st.paused && viewVisible();
+    const inView = () => st.view === 'qualite' && viewVisible();
+    const boardBusy = () => typeof _gameScreenShown === 'function' && _gameScreenShown();
+    const bgOk = () => st.bgLeft > 0 && !document.hidden && !boardBusy();
+    const shouldRun = () => !st.paused && (inView() || bgOk());
+    const firstOf = () => keeper();
     function refreshView() {
         const el = document.getElementById('si-view'), games = StatsGames.games();
         if (el && games && st.view !== 'repertoire') el.innerHTML = viewHTML(games, StatsGames.analysed());
     }
-    function pump() {
-        const games = StatsGames.games();
-        if (games) GamePositions.run(games, () => { if (st.view === 'positions') refreshView(); });
-        if (!games || !shouldRun() || GameEval.running() || !GameEval.pending(games).length) return;
+    function runEval(games) {
+        if (!shouldRun() || GameEval.running() || !GameEval.pending(games).length) return;
         st.evalError = '';
         st.shown = 0;
         GameEval.run(games, {
-            shouldRun,
-            onGame: () => { const box = document.getElementById('si-eval'); if (box && viewVisible()) { const fresh = document.createElement('div'); fresh.innerHTML = evalBarHTML(games); box.replaceWith(fresh.firstElementChild); } },
-            onSaved: done => { if (done - st.shown >= 20) { st.shown = done; refreshView(); Bus.emit('games:evaluated'); } }
-        }).catch(() => { st.evalError = 'Le moteur ne répond pas. Réessayez plus tard.'; }).then(() => { refreshView(); Bus.emit('games:evaluated'); });
+            shouldRun, first: firstOf(),
+            onGame: () => {
+                if (!inView()) st.bgLeft--;
+                const box = document.getElementById('si-eval');
+                if (box && viewVisible()) { const fresh = document.createElement('div'); fresh.innerHTML = evalBarHTML(games); box.replaceWith(fresh.firstElementChild); }
+            },
+            onSaved: done => {
+                if (inView()) refreshView();
+                if (done - st.shown >= 20) { st.shown = done; Bus.emit('games:evaluated'); }
+            }
+        }).catch(() => { st.evalError = 'Le moteur ne répond pas. Réessayez plus tard.'; }).then(() => {
+            refreshView(); Bus.emit('games:evaluated');
+            if (st.bgLeft > 0 && GameEval.pending(games).length) background();
+        });
     }
+    function pump() {
+        const games = StatsGames.games();
+        if (games) GamePositions.run(games, () => { if (st.view === 'positions') refreshView(); });
+        if (games) runEval(games);
+    }
+    // Analyse en arrière-plan : reprise plus tard si l'échiquier occupe le moteur ou si l'app est cachée.
+    let bgTries = 0;
+    async function background() {
+        if (st.bgLeft <= 0 || bgTries++ >= BG_TRIES) return;
+        if (!bgOk() || GameEval.running()) { setTimeout(background, BG_RETRY); return; }
+        await StatsGames.prime();
+        const games = StatsGames.games();
+        if (games && games.length) runEval(games);
+    }
+    st.bgLeft = 0;
+    if (typeof window !== 'undefined' && typeof Worker !== 'undefined') Bus.afterIntro(() => { st.bgLeft = BG_COUNT; background().catch(e => reportError('analyse des parties en arrière-plan', e)); }, BG_DELAY);
 
     // Contenu de la vue active, hors Répertoire (rendu par StatsGames).
     function viewHTML(games, rows) {

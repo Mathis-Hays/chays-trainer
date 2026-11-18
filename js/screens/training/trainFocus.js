@@ -2,7 +2,8 @@
  * screens/training/trainFocus.js
  * ──────────────────────────────────────────────────────────────────────────
  * Mode Focus (atelier « L'envie de revenir », lot 2) : pendant une séance guidée de l'Entraînement, tout disparaît
- * sauf l'échiquier, la consigne (barre d'état, avec son action « Suivant » / « Encore 5 ») et un fin trait de progression.
+ * sauf l'échiquier, la consigne (barre d'état, avec son action « Suivant » / « Encore 5 », ou l'Indice pendant mon tour)
+ * et un fin trait de progression.
  *
  *   TrainFocus.active()  → vrai quand l'écran est en Focus (préférence locale trainFocus ET séance en cours)
  *   TrainFocus.toggle()  → bascule la préférence (bouton « Focus », touche Z, bouton de sortie, Échap)
@@ -26,6 +27,7 @@ const TrainFocus = (function () {
         if (root.classList.contains(CLS) === on) return;
         root.classList.toggle(CLS, on);
         document.querySelectorAll('.tr-focus-btn').forEach(b => b.setAttribute('aria-pressed', String(on)));
+        if (typeof refreshIdleAction === 'function') refreshIdleAction();   // en Focus, l'Indice passe dans la barre d'état
     }
 
     function toggle() {

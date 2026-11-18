@@ -1,7 +1,8 @@
 /**
  * screens/games/autoReview.js
  * ──────────────────────────────────────────────────────────────────────────
- * Parties relues toutes seules (refonte « Chays sans détour », lot 5). Quelques secondes après le lancement, au plus une
+ * Parties relues toutes seules (refonte « Chays sans détour », lot 5). Quelques secondes après la fin de l'intro
+ * (Bus.afterIntro : rideau levé, puis DELAY, puis un moment libre), au plus une
  * fois toutes les AUTO_REVIEW_EVERY, les dernières parties de chaque compte relié (pseudos `chesscomUser` / `lichessUser`
  * du Compte) passent par la même analyse qu'« Analyser mes parties » (analyzeOnlineGames, onlineGames.js) : mêmes
  * verdicts au journal `chessTrainer_gameLedger`, même règle de comptage (une erreur par partie, répertoire et couleur).
@@ -48,7 +49,7 @@ const AutoReview = (function () {
         return total;
     }
 
-    if (typeof window !== 'undefined') window.addEventListener('load', () => setTimeout(() => { run().catch(e => reportError('parties relues au lancement', e)); }, DELAY));
+    if (typeof window !== 'undefined') Bus.afterIntro(() => { run().catch(e => reportError('parties relues au lancement', e)); }, DELAY);
 
     return { run, accounts, KEY, EVERY };
 })();

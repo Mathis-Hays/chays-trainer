@@ -21,8 +21,25 @@ const _isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator
 document.documentElement.dataset.standalone = _isStandalone() ? '1' : '0';
 
 // ─── SERVICE WORKER ───────────────────────────────────────────────────────────
+// sw.js ne range d'office que le code et les icônes : l'échiquier, le jeu de pièces et la langue en usage lui sont
+// signalés ici (images et paquets déjà chargés par la page, plus la texture de l'échiquier choisi), à chaque lancement.
+function _swKeepList() {
+    const here = location.origin, out = new Set();
+    try {
+        performance.getEntriesByType('resource').forEach(r => {
+            const u = new URL(r.name);
+            if (u.origin === here && /\/(?:assets|lang)\//.test(u.pathname)) out.add(u.pathname.replace(/^\//, ''));
+        });
+    } catch (e) { /* mesures indisponibles : seule la texture est signalée */ }
+    const board = document.documentElement.getAttribute('data-board');
+    if (board && /^[a-z0-9-]+$/.test(board)) out.add(`assets/boards/${board}.webp`);   // absente pour un échiquier en couleurs : ignorée
+    return [...out];
+}
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
-    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+        navigator.serviceWorker.ready.then(reg => { if (reg.active) reg.active.postMessage({ type: 'keep', urls: _swKeepList() }); }).catch(() => {});
+    });
 }
 
 // ─── INSTALLATION ─────────────────────────────────────────────────────────────

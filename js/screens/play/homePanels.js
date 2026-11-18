@@ -8,6 +8,11 @@
  *   « Parties »     les parties analysées le plus récemment et leur verdict (.vbadge) pour le répertoire actif ;
  *                   « Répondre » sur celles qui attendent encore une réponse.
  * La vue par défaut est « Nouveautés » ; sans nouveauté ni partie, un état vide renvoie vers l'analyse des parties.
+ * Listes (chantier « Accueil et lancement », novembre 2026) : toutes les lignes sont rendues (au plus LIST_CAP) ; la
+ * liste montre LIST_SHOWN lignes et défile dans la carte (css/home.css, « À traiter : défilement »), arrêt par ligne,
+ * fondu en bas tant qu'il reste des lignes, repère « 1–5 · N » sous la liste. `shown` / `shownGames` contiennent
+ * toutes les lignes rendues : « Répondre » vise la bonne, même au-delà de la cinquième.
+ * Redessin : un bloc n'est réécrit que si son HTML change (patchHTML) ; une liste réécrite garde son défilement.
  * Suggestion unique « Essayer Noyer + Maestro » pour une installation antérieure restée sur Sauge + Merida
  * (chessTrainer_looksTip, propre à l'appareil : 'tried' ou 'no' ; il n'existe pas de notification générique).
  */
@@ -15,7 +20,7 @@
 'use strict';
 
 const HomePanels = (function () {
-    const LIST_MAX = 5;
+    const LIST_SHOWN = 5, LIST_CAP = 50;              // lignes visibles sans défiler ; lignes rendues au plus
     const KINDS = { theory: ['Théorique', 'ok'], mistake: ['Erreur', 'err'], out: ['Hors répertoire', 'info'],
                     novelty: ['Nouveauté', 'warn'], treated: ['Traitée depuis', 'new'], missing: ['Sans réponse', 'err'] };
     const date = t => (t ? new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short' }) : '');
@@ -66,20 +71,19 @@ const HomePanels = (function () {
 
     function newsRows() {
         const list = novelties();
-        shown = list.slice(0, LIST_MAX);
+        shown = list.slice(0, LIST_CAP);
         if (!list.length) return `<div class="hp-empty">${ico('check')}<b>Aucune nouveauté en attente</b>
             <button type="button" class="st-link" data-action="homeGames">Analyser mes parties</button></div>`;
         return shown.map((x, i) => row(thumb(x.color, x.path),
             `<b>${lineTail(_pathToSans(x.path))}</b><small>${escapeHtml(x.vs ? 'contre ' + x.vs : srcName(x.id))}${x.at ? ' · ' + date(x.at) : ''}</small>`,
-            x.kind === 'novelty' ? 'novelty' : 'missing', answerBtn('homeNovelty', i))).join('')
-            + (list.length > LIST_MAX ? `<p class="hp-more">et ${list.length - LIST_MAX} de plus</p>` : '');
+            x.kind === 'novelty' ? 'novelty' : 'missing', answerBtn('homeNovelty', i))).join('');
     }
 
     // Parties : « Répondre » seulement sur celles qui attendent encore une réponse (les mêmes que les Nouveautés).
     function gameRows() {
         const ledger = readLedger(), todo = novelties();
         const ids = Object.keys(ledger).filter(id => ['w', 'b'].some(c => ledger[id].v && ledger[id].v[currentRepertoire + '|' + c]))
-            .sort((a, b) => (ledger[b].last || 0) - (ledger[a].last || 0)).slice(0, LIST_MAX);
+            .sort((a, b) => (ledger[b].last || 0) - (ledger[a].last || 0)).slice(0, LIST_CAP);
         shownGames = [];
         if (!ids.length) return `<div class="hp-empty">${ico('flame')}<b>Aucune partie analysée</b>
             <button type="button" class="st-link" data-action="homeGames">Analyser mes parties</button></div>`;
@@ -93,12 +97,38 @@ const HomePanels = (function () {
         }).join('');
     }
 
+    // Liste défilante au-delà de LIST_SHOWN lignes : focalisable (flèches du clavier), repère « 1–5 · N » dessous.
     function inboxHTML() {
         const n = novelties().length;
         const tab = (id, label) => `<button type="button" role="tab" aria-selected="${pane === id}" data-action="homePane" data-arg="${id}">${label}</button>`;
+        const rows = pane === 'news' ? newsRows() : gameRows();
+        const total = (rows.match(/class="hp-row[ "]/g) || []).length, more = total > LIST_SHOWN;
+        const label = pane === 'news' ? 'Nouveautés' : 'Parties';
         return `<div class="hp-h"><h2>À traiter</h2>${n ? `<span class="hp-count">${n}</span>` : ''}
                 <div class="hp-tabs" role="tablist" aria-label="À traiter">${tab('news', 'Nouveautés')}${tab('games', 'Parties')}</div></div>
-            <div class="hp-list">${pane === 'news' ? newsRows() : gameRows()}</div>`;
+            <div class="hp-list${more ? ' is-scroll' : ''}"${more ? ` tabindex="0" role="region" aria-label="${label} : ${total} lignes, liste défilante"` : ''}>${rows}</div>`
+            + (more ? `<p class="hp-cue" aria-hidden="true"><span class="hp-cue-at">1–${LIST_SHOWN}</span><span class="hp-cue-bar"><i style="width:${Math.round(LIST_SHOWN / total * 100)}%"></i></span><span>${total}</span></p>` : '');
+    }
+
+    // Hauteur de 5 lignes, mesurée (une ligne fait 64 px à l'ordinateur, davantage sur téléphone où le badge passe dessous).
+    function fitFive(list) {
+        const rows = list ? list.querySelectorAll('.hp-row') : [];
+        if (rows.length <= LIST_SHOWN) return;
+        const h = rows[LIST_SHOWN].offsetTop - rows[0].offsetTop;
+        if (h > 0) list.style.setProperty('--hp-five', h + 'px');
+    }
+
+    // Repère et fondu de la liste défilante, à chaque défilement (écouteur posé une fois, en capture, sur #hp-news).
+    function syncCue(list) {
+        const box = list && list.closest('#hp-news'), cue = box && box.querySelector('.hp-cue');
+        if (!list || !list.classList.contains('is-scroll')) return;
+        if (!list.style.getPropertyValue('--hp-five')) fitFive(list);               // liste dessinée cachée : mesurée au premier défilement
+        const rows = list.querySelectorAll('.hp-row'), total = rows.length, h = rows[0] ? rows[0].offsetHeight : 0;
+        const first = h ? Math.min(total, Math.round(list.scrollTop / h) + 1) : 1, last = Math.min(total, first + LIST_SHOWN - 1);
+        list.classList.toggle('at-end', list.scrollTop + list.clientHeight >= list.scrollHeight - 2);
+        if (!cue) return;
+        cue.querySelector('.hp-cue-at').textContent = `${first}–${last}`;
+        cue.querySelector('.hp-cue-bar i').style.width = Math.round(last / total * 100) + '%';
     }
 
     // ─── Suggestion Noyer + Maestro ───────────────────────────────────────────
@@ -130,10 +160,24 @@ const HomePanels = (function () {
         render();
     }
 
+    let listening = false;
     function render() {
-        const set = (id, fn) => { const el = document.getElementById(id); if (el) el.innerHTML = fn(); };
-        set('looks-tip', tipHTML);
-        set('hp-news', inboxHTML);
+        patchHTML(document.getElementById('looks-tip'), tipHTML());
+        const box = document.getElementById('hp-news');
+        if (!box) return;
+        const old = box.querySelector('.hp-list'), top = old ? old.scrollTop : 0, was = box.dataset.pane;
+        if (patchHTML(box, inboxHTML())) {
+            const list = box.querySelector('.hp-list');
+            if (list && top && was === pane) list.scrollTop = top;           // même vue : la liste reste où on l'avait laissée
+            box.dataset.pane = pane;
+            fitFive(list);
+            syncCue(list);
+        }
+        if (!listening) {
+            listening = true;
+            box.addEventListener('scroll', e => { if (e.target.classList && e.target.classList.contains('hp-list')) syncCue(e.target); }, { capture: true, passive: true });
+            window.addEventListener('resize', () => { const l = box.querySelector('.hp-list.is-scroll'); if (l) { fitFive(l); syncCue(l); } }, { passive: true });
+        }
     }
 
     // « Répondre » : Jouer sur la position à traiter (rien n'est compté en Jouer).

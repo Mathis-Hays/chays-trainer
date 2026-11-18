@@ -13,7 +13,8 @@
  * Un groupe de boutons radio (role="radiogroup") avec un curseur qui glisse sous l'option choisie ;
  * chaque option porte le roi du jeu de pièces actif (les deux rois pour « Les deux »).
  * Rendu une seconde fois sur le même hôte avec les mêmes options, le composant est mis à jour sur place :
- * le curseur glisse au lieu de réapparaître. Flèches, Origine et Fin au clavier.
+ * le curseur glisse au lieu de réapparaître. Flèches, Origine et Fin au clavier, seulement si le focus vient du clavier :
+ * après un clic, ← → restent à la navigation dans les coups (chantier « Échiquier et séance »).
  */
 
 'use strict';
@@ -56,11 +57,17 @@ const ColorScope = (function () {
                 const b = e.target.closest('.cs-opt');
                 if (b) pick(root, root._cs.options.indexOf(b.dataset.v), false);
             });
+            // Focus donné par un clic ou un toucher : les flèches ne sont pas lues (elles changeraient de camp et relanceraient la partie).
+            root.addEventListener('pointerdown', () => { root._cs.mouse = true; });
+            root.addEventListener('focusout', e => { if (!root.contains(e.relatedTarget)) root._cs.mouse = false; });
             root.addEventListener('keydown', e => {
+                if (e.key === 'Tab') { root._cs.mouse = false; return; }
+                if (root._cs.mouse) return;
                 const i = root._cs.options.indexOf(root._cs.value);
                 const to = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: root._cs.options.length - 1 }[e.key];
                 if (to === undefined) return;
                 e.preventDefault();
+                e.stopPropagation();                         // la navigation dans les coups ne joue pas en plus
                 pick(root, to, true);
             });
         }

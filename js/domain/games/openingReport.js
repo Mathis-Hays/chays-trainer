@@ -2,9 +2,11 @@
  * domain/games/openingReport.js
  * ──────────────────────────────────────────────────────────────────────────
  * Calculs de la fiche d'une ouverture (Statistiques › Par ouverture), purs : ni écran ni stockage.
- *   summarize(parties)         score, score attendu d'après l'Elo, écart, points perdus, performance.
+ *   summarize(parties)         score, score attendu d'après l'Elo, écart, points perdus, performance (niveau joué),
+ *                              mon Elo moyen et l'écart du niveau joué à cet Elo (gap, chantier « Ouvertures repensées » : le score dit en Elo).
  *   months(parties, n, now)    score et attendu de chacun des n derniers mois civils.
- *   detail(lignes, minPly)     répertoire suivi ou quitté, couverture, profondeur, réponses adverses, coups joués à la place.
+ *   detail(lignes, minPly)     répertoire suivi ou quitté, couverture, profondeur, réponses adverses, coups joués à la place
+ *                              (avec la position et les deux coups en UCI, pour les flèches de « Vos oublis en partie »).
  *   clockLead(partie, demi-coups)  avance à l'horloge après ces demi-coups, en points de temps initial.
  *   exitEval(partie, demi-coups)   évaluation de mon point de vue après ces demi-coups (centipions, bornée), ou null.
  *   payoff(lignes, now)        ce que le répertoire rapporte : écart à l'attendu quand je le suis, moins quand je le quitte (365 jours).
@@ -25,12 +27,12 @@ const OpeningReport = (function () {
     const points = g => g.result === 'w' ? 1 : g.result === 'd' ? .5 : 0;
 
     function summarize(list) {
-        const t = { n: list.length, w: 0, d: 0, l: 0, score: 0, expected: null, delta: null, lost: 0, perf: null };
-        let pts = 0, ptsElo = 0, exp = 0, opp = 0, withElo = 0;
+        const t = { n: list.length, w: 0, d: 0, l: 0, score: 0, expected: null, delta: null, lost: 0, perf: null, me: null, gap: null };
+        let pts = 0, ptsElo = 0, exp = 0, opp = 0, me = 0, withElo = 0;
         list.forEach(g => {
             t[g.result]++;
             pts += points(g);
-            if (hasElo(g)) { withElo++; ptsElo += points(g); exp += expected(meOf(g), oppOf(g)); opp += oppOf(g); }
+            if (hasElo(g)) { withElo++; ptsElo += points(g); exp += expected(meOf(g), oppOf(g)); opp += oppOf(g); me += meOf(g); }
         });
         if (!t.n) return t;
         t.score = 100 * pts / t.n;
@@ -38,7 +40,8 @@ const OpeningReport = (function () {
             t.expected = 100 * exp / withElo;
             t.delta = 100 * (ptsElo - exp) / withElo;
             t.lost = exp - ptsElo;
-            if (withElo >= MIN_PERF) { const s = Math.min(.95, Math.max(.05, ptsElo / withElo)); t.perf = Math.round(opp / withElo + 400 * Math.log10(s / (1 - s))); }
+            t.me = Math.round(me / withElo);
+            if (withElo >= MIN_PERF) { const s = Math.min(.95, Math.max(.05, ptsElo / withElo)); t.perf = Math.round(opp / withElo + 400 * Math.log10(s / (1 - s))); t.gap = t.perf - t.me; }
         }
         return t;
     }
@@ -91,7 +94,8 @@ const OpeningReport = (function () {
                 seen.set(key, r);
             }
             if (byMe && dev.expected && a.played) {
-                const key = `${dev.key}|${a.played.uci}`, s = swaps.get(key) || { key: dev.key, ply: dev.ply + 1, played: a.played.san, expected: dev.expected.san, games: [] };
+                const key = `${dev.key}|${a.played.uci}`, s = swaps.get(key) || { key: dev.key, ply: dev.ply + 1, played: a.played.san, expected: dev.expected.san,
+                    playedUci: a.played.uci, expectedUci: dev.expected.uci, path: a.path.slice(0, dev.ply), games: [] };
                 s.games.push(g);
                 swaps.set(key, s);
             }

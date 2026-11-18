@@ -41,6 +41,9 @@ const AVATAR_COLORS   = ['theme', 'sapin', 'noyer', 'nuit', 'ardoise', 'prune', 
 const _oneOf = list => v => list.includes(v);
 const _bool  = v => typeof v === 'boolean';
 const _text  = max => v => typeof v === 'string' && v.length <= max;
+// Ancien objectif quotidien (5 à 50) : 10, l'ancien défaut, devient le nouveau (30) ; sinon le palier le plus proche
+// (5 à 20 : 15, 25 à 45 : 30, 50 : 60).
+const _oldDailyGoal = v => !Number.isInteger(v) || v < 5 || v > 50 || [15, 30].includes(v) ? v : v === 10 ? 30 : v <= 20 ? 15 : v <= 45 ? 30 : 60;
 
 // Préférences synchronisées : valeurs admises et valeur par défaut.
 const SYNCED_PREFS = {
@@ -66,7 +69,9 @@ const SYNCED_PREFS = {
     hintAfter:  { ok: _oneOf([0, 1, 2, 3]), def: 0 },
     egOpponent: { ok: _oneOf(['max', 'human']), def: 'max' },                          // adversaire des finales jugées
     // Révisions et notation
-    dailyGoal:  { ok: v => Number.isInteger(v) && v >= 5 && v <= 50, def: 10 },
+    // Objectif du jour = plafond de la file du jour (chantier « Révision du jour », novembre 2026) : Léger, Normal, Soutenu.
+    // Ancienne valeur (5 à 50 par pas de 5) convertie à la lecture, sans réécrire le choix (_oldDailyGoal).
+    dailyGoal:  { ok: _oneOf([15, 30, 60]), def: 30, from: v => _oldDailyGoal(v) },
     rhythm:     { ok: _oneOf(['soft', 'std', 'intense']), def: 'std' },
     freqWeight: { ok: _bool, def: true },
     trainSeen:  { ok: _bool, def: true },                                               // exercices limités aux positions vues en partie (hors Révision du jour)
@@ -118,7 +123,6 @@ const LOCAL_PREFS = {
     announce: { ok: _oneOf(['off', 'sr', 'voice']), def: 'off' },                    // annonce des coups (sound.js)
     thumbHand: { ok: _oneOf(['right', 'left']), def: 'right' },
     trainFocus: { ok: _bool, def: false },                                              // mode Focus des séances (trainFocus.js)                       // main du pouce : côté de « Plus » dans le dock (téléphone)
-    sideBar: { ok: _oneOf(['auto', 'rail', 'wide']), def: 'auto' },                   // barre latérale, à partir de 1 100 px (sideBarMode)
     engineNet:     { ok: _oneOf(['lite', 'full']), def: 'lite' },                       // réseau du moteur (complet : téléchargé sur l'appareil)
     engineThreads: { ok: v => Number.isInteger(v) && v >= 0 && v <= 64, def: 0 },       // 0 : automatique (moitié des cœurs)
     engineHash:    { ok: _oneOf([16, 32, 64, 128, 256, 512]), def: 64 }                 // Mo
@@ -134,7 +138,8 @@ function _readPrefs() {
 function _syncedValues(legacy) {
     const p = _readPrefs(), out = {};
     Object.entries(SYNCED_PREFS).forEach(([name, d]) => {
-        const v = _unretire(name, p[name] && p[name].v), old = _unretire(name, legacy[name]);
+        const conv = d.from || (x => x);
+        const v = conv(_unretire(name, p[name] && p[name].v)), old = conv(_unretire(name, legacy[name]));
         out[name] = d.ok(v) ? v : d.ok(old) ? old : d.def;
     });
     return out;
@@ -311,14 +316,6 @@ function applyDisplayPrefs() {
     d.setAttribute('data-last', s.lastStyle);
     d.setAttribute('data-motion', s.motion);
     d.setAttribute('data-hand', s.thumbHand);
-    d.setAttribute('data-side', sideBarMode());
-}
-
-// Barre latérale : 'rail' ou 'wide'. Automatique : étendue à partir de 1 440 px (même règle dans le script de tête d'index.html).
-function sideBarMode() {
-    const v = appSettings.sideBar;
-    if (v !== 'auto') return v;
-    return typeof matchMedia === 'function' && matchMedia('(min-width: 1440px)').matches ? 'wide' : 'rail';
 }
 
 // Animations réduites : réglage de l'appli, sinon celui de l'appareil.

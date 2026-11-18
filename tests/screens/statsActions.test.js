@@ -58,11 +58,15 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         assert(/3 positions/.test($('.st-fc-h b').textContent), 'trois échéances dans les 7 jours, la quatrième au-delà');
     });
 
-    await t('retard à part (atelier, lot 4) : son propre chiffre, hors de la case du jour de la prévision', () => {
+    await t('retard à part (chantier « Révision du jour ») : ce qui dépasse l\'objectif du jour attend, avec sa date', () => {
+        w.eval(`appSettings.dailyGoal = 15; dataStore.setJSON(ACTIVITY_KEY, { [dayStamp(Date.now())]: { a: 14, f: 0 } })`);   // une place libre aujourd'hui
         seed(w, [-3, -1, 0, 2]);
-        assert.strictEqual($('.st-late b').textContent, '2', 'deux échéances d\'avant aujourd\'hui');
-        assert(/2 positions/.test($('.st-fc-h b').textContent), 'la prévision ne compte que le jour et après');
-        assert.strictEqual($$('.st-fc > div')[0].querySelector('b').textContent, '1');
+        assert.strictEqual($('.st-late b').textContent, '2', 'trois dues pour une place : deux attendent');
+        assert(/à jour vers/.test($('.st-late').textContent), 'date « à jour vers… »');
+        assert.strictEqual($$('.st-fc > div')[0].querySelector('b').textContent, '1', 'la case du jour suit le plafond');
+        w.eval(`appSettings.dailyGoal = 30; dataStore.setJSON(ACTIVITY_KEY, {})`);
+        seed(w, [-3, -1, 0, 2]);
+        assert(!$('.st-late'), 'tout tient dans l\'objectif : pas de cadre');
         seed(w, [2, 3, 1, 9]);
         assert(!$('.st-late'), 'rien en retard : pas de cadre');
     });
@@ -138,7 +142,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('légende : la règle du niveau en title ; plus de bulle ⓘ ni de mention de Jouer', () => {
         seed(w, [-1, 2, 0, 5]);
-        assert(/maîtrise sous 50 sur 100/.test($('.st-lg[data-arg="weak"]').title));
+        assert(/dernier essai raté/.test($('.st-lg[data-arg="weak"]').title));
         assert(/moins de 3 essais/.test($('.st-lg[data-arg="unsure"]').title));
         assert(!$('#stats-info-btn') && !$('#stats-info'));
         assert(!/Jouer/.test($('#stats-body').textContent));

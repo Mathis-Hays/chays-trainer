@@ -55,7 +55,11 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
         assert.strictEqual($('#stats-games .so-kpi b').textContent, '50 %');
         assert.strictEqual($$('#stats-games .si-rec > div').length, 3);
         const list = titles();
-        ['Votre niveau mois par mois', 'Contre qui perdez-vous des points ?', 'Quand jouez-vous le mieux ?', 'Savez-vous vous arrêter ?', 'Comment finissent vos parties ?', 'Jouer plus vous fait-il monter ?'].forEach(x => assert(list.includes(x), x));
+        // Ordre du chantier « Progrès : niveau et temps » : où vous en êtes, puis ce qui explique les défaites, enfin les comparaisons fines.
+        assert.deepStrictEqual(list.slice(0, 4), ['Vos mois au-dessus de votre Elo', 'Comment finissent vos parties ?', 'Savez-vous vous arrêter ?', 'Quand jouez-vous le mieux ?']);
+        assert.strictEqual(list[list.length - 1], 'Face aux plus forts, face aux plus faibles', 'l\'écart à l\'attendu passe en bas');
+        assert(/^Vous (perdez des points contre les adversaires|tenez ce que votre Elo prévoit)/.test($('#stats-games .si-gaps .st-sub').textContent));
+        assert.strictEqual($$('#stats-games .si-gaps .so-chart text.lab').length, 5, 'cinq forces d\'adversaire, en mots');
         assert.strictEqual($$('#stats-games .si-heat i').length, 42);
         assert(/100 % de vos défaites et .* de vos gains se jouent au temps/.test($('#stats-games').textContent), 'défaites toutes au temps');
     });
@@ -107,7 +111,10 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
     await t('Temps : horloges, sortie du répertoire, zeitnot et coup 20', () => {
         view('temps');
         const list = titles();
-        ['Où dépensez-vous votre temps ?', 'Votre préparation vous fait-elle gagner du temps ?', 'Tombez-vous en zeitnot ?', 'Le temps au coup 20 compte-t-il ?'].forEach(x => assert(list.includes(x), x));
+        assert.deepStrictEqual(list, ['Où dépensez-vous votre temps ?', 'Manquez-vous de temps à la pendule ?', 'L\'avance au coup 20 vous aide-t-elle ?'], 'la préparation fusionnée dans la courbe du temps');
+        assert(/Zeitnot : moins de 10 % du temps de départ, soit 18 s en 3 min/.test($('#stats-games .si-zeit .si-chip').textContent), 'zeitnot défini en secondes');
+        assert(/(partie sur|de vos parties|jamais en zeitnot)/.test($('#stats-games .si-zeit .st-sub').textContent));
+        assert.deepStrictEqual($$('#stats-games .si-sides text.lab').map(x => x.textContent), ['En retard', 'À égalité', 'En avance']);
         assert($('#stats-games .si-line.me') && $('#stats-games .si-line.opp'));
         assert(!$('#stats-games .so-kpi'), 'pas de chiffres du Bilan ici');
     });
@@ -120,7 +127,12 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
         w.eval(`StatsGames.games().forEach((g, i) => { g.ev = g.sans.map((_, k) => 20 + (k % 2 ? 0 : -300 * (i % 2))); g.div = [0, 0]; }); StatsGames.repaint()`);
         assert(/Toutes vos parties sont analysées/.test($('#stats-games #si-eval').textContent));
         const list = titles();
-        ['Votre précision progresse-t-elle ?', 'Où perdez-vous en qualité ?', 'Transformez-vous vos avantages ?', 'Voyez-vous les fautes adverses ?'].forEach(x => assert(list.includes(x), x));
+        assert(/^Votre précision (monte|baisse|tient|progresse-t-elle \?)$/.test(list[0]), list[0]);
+        assert(/^(Vous perdez pied (en ouverture|au milieu de partie|en finale)|Au niveau partout)$/.test(list[1]), list[1]);
+        ['Transformez-vous vos avantages ?', 'Voyez-vous les fautes adverses ?'].forEach(x => assert(list.includes(x), x));
+        assert.strictEqual($$('#stats-games .si-phases .si-dial-track').length, 3, 'trois cadrans : Ouverture, Milieu, Finale');
+        assert.deepStrictEqual($$('#stats-games .si-phases text.lab').map(x => x.textContent), ['Ouverture', 'Milieu', 'Finale']);
+        assert($('#stats-games .si-moments .so-chart path'), 'histogramme des fautes');
         assert.strictEqual($$('#stats-games .so-kpi').length, 4);
     });
 

@@ -1,6 +1,7 @@
 // Lancer : node tests/screens/statsOpenings.test.js   — onglet Ouvertures (avant : Statistiques › Par ouverture) : une seule fiche, sélecteur (recherche, clavier, carte),
 // parties rattachées par position, filtre de niveau. Charge index.html entier dans jsdom.
-const { bootApp } = require('../_app.js');
+const { bootApp, ROOT } = require('../_app.js');
+const fs = require('fs'), path = require('path');
 const assert = require('assert');
 let n = 0;
 const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
@@ -59,10 +60,73 @@ const seedGames = async (w, games) => {
 
     await t('s\'ouvre d\'abord sur l\'ouverture qui coûte le plus, avec son diagnostic', () => {
         assert(/italienne/i.test($('#so-trigger b').textContent), $('#so-trigger b').textContent);
-        assert.strictEqual($$('#stats-lines .so-kpi').length, 4);
-        assert.strictEqual($('#stats-lines .so-kpi b').textContent, '7 %', 'une nulle sur sept parties');
         assert($('#stats-lines .so-diag'));
-        assert($('#stats-lines .so-delta.down'));
+        assert(!$('#stats-lines .so-kpi'), 'plus de rangée de quatre chiffres');
+    });
+
+    await t('score face à l\'attendu dit en Elo : une carte « Votre niveau dans cette ouverture », fusionnée avec « Niveau joué »', () => {
+        const perf = Math.round(1500 + 400 * Math.log10((.5 / 7) / (1 - .5 / 7))), digits = v => v.replace(/\D/g, '');
+        const card = $('#stats-lines .so-lv');
+        assert(card && /Votre niveau dans cette ouverture/.test(card.querySelector('h5').textContent));
+        assert.strictEqual(digits(card.querySelector('.so-lv-big b').textContent), String(perf), 'une nulle et six défaites contre des 1500');
+        const gap = card.querySelector('.so-lv-gap.down');
+        assert(gap && digits(gap.textContent) === String(1500 - perf) && /sous votre Elo/.test(gap.textContent), gap && gap.textContent);
+        assert(/7 parties · 7 % des points/.test(card.textContent), card.textContent);
+        assert(card.querySelector('.so-lv-scale'), 'la règle « ici » / « vous »');
+        assert(/Vous y jouez comme un .+ sous votre Elo/.test($('#stats-lines .so-head .so-say').textContent), "la phrase de l'en-tête le dit aussi");
+        const titles = $$('#stats-lines .so-fiche h5').map(h => h.textContent);
+        assert(!titles.some(x => /Score face|Niveau joué/.test(x)), titles.join(' | '));
+        const tile = $$('#stats-lines .so-mr').find(r => /italienne/i.test(r.textContent));
+        assert(/−\d[\d\s ]* Elo/.test(tile.querySelector('.so-elo.down').textContent), "l'index dit l'écart en Elo, plus en %");
+        assert(!/ %$/.test(tile.querySelector('.so-elo').textContent));
+    });
+
+    await t('sections : dix blocs ramenés à six, en trois onglets (Ligne, En partie, Mes coups)', () => {
+        const tabs = $$('#stats-lines .so-tabs [role="tab"]');
+        assert.deepStrictEqual(tabs.map(b => b.dataset.arg), ['line', 'games', 'moves']);
+        assert.strictEqual($('#stats-lines .so-tabs [aria-selected="true"]').dataset.arg, 'line', 'Ligne par défaut');
+        const pane = id => $(`#stats-lines .so-pane[data-tab="${id}"]`), h5 = id => [...pane(id).querySelectorAll('.so-card h5')].map(h => h.textContent);
+        assert.deepStrictEqual(h5('line'), ['Vos oublis en partie', 'Explorateur'], 'les oublis juste après l\'en-tête');
+        assert.deepStrictEqual(h5('games'), ['Votre niveau dans cette ouverture', 'Jusqu’où va votre préparation']);
+        assert.deepStrictEqual(h5('moves'), ['Mes coups, du plus fragile au plus sûr']);
+        assert(pane('games').hidden && pane('moves').hidden && !pane('line').hidden);
+        const all = $$('#stats-lines .so-fiche h5').map(h => h.textContent).join(' | ');
+        assert(!/Score par mois|Où le répertoire s'arrête|Réponses adverses|Coups joués à la place|Vos coups à connaître|Votre préparation$/.test(all), all);
+        assert(!$('#stats-lines .so-tr'), 'la carte « Réponses adverses » est supprimée : l\'explorateur la couvre');
+        assert(/Mois par mois/.test($('#stats-lines .so-lv .so-months-h').textContent), '« Mois par mois » dans la carte Elo');
+        assert($$('#stats-lines .so-lv .so-months i').length === 12, 'douze mois');
+        const prep = $('#stats-lines .so-prep');
+        assert(prep.querySelector('.so-ruler i.me'), 'règle de coups : un point par oubli');
+        assert(/Répertoire suivi/.test(prep.textContent) && /Réponses couvertes/.test(prep.textContent) && /Sortie moyenne : coup \d+/.test(prep.textContent), '« Votre préparation » absorbée');
+        const head = $('#stats-lines .so-head'), fiche = head.parentElement;
+        assert.strictEqual(fiche.children[1], $('#stats-lines .so-tabs'), 'en-tête, puis les onglets');
+        const page = $('#stats-lines .so-fiche').innerHTML;
+        tabs[1].click();
+        assert(!pane('games').hidden && pane('line').hidden, 'En partie affiché');
+        assert.strictEqual($('#stats-lines .so-fiche').innerHTML.replace(/ hidden=""/g, '').replace(/aria-selected="\w+"|tabindex="-?\d"|tr-seg-btn( active)?/g, ''),
+            page.replace(/ hidden=""/g, '').replace(/aria-selected="\w+"|tabindex="-?\d"|tr-seg-btn( active)?/g, ''), 'changer d\'onglet ne repeint pas');
+        tabs[1].dispatchEvent(new w.KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+        assert.strictEqual($('#stats-lines .so-tabs [aria-selected="true"]').dataset.arg, 'moves', 'flèche droite : onglet suivant');
+        assert.strictEqual(w.document.activeElement.id, 'so-t-moves');
+        w.eval(`UI_ACTIONS.opTab('line')`);
+        assert(!pane('line').hidden);
+    });
+
+    await t('« Vos oublis en partie » : position, deux flèches (joué / prévu), « Réviser ce coup » lance la révision de cette position', () => {
+        const slip = $('#stats-lines .so-slips .so-swap');
+        assert(/O-O/.test(slip.textContent) && /joué/.test(slip.textContent) && /c3/.test(slip.querySelector('.so-slip-mv.is-planned').textContent), slip.textContent);
+        assert(slip.querySelector('.so-ar-svg .is-played line') && slip.querySelector('.so-ar-svg .is-planned line'), 'deux flèches');
+        assert(slip.querySelector('.st-mini'), 'la position');
+        const go = slip.querySelector('[data-action="opReviewMove"]');
+        assert(go && /Réviser ce coup/.test(go.textContent) && !go.classList.contains('btn-primary'));
+        w.eval(`window.__rq = null; window.__srq = startReviewQueue; startReviewQueue = (items, back) => { window.__rq = JSON.stringify([items, back]); }`);
+        go.click();
+        const [items, back] = JSON.parse(w.eval('window.__rq'));
+        w.eval('startReviewQueue = window.__srq');
+        assert.strictEqual(back, 'openings', 'la séance revient aux Ouvertures');
+        assert.strictEqual(items.length, 1);
+        const pos = w.eval(`Chess.key(Chess.replay('e2e4 e7e5 g1f3 b8c6 f1c4 f8c5'.split(' ')))`);
+        assert.deepStrictEqual(items[0], { color: 'w', key: pos }, 'la position où 4. c3 était prévu');
     });
 
     await t('Réviser : une seule action pleine qui lance la séance de l\'ouverture, trois variantes en puces', () => {
@@ -118,10 +182,11 @@ const seedGames = async (w, games) => {
         w.eval(`openAnalysis = window.__oa`);
     });
 
-    await t('parties rattachées par position, coup joué à la place, positions de la fiche', () => {
-        assert(/O-O/.test($('#stats-lines .so-swap').textContent));
-        assert($('#stats-lines .st-ibtn.pri'));
-        assert($$('#stats-lines .so-games').some(el => /parties/.test(el.textContent)));
+    await t('Mes coups, allégée : miniature (aperçu), coup, niveau, un bouton ; parties et maîtrise passent dans l\'aperçu', () => {
+        const row = $('#stats-lines .so-pos .so-my');
+        assert(row.querySelector('.so-my-b .st-mini') && row.querySelector('.so-my-b').dataset.action === 'statsPreview');
+        assert(row.querySelector('.st-lvl .lv-mark') && row.querySelector('.st-ibtn.pri[data-action="statsTrain"]'));
+        assert(!$('#stats-lines .so-pos .so-games') && !$('#stats-lines .so-pos .st-when') && !$('#stats-lines .so-pos .st-row-hd'), 'six colonnes ramenées à quatre');
     });
 
     await t('sélecteur : recherche sans accents, par nom ou par coups ; Échap referme et rend le focus', () => {
@@ -187,7 +252,9 @@ const seedGames = async (w, games) => {
         const rows = $$('#stats-lines .so-mirror .so-mr');
         assert(rows.length >= 2);
         assert(rows[0].classList.contains('on') && /italienne/i.test(rows[0].textContent), 'la plus coûteuse en tête, ouverte');
-        assert(rows[0].querySelector('.st-mini') && rows[0].querySelector('.lv-bar') && rows[0].querySelector('.so-mr-r small.down'));
+        assert(rows[0].querySelector('.st-mini') && rows[0].querySelector('.lv-bar') && rows[0].querySelector('.so-elo.down'));
+        assert.strictEqual(rows[0].querySelector('.so-mr-st').textContent, 'Perd des points', 'une seule phrase d\'état');
+        assert(/coups? à revoir|à réviser|à jour/i.test(rows.find(r => /sicilienne/i.test(r.textContent)).querySelector('.so-mr-st').textContent));
         assert(!$('#stats-lines .so-layout').classList.contains('is-open'), "l'index d'abord");
         const sic = rows.find(r => /sicilienne/i.test(r.textContent));
         sic.click();
@@ -245,7 +312,7 @@ const seedGames = async (w, games) => {
         typed('pianissimo');
         key($('#so-picker .so-p-search'), 'ArrowDown');
         key($('#so-picker .so-p-search'), 'Enter');
-        const rows = () => $$('#stats-lines .so-pos .st-row:not(.st-row-hd)'), more =() => $('#stats-lines .so-pos .st-more');
+        const rows = () => $$('#stats-lines .so-pos .so-my'), more =() => $('#stats-lines .so-pos .st-more');
         assert.strictEqual(rows().length, 5);
         const total = Number(/^(\d+) coups/.exec($('#stats-lines .so-pos .st-sub').textContent)[1]);
         assert(total > 5);
@@ -265,6 +332,31 @@ const seedGames = async (w, games) => {
         $('#so-trigger').click();
         assert(/Hors répertoire/.test($('#so-picker .so-p-body').textContent));
         key($('#so-picker .so-p-search'), 'Escape');
+    });
+
+    await t('rang visible quand la fiche est à côté : lignes non tassées, sceau sur la miniature, index collant, « Maître » lisible en sombre', () => {
+        const css = fs.readFileSync(path.join(ROOT, 'css/screens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+        const wide = css.slice(css.indexOf('@container stats (min-width: 980px)'));
+        const block = wide.slice(0, wide.indexOf('\n}'));
+        const mr = /\n\s*\.so-mr \{([^}]*)\}/.exec(block);
+        assert(mr && /flex-shrink:\s*0/.test(mr[1]), 'la colonne qui défile ne tasse plus les lignes');
+        assert(/min-height:\s*60px/.test(mr[1]));
+        const cis = /contain-intrinsic-size:\s*auto\s+(\d+)px/.exec(mr[1]);
+        assert(cis && Number(cis[1]) >= 60, 'taille réservée au moins celle de la ligne');
+        assert(/\.st-body \.st-card-flush \{[^}]*overflow:\s*clip/.test(css), 'overflow: clip, sinon position: sticky ne colle pas');
+        assert(!/\.st-body \.st-card-flush \{[^}]*overflow:\s*hidden/.test(css));
+        const r2 = css.indexOf('.op-rank.is-r2 {'), dark = css.indexOf('[data-theme="dark"] .op-rank.is-r2, .vel-dark .op-rank.is-r2 { color: var(--brand-brass); }');
+        assert(r2 > 0 && dark > r2, '« Maître » en sombre : la règle vient après .is-r2');
+        const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(c => c <= .03928 ? c / 12.92 : ((c + .055) / 1.055) ** 2.4);
+        const lum = h => { const [r, g, b] = hex(h); return .2126 * r + .7152 * g + .0722 * b; };
+        const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + .05) / (y + .05); };
+        const base = fs.readFileSync(path.join(ROOT, 'css/base.css'), 'utf8'), v = n => new RegExp(`--${n}:\\s*(#[0-9a-f]{6})`, 'i').exec(base)[1];
+        assert(ratio(v('brand-brass'), v('brand-walnut')) >= 4.5, 'laiton clair sur noyer : 4,5:1');
+        assert(ratio(v('brand-brass-deep'), v('brand-walnut')) < 4.5, 'le laiton foncé ne passait pas');
+        // Le rang est dans la carte de l'index sans dépendre de sa hauteur : un sceau posé sur la miniature.
+        const seal = $('#stats-lines .so-mr .so-mr-b .op-rank.so-seal');
+        assert(seal, 'sceau sur la miniature');
+        assert(/\.so-mr-b \.op-rank\.so-seal \{[^}]*position:\s*absolute/.test(css));
     });
 
     assert.deepStrictEqual(errors, []);

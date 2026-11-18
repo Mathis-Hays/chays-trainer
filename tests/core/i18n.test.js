@@ -118,9 +118,8 @@ async function boot(lang) {
         assert.strictEqual(w.eval(`I18n.t('essai test 1 coup')`), 'versuch 1 Zug');
         assert.strictEqual(w.eval(`I18n.t('essai test 2 coups')`), 'versuch 2 Züge');
     });
-    await t('service worker : langues d’office en cache, les autres jamais', () => {
+    await t('service worker : langues embarquées par le cache du code, les autres jamais', () => {
         const sw = read('sw.js');
-        assert(/'lang\/en\.json', 'lang\/es\.json', 'lang\/zh-Hans\.json'/.test(sw));
         const rule = /\/\\\/lang\\\/\(\?!en[^/]*\/[^.]*\.json\$\//.exec(sw);
         assert(sw.includes('/lang/') || rule);
         const re = /\/lang\/(?!en\.json|es\.json|zh-Hans\.json)[^/]+\.json$/;

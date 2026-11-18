@@ -114,6 +114,16 @@ const c = (over = {}) => ({ P: 0, N: 0, B: 0, R: 0, Q: 0, p: 0, n: 0, b: 0, r: 0
         w.eval(`switchHomeTab('stats')`);
     });
 
+    await t('vos terrains, vos pièges : tous types confondus, écart « vs votre Elo », assez de parties, types nommés seulement', () => {
+        const t = (n, delta) => ({ n, delta, score: 50 + (delta || 0), expected: 50 });
+        const r = { queens: { off: t(48, 6), on: t(132, -2) }, castling: { same: t(120, 2), opposite: t(22, -7), meNone: t(2, -30), oppNone: t(10, null) },
+            structures: [{ key: 'iqp+', t: t(18, 5) }, { key: 'carlsbad', t: t(12, -4) }, { key: 'inconnue', t: t(40, 20) }], endgames: [{ key: 'rook', t: t(25, -8) }, { key: 'pawn', t: t(11, 3) }], imbalances: [] };
+        const known = id => id !== 'st:inconnue';
+        const x = JSON.parse(JSON.stringify(w.eval("GamePositions").terrains(r, 5, known)));
+        assert.deepStrictEqual(x.best.map(y => y.id), ['q:off', 'st:iqp+', 'eg:pawn']);
+        assert.deepStrictEqual(x.worst.map(y => y.id), ['eg:rook', 'c:opposite', 'st:carlsbad'], 'moins de 5 parties ou écart inconnu : écartés');
+    });
+
     assert.deepStrictEqual(errors, []);
     w.close();
     console.log(`\n${n} tests réussis.`);

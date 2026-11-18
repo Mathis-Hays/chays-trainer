@@ -12,9 +12,15 @@
  *   sessionCursor       séance : la navigation ne tronque rien, l'indice porte sur le présent
  *   movesLocked         barre de coups et flèches ← → inactives
  *   hintToSolution      un deuxième appui sur Indice montre la solution
- *   hintNote, solutionNote, solutionCost()  compléments de texte
+ *   hintNote, pieceNote, solutionNote, hintCost(palier), solutionCost()  compléments de texte (indice en trois paliers)
+ *   navBlockedNote      infobulle de ◀ ▶ grisés pendant navBlocked()
+ *   idleAction()        action de la barre d'état quand rien d'autre ne l'occupe (Entraînement en Focus : l'Indice)
  *   onNavigate()        la position affichée a changé
  *   engineArrows()      flèches ajoutées par le moteur
+ *   onSquare(case)      un clic sur une case est confié au mode, sans règle de coup (éditeur de position)
+ *   onDrop(de, à)       une pièce glissée est confiée au mode, de n'importe quel camp ; à = null hors de l'échiquier
+ *   squareClass(case)   classe ajoutée à la case (éditeur : case douteuse d'une image, .ed-doubt)
+ *   dockCenter()        centre du dock sur téléphone : { icon, label, title, tone?, target (bouton touché) | run }
  */
 
 'use strict';
@@ -22,7 +28,8 @@
 const GameModes = (function () {
     const NO = () => false;
     const DEFAULTS = { inputBlocked: NO, backToLive: NO, navBlocked: NO, playsBothSides: false, sessionCursor: false, movesLocked: false, hintToSolution: false,
-                       hintNote: '', solutionNote: '', solutionCost: () => '' };
+                       hintNote: '', pieceNote: '', solutionNote: '', hintCost: () => '', solutionCost: () => '', navBlockedNote: '', idleAction: () => null,
+                       onSquare: null, onDrop: null, squareClass: () => '', dockCenter: null };
     const table = {};
     const register = (name, hooks) => { table[name] = Object.assign({}, DEFAULTS, hooks); };
 

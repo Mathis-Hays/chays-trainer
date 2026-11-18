@@ -1,7 +1,8 @@
 // Lancer : node tests/shell/homeSummary.test.js   — accueil Jouer « Pupitre » (lot 7) : les trois états d'« Aujourd'hui »
 // (dues, à jour, vide) ont chacun une seule action pleine, la prévision sur 7 jours reprend reviewPlan, les lignes
 // d'« À traiter » portent un badge .vbadge et un bouton « Répondre » qui ouvre Jouer sur la position, l'anneau de
-// l'objectif passe par Ring.html. Charge index.html entier dans jsdom, comme boot.test.js.
+// l'objectif passe par Ring.html. Listes d'« À traiter » : toutes les lignes rendues, défilement au-delà de 5 ; un redessin
+// à l'identique ne réécrit aucun bloc (patchHTML). Charge index.html entier dans jsdom, comme boot.test.js.
 const { bootApp } = require('../_app.js');
 const fs = require('fs'), path = require('path'), assert = require('assert');
 let n = 0;
@@ -180,7 +181,56 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval('goHome()');
     });
 
-    await t('retour en douceur (Habits.comeback) : « Bon retour », 8 positions pour reprendre, la séance n\'en prend que 8', () => {
+    await t('À traiter, 12 nouveautés : toutes rendues, la liste défile au-delà de 5 (repère « 1–5 · 12 »), « Répondre » sur la 9e ouvre la 9e', () => {
+        w.eval(`window.__ledgerKeep = dataStore.getJSON(GAME_LEDGER_KEY, {});
+            window.__nov = ['a7a6', 'a7a5', 'b7b6', 'b7b5', 'c7c6', 'c7c5', 'd7d6', 'd7d5', 'e7e6', 'e7e5', 'f7f6', 'f7f5', 'g7g6', 'g7g5', 'h7h6', 'h7h5', 'g8f6', 'b8c6']
+                .filter(m => !readDBFor(currentRepertoire, 'w')[Chess.key(Chess.replay(['e2e4', m]))]).slice(0, 12);
+            (() => { const l = {}, now = Date.now();
+                __nov.forEach((m, i) => { l['lichess:n' + i] = { src: 'lichess', at: now - i * 1000, first: now - i * 1000, last: now - i * 1000, vs: 'adv' + i,
+                    v: { [currentRepertoire + '|w']: { kind: 'novelty', ply: 1, at: now - i * 1000, path: ['e2e4', m] } }, counted: {} }; });
+                dataStore.setJSON(GAME_LEDGER_KEY, l); })()`);
+        $('#hp-news [data-action="homePane"][data-arg="news"]').click();
+        const list = $('#hp-news .hp-list');
+        assert.strictEqual(list.querySelectorAll('.hp-row').length, 12, 'toutes les lignes rendues');
+        assert(list.classList.contains('is-scroll') && list.getAttribute('tabindex') === '0', 'liste défilante, au clavier aussi');
+        assert(!$('#hp-news .hp-more'), 'plus de « et N de plus »');
+        const cue = $('#hp-news .hp-cue');
+        assert(cue && /1–5/.test(cue.textContent) && /12/.test(cue.textContent), 'repère sous la liste');
+        const css = fs.readFileSync(path.join(ROOT, 'css/home.css'), 'utf8');
+        assert(/\.hp-list\.is-scroll \{ max-height: var\(--hp-five, calc\(5 \* 64px\)\); overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y proximity;/.test(css), '5 lignes de 64 px, défilement dans la carte');
+        assert(/\.hp-list\.is-scroll \.hp-row \{ scroll-snap-align: start;/.test(css) && /\.hp-list\.is-scroll\.at-end \{ -webkit-mask-image: none; mask-image: none; \}/.test(css), 'arrêt par ligne, fondu retiré en fin de liste');
+        list.querySelectorAll('.hp-answer')[8].click();
+        assert.strictEqual(w.eval('gameMode'), 'play');
+        assert.strictEqual(w.eval(`Chess.key(Chess.replay(moveHistory.map(m => moveToStr(m.from, m.to, m.promo))))`),
+                           w.eval(`Chess.key(Chess.replay(['e2e4', __nov[8]]))`), 'la 9e position');
+        w.eval('goHome()');
+        $('#hp-news [data-action="homePane"][data-arg="games"]').click();
+        const games = $$('#hp-news .hp-row');
+        assert.strictEqual(games.length, 12, 'vue Parties : toutes rendues aussi');
+        games[10].querySelector('.hp-answer').click();
+        assert.strictEqual(w.eval(`Chess.key(Chess.replay(moveHistory.map(m => moveToStr(m.from, m.to, m.promo))))`),
+                           w.eval(`Chess.key(Chess.replay(['e2e4', __nov[10]]))`), 'vue Parties : la 11e partie');
+        w.eval('goHome()');
+        $('#hp-news [data-action="homePane"][data-arg="news"]').click();
+        w.eval(`dataStore.setJSON(GAME_LEDGER_KEY, __ledgerKeep); renderHomeSummary()`);
+        assert(!$('#hp-news .hp-list').classList.contains('is-scroll') && !$('#hp-news .hp-cue'), '5 lignes ou moins : ni défilement ni repère');
+    });
+
+    await t('redessin évité : parties relues, archive croisée, pseudo ou synchro sans changement ne réécrivent aucun bloc', () => {
+        seed(w, -1, 2);
+        const day = $('#hp-today').firstElementChild, inbox = $('#hp-news').firstElementChild, art = $('#home-art-w').firstElementChild;
+        w.eval(`renderHomeSummary(); Bus.emit('games:analysed'); Bus.emit('games:reviewed', { games: 0 }); applySyncedPrefs()`);
+        assert.strictEqual($('#hp-today').firstElementChild, day, 'Aujourd’hui gardé tel quel');
+        assert.strictEqual($('#hp-news').firstElementChild, inbox, 'À traiter gardé tel quel');
+        assert.strictEqual($('#home-art-w').firstElementChild, art, 'Jouer gardé tel quel');
+        w.eval(`appSettings.pseudo = 'Zoé'; renderHomeSummary()`);
+        assert.notStrictEqual($('#hp-today').firstElementChild, day, 'un changement réécrit le bloc');
+        assert(/Zoé/.test($('#hp-today .hp-over').textContent));
+        assert.strictEqual($('#hp-news').firstElementChild, inbox, 'À traiter inchangé, toujours gardé');
+        w.eval(`appSettings.pseudo = ''; renderHomeSummary()`);
+    });
+
+    await t('plafond du jour (chantier « Révision du jour ») : « Bon retour », l\'objectif seulement, jauge du retard, puis « Encore »', () => {
         w.eval(`(() => {
             const day = 86400000, now = Date.now(), db = {};
             const p = 'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 g8f6 d2d4 e5d4 c3d4 c5b4 b1c3 f6e4 e1g1 e4c3 b2c3 b4c3 d1b3 d7d5 c4d5 e8g8'.split(' ');
@@ -191,22 +241,35 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
             }
             dataStore.set(dbKeyFor(currentRepertoire, 'w'), JSON.stringify(db));
             dataStore.set(dbKeyFor(currentRepertoire, 'b'), '{}');
-            dataStore.setJSON('chessTrainer_activity', { [dayStamp(now - 5 * day)]: { a: 4, f: 0 } });
+            appSettings.dailyGoal = 15;
+            dataStore.setJSON('chessTrainer_activity', { [dayStamp(now)]: { a: 10, f: 0 }, [dayStamp(now - 5 * day)]: { a: 4, f: 0 } });
             trainingState.lastSummary = null;
             loadDB(); renderHomeSummary();
         })()`);
         assert(/^Bon retour/.test($('#hp-today .hp-over').textContent.trim()), $('#hp-today .hp-over').textContent);
-        assert(/^8\s+positions\s*pour reprendre la main/.test($('#hp-today .hp-title').textContent.trim()), $('#hp-today .hp-title').textContent);
-        assert(/les 3 autres sont réparties/.test($('#hp-today .hp-sub').textContent));
-        assert.strictEqual($('#hp-today .hp-step[data-arg="due"] .hp-step-n').textContent, '8');
-        w.eval('window.__spy = startDailyReview; startDailyReview = n => { window.__limit = n; }; UI_ACTIONS.homeGo(); startDailyReview = window.__spy');
-        assert.strictEqual(w.eval('window.__limit'), 8, '« Commencer » ne demande que la part du jour');
-        w.eval(`startTrainingExercise('due', 8)`);
-        assert.strictEqual(w.eval('trainingState.session.items.length'), 8, 'la séance ne prend que la part demandée');
+        assert(/^5\s+positions\s*pour reprendre la main/.test($('#hp-today .hp-title').textContent.trim()), $('#hp-today .hp-title').textContent);
+        assert(/les plus importantes d’abord/.test($('#hp-today .hp-sub').textContent));
+        assert(/Retard : 6 en attente/.test($('#hp-today .rv-gauge').textContent), 'jauge : 11 dues, 5 places');
+        assert(/à jour vers/.test($('#hp-today .rv-gauge').textContent));
+        assert.strictEqual($('#hp-today .hp-step[data-arg="due"] .hp-step-n').textContent, '5');
+        assert(/6 en attente/.test($('#hp-today .hp-step[data-arg="due"]').textContent), 'le plan du jour dit le retard');
+        assert.strictEqual($$('#hp-today .hp-pace-opt').length, 3, 'rythme du jour : Léger, Normal, Soutenu');
+        assert.strictEqual($('#hp-today .hp-pace-opt.is-on').dataset.arg, '15');
+        w.eval(`startTrainingExercise('due')`);
+        assert.strictEqual(w.eval('trainingState.session.items.length'), 5, 'la séance ne prend que l\'objectif restant');
         w.eval('quitTraining()');
-        w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 8, f: 0 }, [dayStamp(Date.now() - 5 * 864e5)]: { a: 4, f: 0 } }); renderHomeSummary()`);
-        assert(/Reprise du jour\s*faite/.test($('#hp-today .hp-title').textContent), 'part du jour faite');
+        w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 15, f: 0 } }); renderHomeSummary()`);
+        assert(/Objectif du jour\s*atteint/.test($('#hp-today .hp-title').textContent), 'objectif atteint');
         assert($('#hp-today .hp-step[data-arg="due"]').classList.contains('is-done'));
+        assert($('#hp-today .hp-link[data-action="trainingMore"]'), '« Encore » proposé, jamais imposé');
+        w.eval('window.__spy = startDailyReview; startDailyReview = n => { window.__more = n; }; UI_ACTIONS.trainingMore(); startDailyReview = window.__spy');
+        assert.strictEqual(w.eval('window.__more'), 15, '« Encore 15 » : l\'objectif une fois de plus');
+        w.eval(`startTrainingExercise('due', 15)`);
+        assert.strictEqual(w.eval('trainingState.session.items.length'), 11, '« Encore 15 » : tout ce qui attend (11)');
+        w.eval('quitTraining()');
+        w.eval(`UI_ACTIONS.homePace('60')`);
+        assert.strictEqual(w.eval('appSettings.dailyGoal'), 60, 'Soutenu choisi sur place');
+        w.eval(`appSettings.dailyGoal = 30; dataStore.setJSON('chessTrainer_activity', {}); renderHomeSummary()`);
     });
 
     await t('série avec joker : pastille laiton dans le surtitre, libre ou utilisée', () => {

@@ -263,8 +263,8 @@ const GameArchive = (function () {
         return store(have, pulled);
     }
 
-    // Archive antérieure au résumé : il est calculé une fois, sans attendre l'ouverture des Statistiques.
-    if (typeof window !== 'undefined' && dataStore.get(LEVELS_KEY) === null) window.addEventListener('load', () => all().catch(() => {}));
+    // Archive antérieure au résumé : il est calculé une fois, sans attendre l'ouverture des Statistiques, après l'intro.
+    if (typeof window !== 'undefined' && dataStore.get(LEVELS_KEY) === null) Bus.afterIntro(() => { all().catch(() => {}); }, 300);
 
     const saveDerived = list => write(list, []);             // résultats calculés sur des parties déjà gardées
 

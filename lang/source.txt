@@ -16,16 +16,27 @@ un Fou
 une Tour
 une Dame
 le Roi
+le Pion
+le Cavalier
+le Fou
+la Tour
+la Dame
 L'indice n'est disponible que pour vos propres coups.
 Aucun indice — cette position n'est pas encore dans la base.
 une pièce
 Indice : déplacez {0}.
+Appuyez encore pour voir laquelle.
+la pièce
+Indice : {0} de {1}.
 Appuyez encore pour voir la solution.
 Solution : {0}
 Jouez-le pour continuer.
+class="on"
 Voir la solution (Espace){0}
+Montrer la pièce (Espace){0}
 Indice (Espace){0}
 Solution
+Pièce
 Indice{1}
 Au tour de l'adversaire
 Position inconnue : jouez votre coup pour l'enregistrer
@@ -151,6 +162,7 @@ Oublier
 Réponse non couverte
 Position chargée : {0}.
 événement
+tâche après le lancement
 Les deux
 Couleur
 Le nom ne peut pas être vide.
@@ -179,6 +191,12 @@ role="img" aria-label="{0}"
 <button type="button" class="ring-chip" data-action="{0}"{1}{2}
 {0} : {1} sur {2}
 aria-label="{0}">
+à jour vers {0}
+pas à jour avant un an à ce rythme
+dont {0} en veille : jamais atteintes dans vos parties, elles passent après les autres
+{0} aujourd’hui, {1} en attente, {2}
+title="{0}"
+Retard : {0} en attente
 meta[name="theme-color"]
 Problème pendant : {0}.
 Un problème est survenu au démarrage. Rechargez la page ; si cela continue, exportez une sauvegarde depuis Paramètres › Données.
@@ -188,7 +206,16 @@ dans {0} min
 dans {0} h
 dans {0} jour{1}
 dans {0} j
+aujourd’hui
+fr-FR
 (position de départ)
+Il manque le roi blanc
+Il manque le roi noir
+Un seul roi blanc par camp
+Un seul roi noir par camp
+Pion sur la 1re rangée
+Pion sur la 8e rangée
+Le camp qui n’a pas le trait est en échec
 Mats élémentaires
 Technique pure : confiner le roi et le mater sans pat.
 Finales de pions
@@ -428,6 +455,7 @@ fichier reçu altéré (empreinte différente) : rien n’a été gardé
 depth {0}
 movetime {0}
 le moteur ne répond plus
+{0}?fen={1}
 Bullet
 Blitz
 Rapide
@@ -436,12 +464,15 @@ Par correspondance
 UTCDate
 UTCTime
 max={0}{1}{2}
+sf{0}+{1}
 iqp+
 hang+
 exch+
 minors+
 piece+
 pawn+
+KQRBNPkqrbnp
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAERaWjMAAAAAAAAAAAAAAAAAAAAAAAAAADXPvzUAAAAAAAAAAAAAAAAAAAAAAABJfH3fz318SQAAAAAAAAAAAAAAAAAAAAB77+/v7+/fWwAAAAAAAAAAAAAAAAAAAABZjX7v7359SQAAAAAAAAAAAAAAAAAAAAAAMUuvnzsxAAAAAAAAAAAAAAAAAAAAAAAwSa+vr484MAAAAAAAAAAAAAAAAABBRnuer7+/v6+ffms2MQAAAAAAAAAAAEOO3+/v7+/v7+/v79+/fjMAAAAAAAAAAFr/7+/v7+/v7+/v7+/Pz0kAAAAAAAAAAEff7+/v7+/v7+/v7+/fvzcAAAAAAAAAADKf7+/v7+/v7+/v7+/fj0IAAAAAAAAAAABb7+/v7+/v7+/v7+/PSwAAAAAAAAAAAABEr+/v7+/v7+/v7++PNAAAAAAAAAAAAAAAW+/v7+/v7+/v799LAAAAAAAAAAAAAAAAM5/v7+/v7+/v748zAAAAAAAAAAAAAAAAMUx/j4+Pj4+Pf0wxAAAAAAAAAAAAAABDjt/v7+/v7+/v79+eMwAAAAAAAAAAAABa7+/v7+/v7+/v7+/vWgAAAAAAAAAAAAB87+/v7+/v7+/v7+/vfAAAAAAAAAAAAABHSUlJSUlJSUlJSUlJRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAENrWzMAAAAAAAAAAAAAAAAAAAAAAAAAAHzv31wAAAAAAAAAAAAAAAAAAAAAAAAAAFvPz1oAAAAAAAAAAAAAAAAAAAAAAAAARGyPf1w0AAAAAAAAAAAAAAAAAAAAAABGv+/v7++PNgAAAAAAAAAAAAAAAAAAMDaP799/f9/Pf0YwAAAAAAAAAAAAADMxNL+vf4/v349/v69EMTMAAAAAAAAAMW6fju/v7+/v7+/v7++Oj14xAAAAAAAAADW/7+/v7+/v7+/v7+/vnzUAAAAAAAAAAABZ7+/v7+/v7+/v7++/SQAAAAAAAAAAAAAxje/v7+/v7+/v799tMQAAAAAAAAAAAAAARs/v7+/v7+/v7682AAAAAAAAAAAAAAAAQH7v7+/v7+/vz24wAAAAAAAAAAAAAAAAAFrv7+/v7+/fz0oAAAAAAAAAAAAAAAAAAEff7+/v7+/PvzcAAAAAAAAAAAAAAAAAMUl/j4+Pj49/bzlCAAAAAAAAAAAAAAAzjs/v7+/v7+/v79+PNAAAAAAAAAAAAABa7+/v7+/v7+/v7+/vWwAAAAAAAAAAAAB87+/v7+/v7+/v7+/vfAAAAAAAAAAAAABHSUlJSUlJSUlJSUlJRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAARXtcAEifj0gAXFs1AAAAAAAAAAAAAAAASP+fNFrv70pEr884AAAAAAAAAAAAAAAASe/fr7/v77+v3885AAAAAAAAAAAAAAAASO/v7+/v7+/v7884AAAAAAAAAAAAAAAARb/v7+/v7+/v3681AAAAAAAAAAAAAAAAMFqfj39/f39/j1pAAAAAAAAAAAAAAAAAAAB8/+/v38/PbAAAAAAAAAAAAAAAAAAAADCf7+/v79/PfzAAAAAAAAAAAAAAAAAAADOv7+/v7+/fj0MAAAAAAAAAAAAAAAAAAEXP7+/v7+/vrzUAAAAAAAAAAAAAAAAAAEjv7+/v7+/vzzgAAAAAAAAAAAAAAAAAAGvv7+/v7+/v31sAAAAAAAAAAAAAAAAAAH7v7+/v7+/v324AAAAAAAAAAAAAAAAAMm+Pj4+Pj4+Pf18yAAAAAAAAAAAAAABDjt/v7+/v7+/v79+eMwAAAAAAAAAAAABa7+/v7+/v7+/v7+/vWgAAAAAAAAAAAAB87+/v7+/v7+/v7+/vfAAAAAAAAAAAAABHSUlJSUlJSUlJSUlJRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADI3NzIAAAAAAAAAAAAAAAAAAAAAAAAAMX7fz24xAAAAAAAAAAAAAAAAAAAAAAAAAFvv30sAAAAAAAAAAAAAAAAAAAAAAAAAM37v324zAAAAAAAAAAAAAAAAAAAAAABCfe/v799tMgAAAAAAAAAAAAAAAAAAADBs7+/v799+QQAAAAAAAAAAAAAAAAAAAEfP7+/v7682MTUAAAAAAAAAAAAAAAAAMI7v7+/v31wwSl0wAAAAAAAAAAAAAAAARc/v7+/vvzVEr681AAAAAAAAAAAAAAAASO/v7+/v332O789JAAAAAAAAAAAAAAAAau/v7+/v7+/v789bAAAAAAAAAAAAAAAAau/v7+/v7+/v789bAAAAAAAAAAAAAAAASe/v7+/v7+/v3885AAAAAAAAAAAAAAAARc/v7+/v7+/v3682AAAAAAAAAAAAAAAAQY7v7+/v7+/vz35BAAAAAAAAAAAAAAAAMUuPj4+Pj4+Pf0sxAAAAAAAAAAAAAABDjt/v7+/v7+/v79+eMwAAAAAAAAAAAABa7+/v7+/v7+/v7+/vWgAAAAAAAAAAAAB87+/v7+/v7+/v7+/vfAAAAAAAAAAAAABHSUlJSUlJSUlJSUlJRwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMzMAAAAAAAAAAAAAAAAAAAAAAAAAAAAASa9cMgAAAAAAAAAAAAAAAAAAAAAAAAAASu/ffkkzAAAAAAAAAAAAAAAAAAAAAABHv+/v79+PSTEAAAAAAAAAAAAAAAAAAEe/7+/v7+/vv20xAAAAAAAAAAAAAAAARr/v35/v7+/v789cMAAAAAAAAAAAAABGr+/v7+/v7+/v7++vNgAAAAAAAAAAAEWv7+/v7+/v79/v7+/PbAAAAAAAAAAAMo7f7+/v7+/fv9/v7+/ffzAAAAAAAAAARb/v7+/fv49tTe/v7+/fjzIAAAAAAAAAMFvP359LNjMznu/v7+/fjzIAAAAAAAAAADFIbTcAAEae7+/v7+/fjzEAAAAAAAAAAAAAAAAxWr/v7+/v7+/PfzAAAAAAAAAAAAAAAABr3+/v7+/v7+/PbQAAAAAAAAAAAAAAAEXP7+/v7+/v79/PWwAAAAAAAAAAAAAAAFufj4+Pj4+Pj3+fOAAAAAAAAAAAAAAASK/f7+/v7+/v7+/PfTEAAAAAAAAAAAAwj+/v7+/v7+/v7+/vz0YAAAAAAAAAAAAyn+/v7+/v7+/v7+/v70gAAAAAAAAAAAAxSUlJSUlJSUlJSUlJSUUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEVaSjUAAAAAAAAAAAAAAAAAAAAAAAAAR7/v769HAAAAAAAAAAAAAAAAAAAAAAAxn+/v7+9/MQAAAAAAAAAAAAAAAAAAAABCr+/v7++PMgAAAAAAAAAAAAAAAAAAAAAwfu/v799uMAAAAAAAAAAAAAAAAAAAAABASs/v7686QAAAAAAAAAAAAAAAAAAAAABcz+/v7++vXAAAAAAAAAAAAAAAAAAAAAB939/f39/PbQAAAAAAAAAAAAAAAAAAAABGSF5/f044NgAAAAAAAAAAAAAAAAAAAAAAMp/fz38xAAAAAAAAAAAAAAAAAAAAAAAASN/v379IAAAAAAAAAAAAAAAAAAAAAABEr+/v79+PNAAAAAAAAAAAAAAAAAAAMEiv7+/v7+/fj0gwAAAAAAAAAAAAAAAAWt/v7+/v7+/v789aAAAAAAAAAAAAAABEv+/v7+/v7+/v7++vNAAAAAAAAAAAAABH7+/v7+/v7+/v7+/fRwAAAAAAAAAAAABESUlJSUlJSUlJSUlJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACQqKiMAAAAAAAAAAAAAAAAAAAAAAAAAACVfTyUAAAAAAAAAAAAAAAAAAAAAAAApPD1fXz08KQAAAAAAAAAAAAAAAAAAAAA7b19fX19fKwAAAAAAAAAAAAAAAAAAAAApPT5vXz49KQAAAAAAAAAAAAAAAAAAAAAAIStPPyshAAAAAAAAAAAAAAAAAAAAAAAgKU9PTz8oIAAAAAAAAAAAAAAAAAAhJjtOT09PT09PPismIQAAAAAAAAAAACNOb29fX19fX19fX19PPiMAAAAAAAAAACp/X19fX19fX19fX19fTykAAAAAAAAAACdfX19fX19fX19fX19fTycAAAAAAAAAACJPX19fX19fX19fX19fPyIAAAAAAAAAAAArX19fX19fX19fX19PKwAAAAAAAAAAAAAkT19fX19fX19fX18/JAAAAAAAAAAAAAAAK19fX19fX19fX18rAAAAAAAAAAAAAAAAI09fX19fX19fXz8jAAAAAAAAAAAAAAAAISw/Pz8/Pz8/PywhAAAAAAAAAAAAAAAjTl9vb29vb29vb19OIwAAAAAAAAAAAAAqX19fX19fX19fX19fKgAAAAAAAAAAAAA8X19fX19fX19fX19fPAAAAAAAAAAAAAAnKSkpKSkpKSkpKSkpJwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACM7KyMAAAAAAAAAAAAAAAAAAAAAAAAAADxfXywAAAAAAAAAAAAAAAAAAAAAAAAAACtfTyoAAAAAAAAAAAAAAAAAAAAAAAAAJDw/PywkAAAAAAAAAAAAAAAAAAAAAAAmT29fX18/JgAAAAAAAAAAAAAAAAAAECY/X18/P19fPyYgAAAAAAAAAAAAACMhJF9PPz9fXz8/T08kISMAAAAAAAAAIT5PPl9fX19fX19fX18+Py4hAAAAAAAAACVfX19fX19fX19fX19fPyUAAAAAAAAAAAApb19fX19fX19fX19PKQAAAAAAAAAAAAAhTV9fX19fX19fX18tIQAAAAAAAAAAAAAAJl9fX19fX19fX08mAAAAAAAAAAAAAAAAID5fX19fX19fTz4gAAAAAAAAAAAAAAAAACpfX19fX19fTyoAAAAAAAAAAAAAAAAAACdfX19fX19PTycAAAAAAAAAAAAAAAAAISk/Pz8/Pz8/PykiAAAAAAAAAAAAAAAjTl9vb29vb29vb19PJAAAAAAAAAAAAAAqX19fX19fX19fX19fKwAAAAAAAAAAAAA8X19fX19fX19fX19fPAAAAAAAAAAAAAAnKSkpKSkpKSkpKSkpJwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAJTssAChPPygAPCslAAAAAAAAAAAAAAAAKG9PJCpvXyokT18oAAAAAAAAAAAAAAAAKW9fT09fX09PX18pAAAAAAAAAAAAAAAAKF9fX19fX19fX08oAAAAAAAAAAAAAAAAJU9fX19fX19fX08lAAAAAAAAAAAAAAAAICo/Pz8/Pz8/PyogAAAAAAAAAAAAAAAAAAA8f19fX09PLAAAAAAAAAAAAAAAAAAAABBPX19fX19PPyAAAAAAAAAAAAAAAAAAACNPX19fX19fPyMAAAAAAAAAAAAAAAAAACVfX19fX19fTyUAAAAAAAAAAAAAAAAAAChfX19fX19fTygAAAAAAAAAAAAAAAAAACtfX19fX19fXysAAAAAAAAAAAAAAAAAAD5fX19fX19fXz4AAAAAAAAAAAAAAAAAIj8/Pz8/Pz8/Py8iAAAAAAAAAAAAAAAjTl9vb29vb29vb19OIwAAAAAAAAAAAAAqX19fX19fX19fX19fKgAAAAAAAAAAAAA8X19fX19fX19fX19fPAAAAAAAAAAAAAAnKSkpKSkpKSkpKSkpJwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACInJyIAAAAAAAAAAAAAAAAAAAAAAAAAIT5fTy4hAAAAAAAAAAAAAAAAAAAAAAAAACtfXysAAAAAAAAAAAAAAAAAAAAAAAAAIz5fXy4jAAAAAAAAAAAAAAAAAAAAAAAiPV9fX18tIgAAAAAAAAAAAAAAAAAAACA8X19fX18+IQAAAAAAAAAAAAAAAAAAACdfX19fX08mISUAAAAAAAAAAAAAAAAAIE5vX19fXywgKi0gAAAAAAAAAAAAAAAAJV9fX19fTyUkT08lAAAAAAAAAAAAAAAAKG9fX19fXz0+X08pAAAAAAAAAAAAAAAAOm9fX19fX19fX08rAAAAAAAAAAAAAAAAOm9fX19fX19fX08rAAAAAAAAAAAAAAAAKV9fX19fX19fX08pAAAAAAAAAAAAAAAAJU9fX19fX19fX08mAAAAAAAAAAAAAAAAIT5fX19fX19fTz4hAAAAAAAAAAAAAAAAISs/Pz8/Pz8/PyshAAAAAAAAAAAAAAAjTl9vb29vb29vb19OIwAAAAAAAAAAAAAqX19fX19fX19fX19fKgAAAAAAAAAAAAA8X19fX19fX19fX19fPAAAAAAAAAAAAAAnKSkpKSkpKSkpKSkpJwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIyMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKU8sIgAAAAAAAAAAAAAAAAAAAAAAAAAAKm9fPikjAAAAAAAAAAAAAAAAAAAAAAAnX29fX18/KSEAAAAAAAAAAAAAAAAAACdfb19fX19fTy0hAAAAAAAAAAAAAAAAJl9vXz9fX19fX08sIAAAAAAAAAAAAAAmX19fX19fX19fX19PJgAAAAAAAAAAACVPX19fX19fX19fX19PLAAAAAAAAAAAIk5fX19fX19fT19fX19fPyAAAAAAAAAAJV9fX19fTz8tLV9fX19fPyIAAAAAAAAAICtfXz8rJiMjTl9fX19fPyIAAAAAAAAAACEoLScAACZOb19fX19fPyEAAAAAAAAAAAAAAAAhKl9vX19fX19PPxAAAAAAAAAAAAAAAAA7b19fX19fX19PLQAAAAAAAAAAAAAAACVfX19fX19fX19PKwAAAAAAAAAAAAAAACtPPz8/Pz8/Pz8/KAAAAAAAAAAAAAAAKE9vb29vb29vb29fPSEAAAAAAAAAAAAgP19fX19fX19fX19fXyYAAAAAAAAAAAAiT19fX19fX19fX19fXygAAAAAAAAAAAAhKSkpKSkpKSkpKSkpKSUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACUqKiUAAAAAAAAAAAAAAAAAAAAAAAAAJ19fX08nAAAAAAAAAAAAAAAAAAAAAAAhT29fX18/IQAAAAAAAAAAAAAAAAAAAAAiT19fX18/IgAAAAAAAAAAAAAAAAAAAAAgPl9fX18+IAAAAAAAAAAAAAAAAAAAAAAgKl9fX08qIAAAAAAAAAAAAAAAAAAAAAAsX19fX19PLAAAAAAAAAAAAAAAAAAAAAA9X19fX19PLQAAAAAAAAAAAAAAAAAAAAAmKC4/Py4oJgAAAAAAAAAAAAAAAAAAAAAAIk9fTz8hAAAAAAAAAAAAAAAAAAAAAAAAKG9fX08oAAAAAAAAAAAAAAAAAAAAAAAkX29fX18/JAAAAAAAAAAAAAAAAAAAIChfb19fX19fPyggAAAAAAAAAAAAAAAAOm9vX19fX19fX18qAAAAAAAAAAAAAAAkX29fX19fX19fX19PJAAAAAAAAAAAAAAnX19fX19fX19fX19fJwAAAAAAAAAAAAAkKSkpKSkpKSkpKSkpJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 assets/pieces
 KQRBNP
 Maestro
@@ -507,20 +538,20 @@ Protéger
 stockage presque plein
 Le stockage du navigateur est rempli à {0} % : bientôt, plus rien ne pourra s'enregistrer. Exportez une sauvegarde, puis videz la corbeille ou supprimez les répertoires inutiles.
 À retravailler
-maîtrise sous 50 sur 100
+dernier essai raté
 Fragiles
 Fragile
-maîtrise de 50 à 69 sur 100
+1 réussite d’affilée depuis la dernière erreur
 En progrès
-maîtrise de 70 à 84 sur 100
+2 réussites d’affilée
 Solides
 Solide
-maîtrise de 85 sur 100 ou plus
+{0} ou {1} réussites d’affilée
 À confirmer
-aucune erreur, moins de {0} essais
+moins de {0} essais, sans erreur
 Maîtrisées
 Maîtrisée
-aucune erreur en {0} essais ou plus, ou solide et réussie plusieurs révisions d'affilée
+{0} réussites d’affilée ou plus
 Maîtrise
 Rangs d’ouverture
 Régularité
@@ -567,6 +598,20 @@ Constellation
 30 étoiles en finales
 Toutes les finales
 Chaque finale réussie au moins une fois
+positions maîtrisées
+ouverture au rang de Maître
+ouvertures au rang de Maître
+jour d’affilée
+jours d’affilée
+positions révisées
+défi réussi d’affilée
+défis réussis d’affilée
+bon coup en Survie
+bons coups en Survie
+étoile en finales
+étoiles en finales
+finale à réussir
+finales à réussir
 Apprenti
 maîtrise {0} ({1} pour l’instant)
 au plus {0} positions fragiles
@@ -966,7 +1011,6 @@ Pinceau
 Courbe
 Laser
 (prefers-color-scheme: dark)
-(min-width: 1440px)
 Android
 Mac
 Windows
@@ -983,7 +1027,6 @@ Pion
 {0} : grand roque{1}
 {0} : petit roque{1}
 , promotion en {0}
-fr-FR
 auth : écouteur
 Connexion impossible : vérifiez votre réseau.
 Le service de compte n'est pas configuré.
@@ -1021,7 +1064,6 @@ Synchronisation…
 En attente de votre choix de première synchronisation…
 À jour ·
 Clé non synchronisée :
-Pièce
 <b>{5}</b>positions
 <b>{6} j</b>d'affilée
 <b>{7}</b>aujourd'hui
@@ -1052,7 +1094,9 @@ Votre pseudo
 Classement et objectif
 Objectif quotidien
 Aussi réglable dans Paramètres › Jeu et entraînement.
-{0} positions
+Léger · 15
+Normal · 30
+Soutenu · 60
 Comptes d’échecs en ligne
 Pour comparer vos parties à votre répertoire (Analyser mes parties).
 pseudo Lichess
@@ -1120,7 +1164,6 @@ Tapez SUPPRIMER pour confirmer
 Hors ligne : connexion au compte impossible pour l'instant. Vos données restent utilisables sur cet appareil.
 Mot de passe : 8 caractères minimum.
 Longueur du mot de passe
-class="on"
 Échiquier
 Sapin
 Noyer
@@ -1195,6 +1238,7 @@ Sécurité
 Mot de passe, déconnexion
 Bienvenue
 Mot de passe oublié
+{0} positions
 input[name=pseudo]
 sauvegarde avant synchronisation
 La sauvegarde locale a échoué : la synchronisation n'a pas été lancée. Réessayez, ou exportez depuis Données.
@@ -1262,8 +1306,8 @@ Lichess · prof. {0}
 prof. {0}
 prof. {0} · terminé
 calcul…
-Pat
 Mat
+Pat
 Stockfish {0}
 Stockfish
 Recopier cette variante dans le brouillon
@@ -1303,6 +1347,9 @@ Abandonner
 Jouez les deux camps sur l’échiquier, ou recopiez une ligne du moteur avec « + ».
 <b>Brouillon</b>
 hors répertoire
+Effacer le brouillon
+Ligne jouée depuis une position posée : elle ne peut pas rejoindre le répertoire, qui part du début.
+Modifier la position
 coup ajouté
 coups ajoutés
 {0} · {1} {2} dans la corbeille
@@ -1339,16 +1386,90 @@ Un coup a été remplacé : restaurez-le depuis la corbeille.
 Ajout annulé
 Le répertoire est revenu à son état précédent ; le brouillon est conservé.
 Et si…
+Vous jouez les Blancs ; le moteur répond à ~{0} Elo.
+Vous jouez les Noirs ; le moteur répond à ~{0} Elo.
 Vous jouez le coup du répertoire ; le moteur répond à ~{0} Elo.
 Partie terminée
 Le moteur ne répond pas
 Le moteur réfléchit…
 À vous de jouer
-demi-coup joué
-demi-coups joués
-· {0} depuis votre partie
+demi-coup joué depuis la position posée
+demi-coups joués depuis la position posée
+demi-coup joué depuis votre partie
+demi-coups joués depuis votre partie
 <b>Contre le moteur bridé à ~{0} Elo</b>
 {3}Revoir avec le moteur
+js/domain/photo/pieceTemplates.js
+js/domain/photo/boardReader.js
+Roi blanc
+Roi noir
+Dame blanche
+Dame noire
+Tour blanche
+Tour noire
+Fou blanc
+Fou noir
+Cavalier blanc
+Cavalier noir
+Pion blanc
+Pion noir
+{3} : touchez une case pour poser la pièce, la même case pour la retirer
+Couleur du pinceau : {1} (toucher pour changer)
+Couleur du pinceau : {2}
+Déplacer : touchez une pièce puis sa nouvelle case, ou glissez-la (hors de l'échiquier : retirée)
+Blancs au trait
+Noirs au trait
+{0} cases à vérifier (en ambre)
+{0} case à vérifier (en ambre)
+Position valide · {1}
+O-O blanc
+O-O-O blanc
+O-O noir
+O-O-O noir
+aria-busy="true" disabled
+Lecture de l’image…
+Coller une image
+Au trait
+Position de départ
+Retirer toutes les pièces
+Vider l'échiquier
+Copier la FEN
+Jouer le camp au trait contre le moteur, bridé à votre niveau
+Analyser cette position avec le moteur
+Départ
+Vider
+Roques possibles
+Prise en passant
+FEN
+Collez une FEN, une capture d'écran (⌘V) ou déposez une image.
+Jouer contre le moteur
+Analyser
+Poser une position
+Choisissez une pièce puis touchez des cases ; la même pièce sur la même case la retire.
+Position impossible
+chargement impossible :
+Tout se passe sur cet appareil : l’image n’est envoyée nulle part.
+Aucun échiquier trouvé dans l’image
+Recadrez la capture sur l’échiquier, puis recommencez.
+{0} cases à vérifier, en ambre : touchez-les pour corriger.
+Une case à vérifier, en ambre : touchez-la pour corriger.
+Vérifiez la position, le trait et les roques.
+Vérifiez le trait (Blancs supposés) et les roques.
+Cases en ambre : touchez-les pour corriger. Vérifiez le trait (Blancs supposés) et les roques.
+Vérifiez le trait (Noirs supposés) et les roques.
+Cases en ambre : touchez-les pour corriger. Vérifiez le trait (Noirs supposés) et les roques.
+Position lue · {0} cases à vérifier
+Position lue · 1 case à vérifier
+Position lue
+Lecture impossible
+L’image n’a pas pu être lue sur cet appareil.
+INPUT
+TEXTAREA
+FEN collée : vérifiez la position, puis Analyser.
+FEN copiée
+Copie impossible
+Files
+À corriger
 Mater
 Gagner
 {0} essai{1}
@@ -1751,9 +1872,10 @@ Partie Chess.com
 PGN collé
 Répondre
 {0}<b>Aucune nouveauté en attente</b>
-et {0} de plus
 {0}<b>Aucune partie analysée</b>
 Parties
+{0} : {1} lignes, liste défilante
+tabindex="0" role="region" aria-label="{0} : {1} lignes, liste défilante"
 À traiter
 <b>Noyer + Maestro appliqués.</b> Tout se règle dans Paramètres › Apparence.
 Revenir à l'ancien
@@ -1802,7 +1924,6 @@ Partout
 Rechercher partout
 ⌘F · Ctrl F
 Onglets Jouer, Statistiques, Entraînement, Finales
-Replier ou étendre la barre latérale (hors partie)
 Mode clair ou sombre
 Couper ou remettre les sons
 Retourner l’échiquier
@@ -1929,8 +2050,8 @@ Adversaire des finales
 Résistance maximale : la défense la plus longue, le gain le plus rapide. Humain : un coup au hasard parmi ceux qui gardent le même résultat.
 Résistance max.
 Révisions
-révision jour
-Positions à réviser chaque jour, et nombre de nouvelles positions ajoutées chaque jour à la révision (les autres attendent les jours suivants) ; la progression s’affiche sur l’accueil.
+révision jour plafond léger normal soutenu retard
+Positions proposées au plus chaque jour (environ 8, 15 ou 30 min), les plus importantes d’abord ; les autres attendent les jours suivants. Les nouvelles positions (un cinquième de l’objectif) attendent qu’il n’y ait plus de retard.
 Rythme
 révision espacée
 Doux : les positions réussies reviennent moins souvent. Intensif : plus souvent.
@@ -1954,7 +2075,6 @@ Lignes fréquentes d’abord
 prioriser fréquence
 Les positions où vos adversaires (ou les joueurs Lichess) vous amènent le plus souvent sortent plus souvent. Sans données, rien ne change.
 Mode libre
-Départ
 Juste avant la position tirée, ou du premier coup de la ligne.
 Position ciblée
 Début de partie
@@ -2032,12 +2152,6 @@ gaucher droitier téléphone dock plus
 Téléphone : « Plus » passe du côté de ce pouce, Retourner de l’autre.
 Droite
 Gauche
-Barre latérale
-navigation menu replier étendre rail ordinateur
-À partir de 1 100 px de large. Automatique : étendue dès 1 440 px. Toujours repliée pendant une partie.
-Automatique
-Repliée
-Étendue
 Contraste renforcé
 bordures lisibilité
 Bordures et textes secondaires plus marqués.
@@ -2120,7 +2234,6 @@ Ce navigateur limite le moteur à un seul fil de calcul.
 {1} Logiciel libre, licence GPL v3 :
 , compilé en WebAssembly par
 stockfish.js
-title="{0}"
 {0}<b>Rien sur « {1} »</b>
 {0} résultat{1}
 Réglages
@@ -2181,8 +2294,10 @@ jour actif
 Semaines précédentes
 Médaille
 Nouvelle
-médaille gagnée
-médailles gagnées
+Encore {0}
+Prochaine médaille
+{0} médailles sur {1}
+{0} médaille sur {1}
 Vitrine
 Médailles gagnées
 Positions du répertoire
@@ -2198,8 +2313,9 @@ Ouvrir l'Entraînement {0}
 Les Blancs et les Noirs n'ont
 Les {0} n'ont
 {0} aucune position dans « {1} ».
+en attente · à jour vers {0}
+en attente, au-delà de l’objectif du jour
 En retard
-à résorber avant la prévision
 Révisions prévues
 Révisions à venir
 {1} prochains jours
@@ -2229,6 +2345,10 @@ Pas assez de parties classées sur cette période pour tracer une courbe.
 Pseudo {3}
 Pseudo {4}
 {6}Charger mes parties
+, {0} vs votre Elo
+{0} vous coûte le plus : {1} sur {2}{3}.
+← pertes
+gains →
 {0} sur {1} mois
 {0} sur tout l'historique
 partie analysée
@@ -2269,8 +2389,6 @@ Bilan
 Qualité
 Positions
 Vue
-Pas encore assez de mois joués.
-Niveau joué
 Score par tranche
 background:color-mix(in oklab, {0} {1}%, var(--bg-inset))
 Meilleur créneau : {0} ({1}). Le moins bon : {2} ({3}).
@@ -2280,13 +2398,34 @@ Score par jour et par tranche horaire
 Sous 50 % <i></i> Au-dessus
 Sortie du répertoire
 Vous
+à la sortie
 Temps restant par coup
+votre Elo
+niveau joué
+{0} · {1} Elo · {2} {3} · Elo {4} · {5}
+Niveau joué moins votre Elo, par mois
+Bien plus fort
+Plus fort
+Même niveau
+Plus faible
+Bien plus faible
+Vous perdez des points contre les adversaires bien plus forts : {0} au lieu des {1} attendus.
+Vous perdez des points contre les adversaires plus forts : {0} au lieu des {1} attendus.
+Vous perdez des points contre les adversaires de votre niveau : {0} au lieu des {1} attendus.
+Vous perdez des points contre les adversaires plus faibles : {0} au lieu des {1} attendus.
+Vous perdez des points contre les adversaires bien plus faibles : {0} au lieu des {1} attendus.
++150 Elo ou plus
++50 à +150 Elo
+±50 Elo
+−50 à −150 Elo
+−150 Elo ou plus
+Écart de score à l’attendu selon la force de l’adversaire
+· {0} Elo
 Parties par mois
-Variation d'Elo par mois
-Variation d'Elo
 Trop peu de parties avec ces filtres.
-Votre plus gros manque : écart {0}, {1} au lieu de {2} attendus.
-Vous tenez ce que votre Elo prédit, quel que soit l'adversaire.
+Vous tenez ce que votre Elo prévoit, quel que soit l'adversaire.
+Meilleur : {0}, {1}.
+{0} mois sur {1}, vous avez joué mieux que votre classement.{2}
 1re partie
 2e partie
 3e partie
@@ -2300,83 +2439,141 @@ Sessions sur la période : {0}.
 Abandon
 Forfait
 Autre
-Vos mois les plus joués rapportent {0} Elo en moyenne, les autres {1}.
+Quand vous jouez beaucoup, vous montez : {0} Elo par mois, contre {1} les mois calmes.
+Les mois chargés ne vous font pas monter : {0} Elo par mois, contre {1} les mois calmes.
 Il faut quatre mois joués au moins pour comparer.
+Mois chargés
+parties et plus
+Mois calmes
+moins de
 Elo inconnu
 Attendu : {0}
-Votre niveau mois par mois
-Contre qui perdez-vous des points ?
-Score réel
-Score attendu
-Elo de l'adversaire moins le vôtre
-Savez-vous vous arrêter ?
-Juste après des défaites
+Vos mois au-dessus de votre Elo
+Niveau joué moins votre Elo moyen du mois (3 parties au moins)
+Pas encore assez de mois joués.
 Comment finissent vos parties ?
 {0} de vos défaites et {1} de vos gains se jouent au temps.
 Gains
 Défaites
-Jouer plus vous fait-il monter ?
+Savez-vous vous arrêter ?
+Juste après des défaites
+Vos mois chargés vous font-ils monter ?
+Face aux plus forts, face aux plus faibles
+Points de score gagnés ou perdus par rapport à ce que votre Elo prévoit, selon l'adversaire
 Score
 Face à l'attendu
+Niveau joué
 Elo d'après vos résultats
 Meilleur Elo
 Plus longue série
 gains d'affilée
 Plus forte baisse
 depuis un sommet
+{0} min
+{0} min {1} s
+1 partie sur {0}
+{0} de vos parties
+Avec zeitnot
+Sans zeitnot
+Score avec et sans zeitnot
+À égalité
+En avance
+Score selon votre pendule au coup 20
 Pas assez de parties avec horloge pour ces filtres. Les parties par correspondance n'en ont pas.
-Où dépensez-vous votre temps ?
+Au coup {0}, l'écart a fondu.
+Au coup {0}, vous êtes à égalité de temps avec vos adversaires.
 Au coup {0}, il vous reste {1} de votre temps, contre {2} à vos adversaires.
-Temps restant en % du temps initial, par numéro de coup
-Votre préparation vous fait-elle gagner du temps ?
-À la sortie du répertoire, votre horloge a {0} points de temps face à l'adversaire.
-Avance moyenne
-du temps initial
-Score en avance
-Score en retard
-Tombez-vous en zeitnot ?
-{0} de vos coups sont joués sous 10 % du temps, {1} chez vos adversaires.
-Score avec zeitnot
-Score sans zeitnot
-Le temps au coup 20 compte-t-il ?
-En retard d'au moins 20 points : {0}. En avance d'autant : {1}.
-Votre temps moins celui de l'adversaire, en points
+En sortant de votre répertoire, il vous reste {0} de temps de plus que l'adversaire.
+En sortant de votre répertoire, il vous reste {0} de temps de moins que l'adversaire.
+Vous ne passez jamais en zeitnot.
+{0} vous mettent en zeitnot, et vous y marquez {1} contre {2} sinon.
+{0} vous met en zeitnot, et vous y marquez {1} contre {2} sinon.
+{0} vous mettent en zeitnot.
+{0} vous met en zeitnot.
+Zeitnot : moins de <b>10 %</b> du temps de départ, soit <b>{0}</b> en {1}
+Avoir plus de temps que l'adversaire au coup 20 vous rapporte {0} points de score.
+Avoir plus de temps que l'adversaire au coup 20 ne vous aide pas : {0} points de score.
+Où dépensez-vous votre temps ?
+; à la sortie du répertoire, votre avance moyenne ({0})
+Temps restant en % du temps de départ, par numéro de coup{2}
+Manquez-vous de temps à la pendule ?
+L'avance au coup 20 vous aide-t-elle ?
+Score selon votre pendule face à la sienne au coup 20 (écart de 5 % du temps de départ ou plus)
 Réfléchissez-vous quand la préparation s'arrête ?
 Premier coup hors répertoire : {0} s, contre {1} s ensuite.
 Premier coup
 Coups suivants
 Score en réfléchissant
 Score en jouant vite
-Toutes vos parties sont analysées (Stockfish, profondeur {0}).
-Mettre en pause
+Toutes vos parties sont analysées (Stockfish).
 En pause.
-<b>Analyse Stockfish</b>
+Analyse en cours
+Analyse prête à reprendre
+Mettre en pause
+<b>Analyse Stockfish</b> · {0} · {1}
+Profondeur {4}, puis {5} sur les coups qui coûtent ; la période affichée d'abord, en arrière-plan après le lancement.
 Pas encore assez de mois analysés.
-Précision par mois
-Milieu de partie
-Finale
-Précision par phase
-Évaluation moyenne par coup
-Les résultats apparaissent dès {1} parties analysées avec ces filtres.
-l'ouverture
-le milieu de partie
-la finale
+Vos adversaires
+Précision par mois et ruban des adversaires
 Votre précision progresse-t-elle ?
-Sur {0}. Précision du site quand elle existe, sinon calcul Chays.
-Où perdez-vous en qualité ?
-Votre plus grand écart est dans {0} : {1} points sous vos adversaires.
+Votre précision monte
+Votre précision baisse
+Votre précision tient
+Ce mois-ci
+En {0}
+{0}, vous jouez {1} plus juste que vos adversaires.
+{0}, vous jouez {1} moins juste que vos adversaires.
+Sur {0}.
+{0} pts
+Précision du site quand elle existe, sinon calcul Chays ; ruban : vos adversaires
+Milieu
+Finale
+en ouverture
+au milieu de partie
+en finale
+au niveau
+vs adv.
+Précision par phase : vous et vos adversaires
+Coups
+Erreurs et gaffes pour 10 coups, par tranche de coups
+Évaluation moyenne de votre point de vue, par coup
+Nettement moins bien
+Un peu moins bien
+Égal
+Un peu mieux
+Nettement mieux
+moins bien sorti
+mieux sorti
+Score selon la sortie d’ouverture
+Les résultats apparaissent dès {1} parties analysées avec ces filtres.
+Au niveau partout
+Vous perdez pied {0}
 Vous jouez au moins aussi précisément que vos adversaires dans chaque phase.
+{0} : {1} sous vos adversaires.
+À quel moment la partie vous échappe-t-elle ?
+Vos fautes arrivent après le coup {0}
+Vos fautes arrivent entre les coups {0} et {1}
+, {0} fois plus qu'en ouverture.
+Il faut plus de coups analysés par tranche pour situer vos fautes.
+{0} erreurs ou gaffes pour 10 coups{1}
+{0} erreur ou gaffe pour 10 coups{1}
+Votre sortie d'ouverture décide-t-elle du résultat ?
+Une bonne sortie vaut {0} points de score
+Une bonne sortie ne vous rapporte rien de plus
+Vous sortez à l'avantage dans {0} de vos parties.
+Vous, mieux que vos adversaires
+Vous, moins bien
+L'avantage tourne vers le coup {0}
+Évaluation moyenne, de votre point de vue
+Erreurs et gaffes pour 10 de vos coups, par tranche de 10 coups
+si-sw {0}
+Évaluation au dernier coup de votre répertoire ; largeur : nombre de parties, hauteur : score (pointillé : 50 %)
 Transformez-vous vos avantages ?
 Avantages convertis
 Positions sauvées
 Voyez-vous les fautes adverses ?
 Fautes adverses punies
 Vos fautes non punies
-À quel moment la partie vous échappe-t-elle ?
-Numéro du coup
-Votre sortie d'ouverture décide-t-elle du résultat ?
-Après une sortie à +1 ou mieux : {0}. À −1 ou moins : {1}.
-Évaluation à la sortie, en pions
 Précision
 Adversaires : {2}
 Gaffes pour 40 coups
@@ -2403,28 +2600,39 @@ Une pièce de moins
 Un pion de plus
 Un pion de moins
 Égalité matérielle
-Écart
-Lecture des positions de vos parties…
-Mêmes côtés
-Côtés opposés
+Roques du même côté
+Roques opposés
 Vous sans roque
 Adversaire sans roque
-Préférez-vous jouer avec ou sans dames ?
-Dames échangées : {0}. Dames sur l'échiquier : {1}.
 Sans dames
 Avec dames
+comme prévu
+comme vos Elo le prévoient
+{0} de mieux que vos Elo ne le prévoient
+{0} de moins que vos Elo ne le prévoient
+<em>comme prévu</em>
+<b>vs votre Elo</b>
+Vos terrains, vos pièges
+Vos terrains
+Aucun type de position au-dessus de vos Elo.
+Vos pièges
+Aucun type de position sous vos Elo.
+vs votre Elo : votre score moins celui que vos Elo et ceux de vos adversaires prévoient, en points ; {2} parties au moins
+Lecture des positions de vos parties…
+Préférez-vous jouer avec ou sans dames ?
 Où êtes-vous à l'aise pour roquer ?
-Côtés opposés : {0}. Mêmes côtés : {1}.
+Mêmes côtés
 Quelles structures vous réussissent ?
-La plus rentable : {0}. La moins rentable : {1}.
+La plus rentable : {0} ({1}). La moins rentable : {2} ({3}).
 Structure de pions au coup 15
 Quelles finales vous coûtent des points ?
-La plus coûteuse : {0} ({1} %).
-Vous tenez ce qu'on attend de vous dans chaque type de finale.
+La plus coûteuse : {0}, {1}.
+Vous tenez ce que vos Elo prévoient dans chaque type de finale.
 S'entraîner
 Comment jouez-vous les déséquilibres ?
 Premier déséquilibre matériel tenu au moins trois coups
 Le moteur ne répond pas. Réessayez plus tard.
+analyse des parties en arrière-plan
 À apprendre
 Maîtrise de {0} sur 100, et {1} points de moins que prévu. Apprendre ses positions fragiles est le gain le plus direct.
 À remplacer ?
@@ -2439,8 +2647,16 @@ Elle rapporte plus que prévu sans être bien sue ({0} sur 100). Ces points rest
 Bien sue et rentable. Une révision régulière suffit.
 {0} · maîtrise {1} / 100
 {0} · hors répertoire
-Score par mois et score attendu
-Sorties du répertoire par numéro de coup
+{0}{1} Elo
+Vous y jouez comme un {0}, à votre niveau.
+Vous y jouez comme un {0}, {1} sous votre Elo.
+Vous y jouez comme un {0}, {1} au-dessus de votre Elo.
+Perd des points
+coup à revoir
+coups à revoir
+{0} à réviser
+Sue · à jour
+points="{0},{1} {2},{3} {4},{5}"
 Hors de votre répertoire : aucune position travaillée pour cette ouverture.
 Aucune de vos parties récentes ne passe par cette ouverture.
 Trop peu de parties pour juger ({0}).
@@ -2460,10 +2676,20 @@ Réviser la ligne entière
 Confirmer les nouvelles
 Ligne entière
 {0} à réviser sur {1}
+Ligne
+En partie
+Mes coups
+Sections de la fiche
+Position de l’oubli
+{1}Réviser ce coup
+Voir la position
+Coup {3} · {4} · {5}
+joué
+prévu
+Vos oublis en partie
 {1}Ajouter une réponse
 Votre coup
 Pas de réponse enregistrée ici
-Voir la position
 Réponses adverses
 Aucun coup adverse connu ici : ni dans le répertoire, ni dans vos parties.
 · {0} ici
@@ -2480,42 +2706,46 @@ Part de vos parties où le coup adverse avait une réponse dans le répertoire
 Position explorée
 Revenir au début
 Explorateur
-Score face à l'attendu
-Comparaison avec vos parties…
-Reliez un compte dans l'onglet Parties pour voir vos résultats réels.
-Aucune partie sur cette période.
-Couvert
-Manquant
-Fin de préparation
+à votre niveau
+{0} sous votre Elo
+{0} au-dessus de votre Elo
+ici {9}
+vous {1}
+des points
+Le niveau en Elo demande {1} parties classées.
+Votre niveau dans cette ouverture
+{2} · {3} des points
+· niveau {0}
+{0} sur {1} au-dessus de votre niveau
+Mois par mois
+Aucune sortie du répertoire dans vos parties de la période.
+coup imprévu
+coups imprévus
+Coup {0} · {1} · {2}
+Coup {0}
+Sorties du répertoire par numéro de coup
+</i>Vous avez oublié
+</i>Coup imprévu
+Sortie moyenne : coup {4}
 Score en le suivant
 Score en le quittant
 Réponses couvertes
-Sortie moyenne
-coup {0}
 Évaluation à la sortie
 Score après une bonne sortie
 Score après une mauvaise sortie
 Avance à l'horloge
-Où le répertoire s'arrête
-</i>Réponse manquante
-</i>Vous sortez du répertoire
-au lieu de
-Coups joués à la place
-Score par mois
-{0} mois sur {1} au-dessus de l'attendu
-</i>Score réel
-</i>Score attendu
-Votre préparation
+Jusqu’où va votre préparation
+Comparaison avec vos parties…
+Reliez un compte dans l'onglet Parties pour voir vos résultats réels.
+Aucune partie sur cette période.
 Premier coup de la partie
 Après
-{5} err. / {6}
+Voir {3}
 S'entraîner sur cette position (compte comme un essai)
-S'entraîner sur {4}
-Voir {8}
+S'entraîner sur {0}
 Réduire
 Afficher les {0} autres coups
-Vos coups à connaître
-Coup
+Mes coups, du plus fragile au plus sûr
 Tous les niveaux
 Tout afficher
 Liste
@@ -2523,8 +2753,6 @@ Carte
 Aucune position à ce niveau.
 Précédente à travailler
 Suivante à travailler
-maîtrise {0} / 100
-Hors rép.
 Il faut au moins {0} parties dans une ouverture travaillée pour la placer sur la carte.
 Maîtrise à l'entraînement
 Points face à l'attendu
@@ -2542,18 +2770,17 @@ Adversaire du club
 Il ouvre la partie…
 joué {0} % du temps {1}
 {0} · à vous de jouer
-{0} : {1}, et vous n’avez pas de réponse ici.
+{0} · {1} · Pas de réponse dans votre répertoire
 Fin de votre préparation
 Plus aucun coup adverse connu ici.
-La partie s’arrête ici. Votre coup du répertoire : {0}.
+La partie s’arrête ici · Votre coup du répertoire : {0}
 à ~{0} Elo
-à votre niveau
 Coups des joueurs de Lichess {0}
 Coups de vos adversaires réels
 Branches de votre répertoire
 Arrêtée sur une erreur
 Partie interrompue
-{0} · {1}, sans réponse
+{0} · {1} · Sans réponse
 {2}Ajouter une réponse
 coup trouvé
 coups trouvés
@@ -2564,7 +2791,6 @@ Aucune ligne enregistrée pour cette ouverture.
 Aucune réponse enregistrée au premier coup.
 Bouchée {0} faite · {1} sur {2}
 Encore {0} ? Environ {1} min. Quitter garde le bilan.
-Encore {0}
 Continuer la séance (Entrée)
 Promotion · {0} · {1}
 Défi du jour réussi · {0} jours d’affilée
@@ -2579,6 +2805,8 @@ Temps écoulé · {0} bon{1} coup{2}
 Séance terminée · {0}/{1} du premier coup
 Retour aux statistiques…
 Bilan de la séance…
+Séance arrêtée, bilan gardé
+Séance arrêtée
 Temps restant
 {1}:{2}</b> restantes
 {3}</b> bon{4} coup{5}
@@ -2617,6 +2845,8 @@ Fin de la variante.
 Rester ici
 Ne pas enchaîner : rester sur cette position
 Exercice suivant (Entrée)
+Enchaîner
+Passer seul à l’exercice suivant, même après une erreur ou un indice
 Modifier le coup
 Jouez le coup qui remplacera {0}.
 Garder le coup actuel
@@ -2632,12 +2862,16 @@ Jouez-le pour continuer (aucune réussite comptée).
 Acquise : elle sort de la file À revoir.
 À revoir : {0} / {1} · trop tôt pour avancer
 À revoir : {0} / {1} · {2}
-Maîtrise : {0} → {1}
+{0} réussite{1} d’affilée · {2}
 ✓ Bien joué !
 Deuxième passage : rien de plus n’est compté.
+Hors révision : rien n’est noté.
 Aucune réussite comptée.
 ✓ Bon coup
 L’erreur est déjà comptée pour ce passage.
+Avec la pièce montrée : série gardée, revue demain.
+Avec l’indice : {0}
+✓ Trouvé avec l’indice
 ✓ Maîtrisée
 Plus que {0} vie{1}.
 Troisième erreur : la survie s’arrête après cette position.
@@ -2645,9 +2879,17 @@ Elle passe dans la file À revoir.
 {0}Réessayez, ou appuyez sur Indice.
 ✗ Ce n'est pas le coup de la solution
 Réessayez.
-— ne compte pas comme une erreur
+Patientez : la position se met en place
+— gain de maîtrise réduit
+— maîtrise gardée, revue demain
 — compte une erreur
+Trouvé ainsi : maîtrise gardée, revue demain.
+Trouvé ainsi : gain de maîtrise réduit.
 Voir la solution compte comme une erreur.
+Voir la solution (Espace) — compte une erreur
+Montrer la pièce (Espace) — maîtrise gardée, revue demain
+Indice
+Indice (Espace) — gain de maîtrise réduit
 Pas assez de parties : reliez Lichess ou Chess.com dans Statistiques › Parties. Tout le répertoire est utilisé.
 Seules les positions atteintes dans vos parties sont tirées (sauf Révision du jour). Toucher : tout le répertoire.
 Tout le répertoire. Toucher : seulement les positions vues dans vos parties.
@@ -2658,6 +2900,8 @@ Revoir l’erreur
 Tout de suite, pendant que c’est frais
 Révision du jour
 {0} à réviser · ≈ {1} min
+· à jour vers {0}
+{0} en attente{1}
 Répondre à {0} nouveautés
 Répondre à une nouveauté
 Coups adverses vus dans vos parties
@@ -2690,9 +2934,6 @@ Toucher une position pour la rejouer
 Bilan de la dernière séance
 Fermer le bilan
 {1}{2} · {3} min
-Position de départ
-Blancs au trait
-Noirs au trait
 Retirer le filtre d'ouverture
 Toutes les ouvertures
 Aucune position de cette ouverture
@@ -2707,12 +2948,14 @@ dem.
 Révisions prévues sur 7 jours : {0}
 {0} nouvelle{1}
 à réviser aujourd’hui · ≈ {1} min
+<b>Objectif atteint</b>
+{0} en attente pour les jours suivants
 bientôt
 <b>À jour</b>
 Prochaine révision {0}
 Révision du jour · {1}
-{5} jour{6} d'affilée
-{7} / {8} aujourd'hui
+{6} jour{7} d'affilée
+{8} / {9} aujourd'hui
 début
 ciblée
 {0} coup{1}
@@ -2740,9 +2983,9 @@ pas encore de record
 Survie
 3 vies, du plus sûr au plus fragile · {0}
 Aucune position déjà essayée
-les coups joués sur Lichess{0}
-les coups de vos adversaires réels
-{0} · {1}, jusqu’à la sortie du répertoire
+Coups joués sur Lichess à ~{0}
+Coups joués sur Lichess
+{0} · {1} · Jusqu’à la sortie du répertoire
 Aucune réponse au premier coup
 {0} à confirmer
 {0} position{1}
@@ -2770,7 +3013,11 @@ Joker de la semaine libre : un jour manqué ne casse pas la série.
 Joker de la semaine utilisé : le prochain arrive lundi.
 Révisions prévues sur les 7 prochains jours
 7 prochains jours
-{0} à réviser
+Léger
+Normal
+Soutenu
+{1} · {2} min
+Rythme du jour
 à jour
 Bon retour
 Bonsoir
@@ -2781,31 +3028,28 @@ Par quelle couleur commencer ?
 Commencer avec les Blancs
 {4}Importer un PGN
 {5}Partir de mes parties
+{0}Encore {1}
 Autres exercices {0}
-Reprise du jour <em>faite</em>.
-révision gardée
-révisions gardées
-{0} pour les jours suivants
-· objectif atteint
+Objectif du jour <em>atteint</em>.
+révision attend
+révisions attendent
+{0} les jours suivants
 pour reprendre la main
 pour aujourd’hui
-les {0} autres sont réparties
-la dernière est gardée
-<b>Environ {0} min</b> · {1} sur les jours suivants
+<b>Environ {0} min</b> · les plus importantes d’abord
 à réviser
 <b>Environ {0} min</b> · {1}
 · dont {0}
-· encore {0} pour l'objectif
 Position la plus en retard, avant votre coup
 La plus en retard{1}
 Révisions <em>à jour</em>.
 Prochaine révision <b>{0}</b>
 Aucune révision prévue
+· objectif atteint
 {1}Ajouter une ligne aux {2}
 Erreurs de la séance
 À revoir tant qu’elles sont fraîches
-Reprise du jour faite ·
-reprise en douceur
+Objectif du jour atteint ·
 dont {0} à revoir
 Après vos parties
 Des réponses à trouver
@@ -2860,7 +3104,6 @@ Ajouter
 Ajouter ({0})
 Brouillon
 Toutes les branches du brouillon
-Indice
 Arbre
 Arbre du répertoire
 Position {0} sur {1}
@@ -2873,6 +3116,7 @@ Essais
 Auj.
 Adverse
 Connue
+Coup
 cubic-bezier(.72, 0, .18, 1)
 translateY(-12px) scale(.92)
 translate(0px, 0px) scale(1)
@@ -2883,6 +3127,7 @@ Sur cet appareil
 Non connecté
 Données gardées sur cet appareil
 (pointer: fine)
+assets/boards/{0}.webp
 sw.js
 Ouvre Chays Trainer comme une vraie application, même sans connexion.
 Sur iPhone / iPad : touche le bouton Partager de Safari, puis « Sur l'écran d'accueil ».
@@ -2961,12 +3206,6 @@ Rechercher un répertoire
 Sons activés
 Sons coupés
 (min-width: 1100px)
-Révisions du jour
-Avec les Blancs
-Avec les Noirs
-(hover: hover)
-Étendre la barre
-Replier la barre
 Revoir {0} erreurs
 {0} · {1} min
 nouveauté à traiter
@@ -2993,10 +3232,10 @@ Suiv.
 Corriger
 Retourner
 Tourner
-Analyser
 Focus
+Poser
+Image
 Initialisation...
-Coups
 Données
 Répertoire :
 Dernières parties
@@ -3045,7 +3284,10 @@ Quitter l'entraînement (Q)
 Quitter l'exercice (Q)
 Analyser la position avec le moteur
 Ouvrir la position sur Lichess (nouvel onglet)
+Poser une position : pièces à la main, FEN ou capture d'écran (⌘V)
 Revenir à Jouer ; le brouillon est gardé pour la session (Q)
+Lire une capture d'écran d'échiquier (aussi : coller ⌘V ou déposer l'image)
+Revenir à l'Analyse sans rien changer (Q)
 Coups les plus joués par vos adversaires et sur Lichess
 Source
 PGN de la partie

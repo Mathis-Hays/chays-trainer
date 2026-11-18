@@ -116,4 +116,44 @@ t('premier coup hors répertoire : temps passé, incrément compris, comparé au
     assert.strictEqual(opp.n, 1, 'sortie de l\'adversaire : mon coup suivant');
 });
 
+t('niveau mois par mois : Elo moyen du mois dans le résumé mensuel, écart du niveau joué ; mois au-dessus et meilleur mois', () => {
+    const now = new Date(2026, 10, 15).getTime(), at = (mo, d) => new Date(2026, mo, d).getTime();
+    const list = [
+        // octobre : 3 gains contre 1500 avec un Elo de 1480 → niveau joué 1500 + 400 × log10(0,95 / 0,05) ≈ 2011
+        game('w', { at: at(9, 2), me0: 1480, opp0: 1500 }), game('w', { at: at(9, 3), me0: 1480, opp0: 1500 }), game('w', { at: at(9, 4), me0: 1480, opp0: 1500 }),
+        // novembre : 3 parties, 1 nulle et 2 pertes contre 1500, Elo 1600 → au-dessous
+        game('d', { at: at(10, 2), me0: 1600, opp0: 1500 }), game('l', { at: at(10, 3), me0: 1600, opp0: 1500 }), game('l', { at: at(10, 4), me0: 1600, opp0: 1500 }),
+        // septembre : 2 parties seulement, pas de niveau joué
+        game('w', { at: at(8, 2) }), game('w', { at: at(8, 3) })
+    ];
+    const months = plain(R.months(list, 3, now));
+    assert.deepStrictEqual(months.map(m => m.me), [1500, 1480, 1600], 'Elo moyen de chaque mois');
+    assert.strictEqual(months[0].gap, null, 'moins de 3 parties : pas d\'écart');
+    near(months[1].gap, Math.round(1500 + 400 * Math.log10(.95 / .05)) - 1480);
+    assert(months[2].gap < 0);
+    const a = plain(I.aboveElo(months));
+    assert.deepStrictEqual([a.known, a.above], [2, 1]);
+    assert.strictEqual(a.best.at, months[1].at);
+    assert.deepStrictEqual(a.months.map(m => m.gap === null), [true, false, false]);
+});
+
+t('mois chargés : seuil de parties du mois chargé le moins joué, nombre de mois de chaque côté', () => {
+    const now = new Date(2026, 10, 15).getTime(), list = [], add = (mo, count, gain) => { for (let i = 0; i < count; i++) list.push(game('w', { at: new Date(2026, mo, i + 1).getTime(), me: 1500 + gain * i / (count - 1) })); };
+    add(7, 12, 50); add(8, 10, 30); add(9, 6, -10); add(10, 5, 0);
+    const v = plain(I.volume(list, 4, now));
+    assert.deepStrictEqual([v.threshold, v.highN, v.lowN], [10, 2, 2]);
+});
+
+t('coup 20 en trois situations : en retard, à égalité, en avance (5 points de temps) ; gain dès 5 parties de chaque côté', () => {
+    const clk = (me, opp) => { const a = new Array(40).fill(5000); a[38] = me; a[39] = opp; return a; };
+    const list = [];
+    for (let i = 0; i < 5; i++) { list.push(clocked('l', clk(1000, 5000))); list.push(clocked('w', clk(5000, 1000))); }
+    list.push(clocked('d', clk(5000, 4800)));
+    const s = plain(I.leadSides(list));
+    assert.deepStrictEqual([s.behind.n, s.even.n, s.ahead.n], [5, 1, 5]);
+    assert.strictEqual(s.gain, 100);
+    assert.strictEqual(I.leadSides(list.slice(0, 4)).gain, null);
+    assert.strictEqual(I.usualBase(list.concat(clocked('w', [1, 2], { tc: [600, 0] }))), 100);
+});
+
 console.log(`\n${n} tests réussis.`);

@@ -6,6 +6,7 @@
  *     qt : les deux dames ont quitté l'échiquier (1 ou 0) · me, opp : roque ('k', 'q', '') · st : structure de pions au coup 15 ·
  *     eg : finale atteinte ('pawn', 'rook', 'queen', 'minor', 'rookMinor') · imb : déséquilibre matériel durable, 'even' sinon.
  *   report(parties)   score, attendu et écart de chaque type, à partir de pf.
+ *   terrains(rapport, min, connu?)   « Vos terrains, vos pièges » : les trois types les plus au-dessus et au-dessous de l'attendu.
  *   run(parties, onDone)   calcule ce qui manque par petits lots et l'enregistre dans l'archive.
  */
 
@@ -130,6 +131,17 @@ const GamePositions = (function () {
         };
     }
 
+    // Vos terrains, vos pièges (chantier « Progrès : qualité et médailles », point 6) : tous les types de positions confondus,
+    // les k plus au-dessus de l'attendu (écart « vs votre Elo » positif) et les k plus au-dessous, min parties au moins.
+    // Identifiants : 'q:off' / 'q:on', 'c:same' / 'c:opposite' / 'c:meNone' / 'c:oppNone', 'st:<structure>', 'eg:<finale>', 'imb:<déséquilibre>'.
+    // known(id) : garde seulement les types que l'écran sait nommer.
+    function terrains(r, min, known = () => true, k = 3) {
+        const all = [['q:off', r.queens.off], ['q:on', r.queens.on], ...Object.entries(r.castling).map(([key, t]) => ['c:' + key, t]),
+            ...r.structures.map(x => ['st:' + x.key, x.t]), ...r.endgames.map(x => ['eg:' + x.key, x.t]), ...r.imbalances.map(x => ['imb:' + x.key, x.t])]
+            .filter(([id, t]) => t && t.n >= min && t.delta !== null && known(id)).map(([id, t]) => ({ id, t }));
+        return { best: all.filter(x => x.t.delta > 0).sort((a, b) => b.t.delta - a.t.delta).slice(0, k), worst: all.filter(x => x.t.delta < 0).sort((a, b) => a.t.delta - b.t.delta).slice(0, k) };
+    }
+
     // ─── CALCUL EN TÂCHE DE FOND ─────────────────────────────────────────────
     const missing = g => !g.pf || g.pf.v !== VERSION;
     async function run(games, onDone = () => {}) {
@@ -148,5 +160,5 @@ const GamePositions = (function () {
         onDone();
     }
 
-    return { VERSION, uciOf, structureOf, endgameOf, imbalanceOf, features, report, run, running: () => running };
+    return { VERSION, uciOf, structureOf, endgameOf, imbalanceOf, features, report, terrains, run, running: () => running };
 })();

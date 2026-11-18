@@ -7,11 +7,11 @@
  * Unité de synchronisation = une clé de stockage (un « document » JSON).
  *   chessTrainer_repertoires     'list'      noms des répertoires
  *   chessTrainer_repNotes        'notes'     répertoire → { v: description, at: date } : la plus récente l'emporte
- *   openingDB_{rép}_{couleur}    'db'        position → { move, san, attempts, failures, path?, ply?, lastReviewed?, interval?, due?, created?, prio?, relearn?, mastery? }
+ *   openingDB_{rép}_{couleur}    'db'        position → { move, san, attempts, failures, path?, ply?, lastReviewed?, interval?, due?, created?, prio?, relearn?, mastery?, run? }
  *   openingOpp_{rép}_{couleur}   'opp'       position → [coups UCI adverses connus]
  *   chessTrainer_trash           'trash'     [{ id, type, deletedAt, … }]
  *   chessTrainer_endgames        'endgames'  exercice → { tries, wins, perfect, best, last, stars? }
- *   chessTrainer_activity        'activity'  jour (AAAA-MM-JJ) → { a: essais, f: erreurs }
+ *   chessTrainer_activity        'activity'  jour (AAAA-MM-JJ) → { a: essais, f: erreurs, p?: passages hors révision (série seule) }
  *   chessTrainer_prefs           'prefs'     préférence → { v: valeur, at: date du choix } (échiquier, pièces, flèches)
  *   chessTrainer_gameLedger      'games'     partie analysée → { src, at, first, last, vs?, v: { 'rép|couleur': verdict }, counted: { … } }
  *   chessTrainer_timedRecord     'record'    record du contre-la-montre (nombre) : le plus grand l'emporte
@@ -141,12 +141,14 @@ const SyncModel = (function () {
         // Priorité : celle du passage le plus récent (elle est levée par une réussite) ; sinon l'une ou l'autre.
         const prio = num(l.lastReviewed) === num(r.lastReviewed) ? Math.max(num(l.prio), num(r.prio)) : num(s.prio);
         if (prio > 0) out.prio = prio;
-        // File « À revoir » et score : ceux du passage le plus récent ; égalité → le plus prudent (dans la file, score le plus bas).
+        // File « À revoir », score et série de réussites (run) : ceux du passage le plus récent ; égalité → le plus prudent
+        // (dans la file, score le plus bas, série la plus courte).
         const tie = num(l.lastReviewed) === num(r.lastReviewed);
         const least = key => { const v = [l[key], r[key]].filter(Number.isFinite); return v.length ? Math.min(...v) : undefined; };
-        const relearn = tie ? least('relearn') : s.relearn, mastery = tie ? least('mastery') : s.mastery;
+        const relearn = tie ? least('relearn') : s.relearn, mastery = tie ? least('mastery') : s.mastery, run = tie ? least('run') : s.run;
         if (Number.isFinite(relearn)) out.relearn = relearn;
         if (Number.isFinite(mastery)) out.mastery = mastery;
+        if (Number.isFinite(run)) out.run = run;
         return out;
     }
 
@@ -201,7 +203,10 @@ const SyncModel = (function () {
     function mergeDay(b, l, r) {
         const ba = b ? num(b.a) : 0, bf = b ? num(b.f) : 0;
         const a = Math.max(num(l.a), num(r.a), num(l.a) + num(r.a) - ba);
-        return { a, f: Math.min(a, Math.max(num(l.f), num(r.f), num(l.f) + num(r.f) - bf)) };
+        const out = { a, f: Math.min(a, Math.max(num(l.f), num(r.f), num(l.f) + num(r.f) - bf)) };
+        const bp = b ? num(b.p) : 0, p = Math.max(num(l.p), num(r.p), num(l.p) + num(r.p) - bp);   // passages hors révision (série)
+        if (p > 0) out.p = p;
+        return out;
     }
     const mergeActivity = (b, l, r) => mergeMap(b, l, r, mergeDay);
 

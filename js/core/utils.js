@@ -7,6 +7,7 @@
  *                          <button data-action="startEndgame" data-arg="kq-k">…</button>
  *                        → UI_ACTIONS.startEndgame('kq-k', élément, événement)
  *   reportError(ctx, e)  erreur tracée en console ; avec { notify: true }, message visible (cf. plus bas)
+ *   patchHTML(el, html)  remplace le contenu de el seulement si html diffère du dernier écrit par patchHTML
  * Le HTML généré ne contient ainsi aucun code (pas d'onclick="…" construit par concaténation) :
  * une valeur venue de l'utilisateur, d'un import ou de la synchro ne peut pas devenir du script.
  * À charger avant les autres modules.
@@ -16,6 +17,19 @@
 
 const _ESC_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => _ESC_MAP[c]); }
+
+// Redessin évité (chantier « Accueil et lancement », novembre 2026) : un bloc réécrit à l'identique détruisait l'élément
+// survolé (le survol tombait jusqu'au prochain mouvement de souris). On compare au dernier HTML source écrit ici, pas à
+// innerHTML (la traduction réécrit la page après coup) ; un premier enfant remplacé ailleurs force la réécriture.
+// Renvoie vrai si le contenu a été remplacé.
+function patchHTML(el, html) {
+    if (!el) return false;
+    if (el._patchSrc === html && el._patchFirst === el.firstChild) return false;
+    el.innerHTML = html;
+    el._patchSrc = html;
+    el._patchFirst = el.firstChild;
+    return true;
+}
 
 const UI_ACTIONS = {};
 function registerActions(map) { Object.assign(UI_ACTIONS, map); }
@@ -75,6 +89,16 @@ function dueInLabel(t, long) {
     if (min < 1440) return `dans ${Math.round(min / 60)} h`;
     const d = Math.round(min / 1440);
     return long ? `dans ${d} jour${d > 1 ? 's' : ''}` : `dans ${d} j`;
+}
+
+// Date « à jour vers… » du programme des révisions (reviewPlan().catchUp() : { days, at }) : « demain », sinon « le 10 janv. ».
+function catchUpLabel(cu, now = Date.now()) {
+    if (!cu) return '';
+    if (cu.days <= 1) return cu.days ? 'demain' : 'aujourd’hui';
+    const loc = typeof I18n !== 'undefined' && I18n.locale ? I18n.locale() : 'fr-FR';
+    const opts = { day: 'numeric', month: 'short' };
+    if (new Date(cu.at).getFullYear() !== new Date(now).getFullYear()) opts.year = 'numeric';
+    return 'le ' + new Date(cu.at).toLocaleDateString(loc, opts);
 }
 
 // ─── NOTATION DES COUPS ───────────────────────────────────────────────────────

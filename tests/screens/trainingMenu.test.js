@@ -195,7 +195,7 @@ async function boot() {
         skip.click();                                                   // passer
         assert(!$('#status-bar .status-act'), 'bouton retiré quand la main revient');
         assert(/^À vous de jouer/.test($('#status-text .status-title').textContent));
-        assert(/ne compte pas comme une erreur/.test($('.tb-hint').title), 'infobulle de l\'Indice en séance');
+        assert(/gain de maîtrise réduit/.test($('.tb-hint').title), 'infobulle de l\'Indice en séance : ce que coûte le premier palier');
         w.eval('quitTraining()');
     });
 
@@ -299,7 +299,7 @@ async function boot() {
         w.eval('quitTraining()');
     });
 
-    await t('Révision du jour : nouvelles positions plafonnées à l\'objectif quotidien, le reste étalé ; libellé « à réviser aujourd’hui »', () => {
+    await t('Révision du jour : nouvelles positions à objectif ÷ 5 par jour (6 pour 30), le reste étalé ; libellé « à réviser aujourd’hui »', () => {
         w.eval(`(() => {
             const db = {}, now = Date.now();
             Chess.replay([]);
@@ -307,17 +307,17 @@ async function boot() {
             moves.forEach((m, i) => { const e = newEntry(m, m, [m]); e.created = now - 1000 + i; db['k' + i] = e; });
             dataStore.set(dbKeyFor(currentRepertoire, 'w'), JSON.stringify(db));
             dataStore.set(dbKeyFor(currentRepertoire, 'b'), '{}');
-            appSettings.dailyGoal = 10; trainingState.lastSummary = null; _trOpening = null; _trColor = 'mix';
+            appSettings.dailyGoal = 30; trainingState.lastSummary = null; _trOpening = null; _trColor = 'mix';
         })()`);
         render();
-        assert.strictEqual($('.trr-big b').textContent, '10', '10 aujourd\'hui, pas 15');
+        assert.strictEqual($('.trr-big b').textContent, '6', '6 aujourd\'hui, pas 15');
         assert(/à réviser aujourd’hui/.test($('.trr-big span').textContent));
-        assert.strictEqual($('.trr-split').textContent.trim(), '10 nouvelles');
+        assert.strictEqual($('.trr-split').textContent.trim(), '6 nouvelles');
         assert(!/positions dues/.test($('#training-panel').textContent), 'plus de « positions dues »');
         const fc = $$('.trr-fc > div b').map(b => Number(b.textContent || 0));
-        assert.deepStrictEqual(fc.slice(0, 3), [10, 5, 0], 'le reste demain');
+        assert.deepStrictEqual(fc.slice(0, 3), [6, 6, 3], 'le reste les jours suivants');
         w.eval(`startTrainingExercise('due')`);
-        assert.strictEqual(w.eval('trainingState.session && trainingState.session.items.length'), 10, 'la séance reprend le programme');
+        assert.strictEqual(w.eval('trainingState.session && trainingState.session.items.length'), 6, 'la séance reprend le programme');
         w.eval('quitTraining()');
     });
 
@@ -392,7 +392,7 @@ async function boot() {
             sounds.length = 0;
             w.eval(`answerTrainingMove(openingDB[positionKey()], squareToIdx('${e.move.slice(0, 2)}'), squareToIdx('${e.move.slice(2, 4)}'), null, '${e.move}')`);
         };
-        play(2);                                                    // à confirmer → maîtrisée (3 essais sans erreur)
+        play(4);                                                    // solide → maîtrisée (5 réussites d’affilée, échelle E3)
         assert($('#status-text .status-title .engrave-fx path[pathLength="1"]'), 'trait gravé après le titre de la barre d\'état');
         assert(/Maîtrisée/.test($('#status-text .status-title').textContent));
         assert(sounds.includes('master'), 'cloche de laiton');
@@ -402,7 +402,7 @@ async function boot() {
         assert(badge && /1 maîtrisée/.test(badge.textContent), 'décompte dans le bilan, avec le trait');
         assert($('.trr-bilan .vbadge.is-brass .engrave-mark'));
         $$('#status-bar .engrave-fx').forEach(el => el.parentNode.removeChild(el));
-        play(4);                                                    // déjà maîtrisée : rien de plus
+        play(6);                                                    // déjà maîtrisée : rien de plus
         assert(!$('#status-bar .engrave-fx') && !sounds.includes('master'));
         w.eval('quitTraining()');
         w.playSound = orig;

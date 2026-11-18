@@ -120,8 +120,19 @@ const StatsGames = (function () {
         </div>`;
     }
 
-    const wdl = (name, t) => `<div class="sg-wdl"><span class="sg-wdl-n">${escapeHtml(name)}<small>${_plural(t.n, 'partie')}</small></span>
-        <span class="sg-bar" role="img" aria-label="${I18n.mark(`${t.w} / ${t.d} / ${t.l}`)}">${[['w', t.w], ['d', t.d], ['l', t.l]].filter(([, n]) => n).map(([k, n]) => `<i class="sg-${k}" style="flex:${n}">${n}</i>`).join('')}</span><b>${pct(t.score)}</b></div>`;
+    // Par famille (chantier « Progrès : qualité et médailles », point 7) : pertes à gauche, nulles au centre, gains à droite,
+    // sur une même échelle pour toutes les familles (side : la plus grande moitié). Plus la barre penche à droite, mieux c'est.
+    const wdl = (name, t, half) => {
+        const seg = (k, n) => n ? `<i class="sg-${k}" style="flex:${n}" title="${I18n.mark(`${n}`)}">${n / half >= .12 ? n : ''}</i>` : '';
+        return `<div class="sg-wdl"><span class="sg-wdl-n">${escapeHtml(name)}<small>${_plural(t.n, 'partie')}</small></span>
+        <span class="sg-bar sg-bar-c" role="img" aria-label="${I18n.mark(`${t.w} / ${t.d} / ${t.l}`)}"><s style="flex:${half - t.l - t.d / 2}"></s>${seg('l', t.l)}${seg('d', t.d)}${seg('w', t.w)}<s style="flex:${half - t.w - t.d / 2}"></s></span><b>${pct(Math.round(t.score))}</b></div>`;
+    };
+    function familiesHTML(openings) {
+        const rows = openings.map(([k, list]) => ({ k, t: OpeningReport.summarize(list) })), half = Math.max(1, ...rows.map(r => Math.max(r.t.w, r.t.l) + r.t.d / 2));
+        const fairRows = rows.filter(r => r.t.n >= 5), worst = fairRows.slice().sort((a, b) => (a.t.delta ?? a.t.score - 50) - (b.t.delta ?? b.t.score - 50))[0];
+        const take = worst && (worst.t.delta ?? worst.t.score - 50) < 0 ? `<p class="st-sub sg-take">${escapeHtml(worst.k)} vous coûte le plus : ${pct(Math.round(worst.t.score))} sur ${_plural(worst.t.n, 'partie')}${worst.t.delta === null ? '' : `, ${I18n.mark(`${worst.t.delta >= 0 ? '+' : '−'}${Math.abs(Math.round(worst.t.delta))}`)} vs votre Elo`}.</p>` : '';
+        return `${take}<div class="sg-axis" aria-hidden="true"><span>← pertes</span><span>nulles</span><span>gains →</span></div>${rows.map(r => wdl(r.k, r.t, half)).join('')}`;
+    }
 
     function eloHTML() {
         const level = GameArchive.level();
@@ -159,7 +170,7 @@ const StatsGames = (function () {
         return `<div class="sg-head"><h4>Votre répertoire</h4></div>
             <div class="sg-tiles">${tile('Répertoire suivi', kept)}${tile('Vous êtes sorti du répertoire', left)}</div>
             <div class="sg-head"><h4>Par famille d'ouverture</h4><span class="sg-leg"><i class="sg-w"></i>Gains <i class="sg-d"></i>Nulles <i class="sg-l"></i>Pertes</span></div>
-            ${openings.map(([k, list]) => wdl(k, GameArchive.tally(list))).join('')}
+            ${familiesHTML(openings)}
             ${st.costs.length ? `<div class="sg-head"><h4>Ce qui vous coûte le plus</h4></div>${st.costs.map((c, i) => `<button type="button" class="sg-cost" data-action="statsGameLine" data-arg="${i}"><span><b>${c.family ? escapeHtml(c.family) : 'Autres positions'}</b><small>${_movesLabel(c.path.slice(-6), true) || ''}</small><small>${c.by === 'me' ? 'Votre coup sort du répertoire' : 'Réponse manquante'} · ${_plural(c.t.n, 'partie')} · ${pct(c.t.score)}</small></span>${ico('chevron-right')}</button>${whatIfHTML(c, i)}`).join('')}` : ''}
             <div class="sg-head"><h4>Selon la couleur et l'adversaire</h4></div>
             <div class="sg-tiles">${tile('Blancs', color('w'))}${tile('Noirs', color('b'))}${tile('Adversaire +50 Elo ou plus', gap(d => d > 50))}${tile('Adversaire −50 Elo ou moins', gap(d => d < -50))}</div>`;

@@ -42,7 +42,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         assert.strictEqual(J(`ClubMatch.choose([], () => 0)`), null);
     });
 
-    await t('sans jeton ni parties : les branches du répertoire, jusqu\'à la fin de la préparation ; chaque coup compte', async () => {
+    await t('sans jeton ni parties : les branches du répertoire, jusqu\'à la fin de la préparation  ; rien n\'est noté (TRAIN_SCORED)', async () => {
         ev(`switchHomeTab('training'); startTrainingExercise('club')`);
         assert.strictEqual(ev('trainingState.session.kind'), 'club');
         await play();
@@ -52,18 +52,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         assert.strictEqual(s.club.end, 'prep');
         assert.strictEqual(s.club.source, 'repertoire');
         assert.strictEqual(s.ok, 3, 'e4, Cf3, Fc4');
-        assert.strictEqual(ev(`readDBFor('Club', 'w')[Chess.key(Chess.start())].attempts`), 3, 'compté comme une révision');
+        assert.strictEqual(ev(`readDBFor('Club', 'w')[Chess.key(Chess.start())].attempts`), 2, 'pas compté : seules les révisions notent');
         ev('initTraining()');
         assert(/coups trouvés du premier coup/.test(w.document.querySelector('.trr-club').textContent));
     });
 
-    await t('la première erreur arrête la partie, et compte', async () => {
+    await t('la première erreur arrête la partie, sans rien noter dans le répertoire', async () => {
         ev(`startTrainingExercise('club')`);
         await until('trainingState.session && !trainingState.busy');
         ev(`(() => { const m = _parseUci('d2d4'); GameModes.current().onMove(m.from, m.to, null); })()`);
         await until('!trainingState.session');
         assert.strictEqual(J('trainingState.lastSummary.club.end'), 'mistake');
-        assert.strictEqual(ev(`readDBFor('Club', 'w')[Chess.key(Chess.start())].failures`), 1);
+        assert.strictEqual(ev(`readDBFor('Club', 'w')[Chess.key(Chess.start())].failures`), 0);
+        assert.strictEqual(ev(`readDBFor('Club', 'w')[Chess.key(Chess.start())].attempts`), 2);
     });
 
     await t('mes parties : 1. d4 sans réponse → sortie du répertoire, coup noté dans oppSeen, « Ajouter une réponse »', async () => {

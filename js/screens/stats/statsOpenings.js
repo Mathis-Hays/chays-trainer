@@ -3,13 +3,15 @@
  * ──────────────────────────────────────────────────────────────────────────
  * Onglet Ouvertures (refonte « Chays sans détour », lot 3 ; avant : Statistiques › Ouvertures) : la liste « miroir » et une seule fiche,
  * quelle que soit la taille du répertoire. La fiche porte « Réviser » (startOpeningReview), l'arbre des coups appris et « Échiquier libre ».
- *   Index (atelier « Ouvertures et Progrès », lot 1) : toutes les ouvertures du classement, une ligne chacune (miniature,
- *     barre de niveaux, verdict ou maîtrise, écart à l'attendu), ou la carte maîtrise × résultats (segment Liste / Carte) ;
- *     la barre de niveaux du haut filtre. Toucher une ligne ouvre sa fiche : à côté dès 980 px, à la place de l'index en dessous
- *     (« ‹ Ouvertures » y ramène, st.open).
+ *   Index (atelier « Ouvertures et Progrès », lot 1 ; « Vitrine » du chantier « Ouvertures repensées ») : toutes les ouvertures
+ *     du classement en tuiles (miniature et sceau du rang, nom, une phrase d'état, écart en Elo), en lignes de 60 px quand la fiche
+ *     est à côté ; ou la carte maîtrise × résultats (segment Liste / Carte) ; la barre de niveaux du haut filtre. Toucher ouvre
+ *     la fiche : à côté dès 980 px, à la place de l'index en dessous (« ‹ Ouvertures » y ramène, st.open).
  *   Sélecteur (« Toutes les ouvertures ») : recherche par nom ou par coups, « À travailler d'abord », familles, carte maîtrise × résultats.
  *     Fenêtre posée sous <body> : dans l'onglet, une requête de conteneur capterait le position: fixed du tiroir de téléphone.
- *   Fiche : explorateur coup par coup (lot 2 de l'atelier, OpeningExplorer), diagnostic, score, écart à l'attendu, performance, maîtrise, évolution, sorties du répertoire, réponses adverses, coups à connaître (les 5 moins sus, le reste déplié à la demande).
+ *   Fiche (« Vitrine ») : un en-tête (position, rang, une phrase, « Réviser » seule action pleine), puis trois onglets (st.tab) :
+ *     Ligne (Vos oublis en partie, explorateur coup par coup OpeningExplorer), En partie (Votre niveau dans cette ouverture en Elo
+ *     et Mois par mois, Jusqu'où va votre préparation), Mes coups (du plus fragile au plus sûr, 5 puis le reste à la demande).
  * Le rattachement d'une partie : la position la plus avancée de mon répertoire qu'elle a atteinte (les transpositions comptent).
  * Sans position enregistrée, la partie rejoint son ouverture nommée (« Hors répertoire »). Calculs : OpeningReport.
  * Seules les positions déjà travaillées forment les groupes, comme l'Entraînement (_assignOpenings).
@@ -19,9 +21,10 @@
 'use strict';
 
 const StatsOpenings = (function () {
-    const ROWS = 5, AFTER_PLIES = 4, PRIORITY = 3, MIN_OUT = 2, MIN_MAP = 3, REPLIES = 6, SWAPS = 3, MIN_DIAG = 5;
+    const ROWS = 5, AFTER_PLIES = 4, PRIORITY = 3, MIN_OUT = 2, MIN_MAP = 3, SWAPS = 3, MIN_DIAG = 5;
+    const LOSING = -3, SURE = 80, EVEN_ELO = 15;                  // « Perd des points » dès −3 pt ; « Sue » dès 80 / 100 ; ±15 Elo : à mon niveau
     const OTHER = 'Autres positions';
-    const st = { ctx: null, scope: '', cur: null, picked: false, open: false, view: 'list', mode: 'list', q: '', active: -1, all: new Set(), cursor: new Map(), list: [], reached: new Map() };
+    const st = { ctx: null, scope: '', cur: null, picked: false, open: false, view: 'list', mode: 'list', tab: 'line', q: '', active: -1, all: new Set(), cursor: new Map(), list: [], reached: new Map() };
 
     const pct = v => `${Math.round(v)} %`;
     const num1 = v => Math.abs(v).toLocaleString(I18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -84,61 +87,68 @@ const StatsOpenings = (function () {
     const current = () => st.list.find(g => g.key === st.cur) || null;
 
     // ─── PETITS ÉLÉMENTS ─────────────────────────────────────────────────────
-    const delta = (d, unit) => d === null ? '<span class="so-delta">–</span>'
-        : `<span class="so-delta ${d >= 0 ? 'up' : 'down'}"><i aria-hidden="true">${d >= 0 ? '▲' : '▼'}</i>${I18n.mark(`${d >= 0 ? '+' : '−'}${num1(d)}${unit || ''}`)}</span>`;
     const wdlBar = t => t.n ? `<span class="so-wdl" role="img" aria-label="${I18n.mark(`${t.w} / ${t.d} / ${t.l}`)}">${[['w', t.w], ['d', t.d], ['l', t.l]].filter(([, n]) => n).map(([k, n]) => `<i class="sg-${k}" style="flex:${n}"></i>`).join('')}</span>` : '';
     const sideDot = s => `<span class="so-dot ${s}" aria-hidden="true"></span>`;
     const metaOf = g => g.all.length ? `${_plural(g.stats.n, 'partie')} · maîtrise ${g.mastery} / 100` : `${_plural(g.stats.n, 'partie')} · hors répertoire`;
 
-    function monthsChart(list) {
-        const W = 360, H = 138, L = 4, R = 34, T = 8, B = 20, band = (W - L - R) / list.length, bw = Math.min(26, band * .62), y = v => T + (100 - v) * (H - T - B) / 100;
-        const name = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { month: 'short' }));
-        const every = list.length > 6 ? 2 : 1;
-        let bars = '', ticks = '';
-        list.forEach((m, i) => {
-            const x = L + band * i + (band - bw) / 2;
-            if (i % every === (list.length - 1) % every) ticks += `<text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle">${name(m.at)}</text>`;
-            if (!m.n) return;
-            const top = y(m.score), r = Math.min(3, y(0) - top);
-            bars += `<g><title>${I18n.mark(`${name(m.at)} · ${m.n} · ${Math.round(m.score)} %${m.expected === null ? '' : ` / ${Math.round(m.expected)} %`}`)}</title><rect x="${L + band * i}" y="${T}" width="${band}" height="${H - T - B}" fill="transparent"/><path class="so-bar-real" d="M${x},${y(0)}V${top + r}Q${x},${top} ${x + r},${top}H${x + bw - r}Q${x + bw},${top} ${x + bw},${top + r}V${y(0)}Z"/>${m.expected === null ? '' : `<line class="so-exp" x1="${x - 2}" x2="${x + bw + 2}" y1="${y(m.expected)}" y2="${y(m.expected)}"/>`}</g>`;
-        });
-        const grid = [0, 50, 100].map(v => `<line class="${v ? 'g' : 'b'}" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${W - R + 5}" y="${y(v) + 3}">${v} %</text>`).join('');
-        return `<svg class="so-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Score par mois et score attendu">${grid}${bars}${ticks}</svg>`;
+    // Score face à l'attendu, dit en Elo (chantier « Ouvertures repensées », point 3) : le niveau joué dans l'ouverture
+    // et son écart à mon Elo moyen des mêmes parties (OpeningReport.summarize : perf, me, gap ; 3 parties classées au moins).
+    const elo = v => I18n.mark(Math.round(v).toLocaleString(I18n.locale()));
+    const eloSigned = v => I18n.mark(`${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString(I18n.locale())} Elo`);
+    const eloTag = t => t.gap === null ? '' : `<small class="so-elo ${t.gap >= 0 ? 'up' : 'down'}">${eloSigned(t.gap)}</small>`;
+    function eloSentence(t) {
+        if (t.perf === null) return '';
+        const n = Math.abs(t.gap);
+        return n < EVEN_ELO ? `Vous y jouez comme un ${elo(t.perf)}, à votre niveau.`
+            : t.gap < 0 ? `Vous y jouez comme un ${elo(t.perf)}, ${elo(n)} sous votre Elo.`
+            : `Vous y jouez comme un ${elo(t.perf)}, ${elo(n)} au-dessus de votre Elo.`;
     }
 
-    function histChart(hist) {
-        const keys = Object.keys(hist).map(Number);
-        if (!keys.length) return '';
-        const lo = Math.max(1, Math.min(...keys) - 1), hi = Math.max(lo + 6, Math.max(...keys) + 1), cols = hi - lo + 1;
-        const W = 360, H = 112, L = 4, R = 4, T = 6, B = 20, band = (W - L - R) / cols, bw = band * .66, max = Math.max(...keys.map(k => hist[k].me + hist[k].gap)), y = v => (H - B) - v * (H - T - B) / max;
-        let g = `<line class="b" x1="${L}" x2="${W - R}" y1="${H - B}" y2="${H - B}"/>`;
-        for (let m = lo; m <= hi; m++) {
-            const x = L + band * (m - lo) + (band - bw) / 2, d = hist[m];
-            if ((m - lo) % (cols > 12 ? 2 : 1) === 0) g += `<text x="${x + bw / 2}" y="${H - 5}" text-anchor="middle">${m}</text>`;
-            if (!d) continue;
-            const y1 = y(d.me), y2 = y(d.me + d.gap);
-            g += `<g><title>${I18n.mark(`${m} · ${d.gap} / ${d.me}`)}</title>${d.me ? `<rect class="so-bar-me" x="${x}" y="${y1}" width="${bw}" height="${(H - B) - y1}"/>` : ''}${d.gap ? `<rect class="so-bar-gap" x="${x}" y="${y2}" width="${bw}" height="${Math.max(1, y1 - y2 - (d.me ? 2 : 0))}" rx="2"/>` : ''}<rect x="${L + band * (m - lo)}" y="${T}" width="${band}" height="${H - T - B}" fill="transparent"/></g>`;
-        }
-        return `<svg class="so-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Sorties du répertoire par numéro de coup">${g}</svg>`;
+    // Une phrase d'état par ouverture (index « Vitrine ») : à la place du verdict, de la maîtrise et de l'écart.
+    function stateOf(g) {
+        if (!g.all.length) return ['dim', 'Hors répertoire'];
+        const d = fairDelta(g.stats), weak = g.counts.weak + g.counts.fragile;
+        if (d !== null && d <= LOSING) return ['loss', 'Perd des points'];
+        if (weak) return ['weak', _plural(weak, 'coup à revoir', 'coups à revoir')];
+        if (g.due) return ['dim', `${g.due} à réviser`];
+        if (g.mastery >= SURE) return ['sure', 'Sue · à jour'];
+        return ['dim', 'À jour'];
     }
 
-    // ─── FICHE ───────────────────────────────────────────────────────────────
+    // Petit échiquier avec flèches (oublis) : l'échiquier de _miniBoardHTML, un calque SVG de 8 × 8 cases par-dessus.
+    function arrowsBoard(side, path, arrows, label) {
+        const at = sq => { const f = sq.charCodeAt(0) - 97, r = Number(sq[1]) - 1; return side === 'w' ? [f + .5, 7.5 - r] : [7.5 - f, r + .5]; };
+        const svg = arrows.filter(([u]) => /^[a-h][1-8][a-h][1-8]/.test(u || '')).map(([u, cls]) => {
+            const [x1, y1] = at(u.slice(0, 2)), [x2, y2] = at(u.slice(2, 4)), dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
+            const ex = x2 - ux * .5, ey = y2 - uy * .5, px = -uy * .36, py = ux * .36, f = v => v.toFixed(2);
+            const shaft = `x1="${f(x1)}" y1="${f(y1)}" x2="${f(ex)}" y2="${f(ey)}"`, head = `points="${f(x2)},${f(y2)} ${f(ex + px)},${f(ey + py)} ${f(ex - px)},${f(ey - py)}"`;
+            return `<g class="${cls}"><line class="halo" ${shaft}/><polygon class="halo" ${head}/><line ${shaft}/><polygon ${head}/></g>`;
+        }).join('');
+        return `<span class="so-ar">${_miniBoardHTML({ side, path }, true, { label })}<svg class="so-ar-svg" viewBox="0 0 8 8" aria-hidden="true">${svg}</svg></span>`;
+    }
+
+    // ─── FICHE : EN-TÊTE ─────────────────────────────────────────────────────
+    // Une position, un rang, une phrase et une seule action pleine (direction « Vitrine »).
     function headHTML(g) {
         const s = g.stats, exit = s.n ? OpeningReport.detail(g.recent, g.path.length).exitEval : null, id = OpeningReport.diagnose(s.n, s.delta, g.mastery, exit), d = id && DIAG[id];
         const text = !g.all.length ? 'Hors de votre répertoire : aucune position travaillée pour cette ouverture.'
             : !s.n ? 'Aucune de vos parties récentes ne passe par cette ouverture.'
             : !d ? `Trop peu de parties pour juger (${s.n}).` : d[1](g.mastery, num1(s.lost), exit === null ? '' : evalText(exit));
-        return `<div class="so-head vel-card vel-dark">
-            ${g.path.length && !g.all.length ? `<div class="so-board">${_miniBoardHTML({ side: g.side, path: g.path }, true)}</div>` : ''}
-            <div class="so-head-txt">
-                <span class="st-eyebrow">${g.side === 'w' ? 'Blancs' : 'Noirs'}${g.all.length ? ` · ${_plural(g.all.length, 'position')}` : ''}</span>
-                <h4 class="so-name">${g.html}</h4>
-                ${g.path.length && g.name !== _movesLabel(g.path) ? `<small class="so-moves">${_movesLabel(g.path, true)}</small>` : ''}
-                ${d || g.rank !== null ? `<div class="so-tags">${g.rank !== null ? _opRankHTML(g.rank) : ''}${d ? `<span class="so-diag">${d[0]}</span>` : ''}</div>` : ''}
-                <p>${text}</p>
-                ${rankHTML(g)}${ideaHTML(g)}
-                ${reviewHTML(g)}
-            </div></div>`;
+        const say = eloSentence(s);
+        return `<div class="so-head vel-card vel-dark${g.all.length ? ' has-rep' : ''}">
+            <div class="so-head-top">
+                ${g.path.length ? `<div class="so-board">${_miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name })}</div>` : ''}
+                <div class="so-head-id">
+                    <span class="st-eyebrow">${g.side === 'w' ? 'Blancs' : 'Noirs'}${g.all.length ? ` · ${_plural(g.all.length, 'position')}` : ''}</span>
+                    <h4 class="so-name">${g.html}</h4>
+                    ${g.path.length && g.name !== _movesLabel(g.path) ? `<small class="so-moves">${_movesLabel(g.path, true)}</small>` : ''}
+                    ${d || g.rank !== null ? `<div class="so-tags">${g.rank !== null ? _opRankHTML(g.rank) : ''}${d ? `<span class="so-diag">${d[0]}</span>` : ''}</div>` : ''}
+                </div>
+            </div>
+            <p class="so-say">${say ? `<b>${say}</b> ` : ''}${text}</p>
+            ${rankHTML(g)}${ideaHTML(g)}
+            ${reviewHTML(g)}
+        </div>`;
     }
 
     // Rang (atelier « L'envie de revenir », lot 4) : ce qui manque pour le suivant, et une barre.
@@ -179,9 +189,51 @@ const StatsOpenings = (function () {
         </div>`;
     }
 
+    // ─── FICHE : ONGLETS ─────────────────────────────────────────────────────
+    // Trois onglets (direction « Vitrine ») : Ligne (oublis, explorateur), En partie (niveau, mois, préparation), Mes coups.
+    // Les trois panneaux sont rendus ; changer d'onglet ne fait que basculer hidden (opTab), sans repeindre.
+    const TABS = [['line', 'Ligne'], ['games', 'En partie'], ['moves', 'Mes coups']];
+    function tabsHTML(g) {
+        const count = { line: 0, games: g.stats.n, moves: g.items.length };
+        return `<div class="tr-seg so-tabs" role="tablist" aria-label="Sections de la fiche">${TABS.map(([id, label]) => {
+            const on = st.tab === id;
+            return `<button type="button" class="tr-seg-btn${on ? ' active' : ''}" role="tab" id="so-t-${id}" aria-selected="${on}" aria-controls="so-p-${id}" tabindex="${on ? 0 : -1}" data-action="opTab" data-arg="${id}">${label}${count[id] ? ` <b>${count[id]}</b>` : ''}</button>`;
+        }).join('')}</div>`;
+    }
+    const paneHTML = (id, html) => `<div class="so-pane" id="so-p-${id}" role="tabpanel" aria-labelledby="so-t-${id}" data-tab="${id}"${st.tab === id ? '' : ' hidden'}>${html}</div>`;
+
+    function setTab(id) {
+        if (!TABS.some(([t]) => t === id)) return;
+        st.tab = id;
+        const s = slot();
+        if (!s) return;
+        s.querySelectorAll('.so-tabs [role="tab"]').forEach(b => { const on = b.dataset.arg === id; b.classList.toggle('active', on); b.setAttribute('aria-selected', on); b.tabIndex = on ? 0 : -1; });
+        s.querySelectorAll('.so-pane').forEach(p => { p.hidden = p.dataset.tab !== id; });
+    }
+
+    // Ligne › Vos oublis en partie (ex « Coups joués à la place ») : la position, deux flèches (joué / prévu) et « Réviser ce coup ».
+    function slipsHTML(g) {
+        if (!g.stats.n) return '';
+        const db = readDBFor(currentRepertoire, g.side), list = OpeningReport.detail(g.recent, g.path.length).swaps.slice(0, SWAPS);
+        if (!list.length) return '';
+        return `<div class="so-card so-slips"><h5>Vos oublis en partie</h5>
+            <div class="so-slip-list">${list.map(x => {
+                const arg = escapeHtml(g.side + ':' + x.key), own = !!db[x.key], played = _moveLabel({ ply: x.ply, san: x.played }, false, true), planned = _moveLabel({ ply: x.ply, san: x.expected }, false, true);
+                return `<div class="so-swap">
+                    <button type="button" class="so-slip-b" data-action="statsPreview" data-arg="${arg}" data-origin="${escapeHtml(g.name)}" title="Voir la position" aria-label="Voir la position">${arrowsBoard(g.side, x.path || [], [[x.playedUci, 'is-played'], [x.expectedUci, 'is-planned']], 'Position de l’oubli')}</button>
+                    <div class="so-slip-t">
+                        <span class="so-slip-h">Coup ${Math.ceil(x.ply / 2)} · ${_plural(x.n, 'partie')} · ${pct(x.t.score)}</span>
+                        <span class="so-slip-mv is-played"><i aria-hidden="true"></i><span class="so-mv">${played}</span><small>joué</small></span>
+                        <span class="so-slip-mv is-planned"><i aria-hidden="true"></i><span class="so-mv">${planned}</span><small>prévu</small></span>
+                        ${own ? `<button type="button" class="btn btn-soft so-slip-go" data-action="opReviewMove" data-arg="${arg}">${ico('play')}Réviser ce coup</button>` : ''}
+                    </div></div>`;
+            }).join('')}</div></div>`;
+    }
+
     // Explorateur (atelier « Ouvertures et Progrès », lot 2) : la ligne se parcourt coup par coup depuis la position de l'ouverture.
     // À mon trait, ma réponse et son niveau ; au trait adverse, les coups connus (répertoire, parties de la période, repérés),
     // et en ambre ceux qui n'ont pas de réponse, avec « Ajouter une réponse » (Analyse sur la position). OpeningExplorer calcule.
+    // Il couvre aussi l'ancienne carte « Réponses adverses », retirée (chantier « Ouvertures repensées »).
     const X_REPLIES = 8;
     function explorerHTML(g) {
         if (!g.all.length || !g.path.length) return '';
@@ -245,47 +297,85 @@ const StatsOpenings = (function () {
         if (on && on.focus) on.focus({ preventScroll: true });
     }
 
-    function kpisHTML(g) {
+    // En partie › Votre niveau dans cette ouverture (ex « Score face à l'attendu » et « Niveau joué », fusionnés) :
+    // le niveau joué en Elo face au mien, puis la bande « Mois par mois » (ex « Score par mois »).
+    function levelHTML(g) {
         const s = g.stats;
-        return `<div class="so-kpis">
-            <div class="so-card so-kpi"><span>Score</span><b>${s.n ? pct(s.score) : '–'}</b><small>${_plural(s.n, 'partie')}</small>${wdlBar(s)}</div>
-            <div class="so-card so-kpi"><span>Score face à l'attendu</span><b>${delta(fairDelta(s), ' %')}</b><small>${s.expected === null ? 'Elo inconnu' : `Attendu : ${pct(s.expected)}`}</small></div>
-            <div class="so-card so-kpi"><span>Niveau joué</span><b>${s.perf === null ? '–' : s.perf}</b><small>Elo d'après vos résultats</small></div>
-            <div class="so-card so-kpi"><span>Maîtrise</span><b>${g.mastery === null ? '–' : `${g.mastery} / 100`}</b><small>Entraînement</small></div>
-        </div>`;
+        let big, scale = '';
+        if (s.perf !== null) {
+            const n = Math.abs(s.gap), cls = n < EVEN_ELO ? 'even' : s.gap < 0 ? 'down' : 'up';
+            const word = cls === 'even' ? 'à votre niveau' : cls === 'down' ? `${elo(n)} sous votre Elo` : `${elo(n)} au-dessus de votre Elo`;
+            big = `<div class="so-lv-big"><b>${elo(s.perf)}</b><span class="so-lv-gap ${cls}">${cls === 'even' ? '' : `<i aria-hidden="true">${cls === 'down' ? '▼' : '▲'}</i>`}${word}</span></div>`;
+            const lo = Math.floor((Math.min(s.perf, s.me) - 60) / 100) * 100, hi = Math.ceil((Math.max(s.perf, s.me) + 60) / 100) * 100;
+            const W = 300, x = v => 10 + (v - lo) * (W - 20) / (hi - lo), a = x(s.perf), b = x(s.me);
+            scale = `<svg class="so-lv-scale ${cls}" viewBox="0 0 ${W} 44" role="img" aria-label="${I18n.mark(`${s.perf} / ${s.me}`)}">
+                <line class="track" x1="10" y1="22" x2="${W - 10}" y2="22"/><line class="span" x1="${Math.min(a, b)}" y1="22" x2="${Math.max(a, b)}" y2="22"/>
+                <circle class="here" cx="${a}" cy="22" r="6"/><rect class="you" x="${b - 3}" y="12" width="6" height="20" rx="2"/>
+                <text x="${a}" y="42" text-anchor="middle">ici ${I18n.mark(String(s.perf))}</text><text x="${b}" y="8" text-anchor="middle">vous ${I18n.mark(String(s.me))}</text>
+                <text class="end" x="10" y="42">${I18n.mark(String(lo))}</text><text class="end" x="${W - 10}" y="42" text-anchor="end">${I18n.mark(String(hi))}</text></svg>`;
+        } else big = `<div class="so-lv-big"><b>${pct(s.score)}</b><span class="so-lv-gap">des points</span></div><p class="st-sub">Le niveau en Elo demande ${MIN_MAP} parties classées.</p>`;
+        return `<div class="so-card so-lv"><h5>Votre niveau dans cette ouverture</h5>${big}${scale}
+            <div class="so-lv-sub"><span>${_plural(s.n, 'partie')} · ${pct(s.score)} des points</span>${wdlBar(s)}</div>
+            ${monthsHTML(g)}</div>`;
     }
 
-    function gamesHTML(g) {
-        const s = g.stats;
-        if (!s.n) {
-            const none = !StatsGames.analysed().length;
-            return `<p class="st-sub so-empty">${none ? (StatsGames.pending() ? 'Comparaison avec vos parties…' : "Reliez un compte dans l'onglet Parties pour voir vos résultats réels.") : 'Aucune partie sur cette période.'}</p>`;
-        }
-        const r = OpeningReport.detail(g.recent, g.path.length), months = OpeningReport.months(g.recent.map(x => x.g), monthSpan(), Date.now());
-        const above = months.filter(m => m.n && m.expected !== null && m.score >= m.expected).length, played = months.filter(m => m.n).length;
-        const hist = histChart(r.hist), replies = r.replies.filter(x => x.n >= 2).slice(0, REPLIES), swaps = r.swaps.slice(0, SWAPS);
-        const STATE = { covered: 'Couvert', missing: 'Manquant', end: 'Fin de préparation' };
+    // Mois par mois : une case par mois, au-dessus (vert) ou sous (rouge) le score attendu à mon Elo, vide sans partie.
+    function monthsHTML(g) {
+        const list = OpeningReport.months(g.recent.map(x => x.g), monthSpan(), Date.now()), fmt = new Intl.DateTimeFormat(I18n.locale(), { month: 'short' });
+        const name = t => fmt.format(new Date(t)), every = list.length > 6 ? 3 : 1;
+        const above = list.filter(m => m.delta !== null && m.delta >= 0).length, judged = list.filter(m => m.delta !== null).length;
+        const cells = list.map(m => {
+            const cls = !m.n ? 'none' : m.delta === null ? 'flat' : m.delta >= 0 ? 'up' : 'down';
+            const tip = `${name(m.at)} · ${_plural(m.n, 'partie')}${m.perf !== null ? ` · niveau ${m.perf}` : m.n ? ` · ${pct(m.score)}` : ''}`;
+            return `<i class="${cls}" title="${escapeHtml(I18n.mark(tip))}"></i>`;
+        }).join('');
+        const ticks = list.map((m, i) => `<small>${(list.length - 1 - i) % every === 0 ? I18n.mark(name(m.at)) : ''}</small>`).join('');
+        return `<div class="so-months-h"><span>Mois par mois</span>${judged ? `<small>${above} sur ${judged} au-dessus de votre niveau</small>` : ''}</div>
+            <div class="so-months" style="--n:${list.length}" role="img" aria-label="Mois par mois">${cells}${ticks}</div>`;
+    }
+
+    // En partie › Jusqu'où va votre préparation (ex « Où le répertoire s'arrête », absorbe « Votre préparation ») :
+    // une règle de coups, un point par partie sortie du répertoire (plein : mon oubli ; cerclé d'ambre : coup imprévu).
+    const RULER_DOTS = 5;
+    function prepHTML(g) {
+        const r = OpeningReport.detail(g.recent, g.path.length), hist = r.hist, keys = Object.keys(hist).map(Number);
         const fact = (l, v) => `<div class="so-fact"><span>${l}</span><b>${v}</b></div>`;
-        return `<div class="so-grid">
-            <div class="so-card so-c7"><h5>Score par mois</h5><p class="st-sub">${above} mois sur ${played} au-dessus de l'attendu</p>
-                <div class="so-leg"><span><i class="so-bar-real"></i>Score réel</span><span><i class="so-exp"></i>Score attendu</span></div>${monthsChart(months)}</div>
-            <div class="so-card so-c5"><h5>Votre préparation</h5>
+        let ruler = '<p class="st-sub so-none">Aucune sortie du répertoire dans vos parties de la période.</p>';
+        if (keys.length) {
+            const lo = Math.max(1, Math.min(...keys) - 1), hi = Math.min(lo + 15, Math.max(lo + 7, Math.max(...keys) + 1)), cols = [];
+            for (let m = lo; m <= hi; m++) {
+                const d = hist[m] || { me: 0, gap: 0 }, total = d.me + d.gap, dots = [];
+                for (let i = 0; i < Math.min(d.me, RULER_DOTS); i++) dots.push('<i class="me"></i>');
+                for (let i = 0; i < Math.min(d.gap, RULER_DOTS - dots.length); i++) dots.push('<i class="gap"></i>');
+                const more = total > dots.length ? `<b>+${total - dots.length}</b>` : '';
+                const tip = total ? `Coup ${m} · ${_plural(d.me, 'oubli')} · ${_plural(d.gap, 'coup imprévu', 'coups imprévus')}` : `Coup ${m}`;
+                cols.push(`<div title="${escapeHtml(tip)}">${dots.join('')}${more}</div>`);
+            }
+            const labels = [];
+            for (let m = lo; m <= hi; m++) labels.push(m === r.exitMove ? `<b>${m}</b>` : `<span>${(m - lo) % (hi - lo > 11 ? 2 : 1) === 0 ? m : ''}</span>`);
+            ruler = `<div class="so-ruler" style="--n:${hi - lo + 1}" role="img" aria-label="Sorties du répertoire par numéro de coup">${cols.join('')}</div>
+                <div class="so-ruler-l" style="--n:${hi - lo + 1}" aria-hidden="true">${labels.join('')}</div>
+                <div class="so-leg"><span><i class="so-dot-me"></i>Vous avez oublié</span><span><i class="so-dot-gap"></i>Coup imprévu</span><span>Sortie moyenne : coup ${r.exitMove}</span></div>`;
+        }
+        return `<div class="so-card so-prep"><h5>Jusqu’où va votre préparation</h5>${ruler}
+            <div class="so-facts">
                 ${fact('Répertoire suivi', pct(r.followed))}
                 ${fact('Score en le suivant', r.kept.n ? pct(r.kept.score) : '–')}
                 ${fact('Score en le quittant', r.left.n ? pct(r.left.score) : '–')}
                 ${fact('Réponses couvertes', pct(r.coverage))}
-                ${fact('Sortie moyenne', `coup ${r.exitMove}`)}
                 ${r.exitEval === null ? '' : fact('Évaluation à la sortie', evalText(r.exitEval))}
                 ${r.exitGood.n >= 3 ? fact('Score après une bonne sortie', pct(r.exitGood.score)) : ''}
                 ${r.exitBad.n >= 3 ? fact('Score après une mauvaise sortie', pct(r.exitBad.score)) : ''}
-                ${r.exitClock === null ? '' : fact('Avance à l\'horloge', `${r.exitClock >= 0 ? '+' : '−'}${Math.abs(Math.round(r.exitClock))} %`)}</div>
-            ${hist ? `<div class="so-card so-c6"><h5>Où le répertoire s'arrête</h5>
-                <div class="so-leg"><span><i class="so-bar-gap"></i>Réponse manquante</span><span><i class="so-bar-me"></i>Vous sortez du répertoire</span></div>${hist}</div>` : ''}
-            ${replies.length ? `<div class="so-card so-c6"><h5>Réponses adverses</h5>
-                <div class="so-table">${replies.map(x => `<div class="so-tr"><span class="so-mv">${_moveLabel(x, false, true)}</span><span class="so-share"><i style="width:${Math.max(4, x.share * .6)}%"></i>${pct(x.share)}</span><span class="so-num">${pct(x.t.score)}</span><span class="so-state ${x.state}">${STATE[x.state]}</span></div>`).join('')}</div></div>` : ''}
-            ${swaps.length ? `<div class="so-card so-c12"><h5>Coups joués à la place</h5>
-                ${swaps.map(x => `<button type="button" class="so-swap" data-action="statsPreview" data-arg="${escapeHtml(g.side + ':' + x.key)}" data-origin="${escapeHtml(g.name)}"><span class="so-mv">${_moveLabel({ ply: x.ply, san: x.played }, false, true)}</span><span class="so-instead">au lieu de <span class="so-mv">${_moveLabel({ ply: x.ply, san: x.expected }, false, true)}</span></span><small>${_plural(x.n, 'partie')} · ${pct(x.t.score)}</small>${ico('chevron-right')}</button>`).join('')}</div>` : ''}
-        </div>`;
+                ${r.exitClock === null ? '' : fact('Avance à l\'horloge', `${r.exitClock >= 0 ? '+' : '−'}${Math.abs(Math.round(r.exitClock))} %`)}
+            </div></div>`;
+    }
+
+    function gamesHTML(g) {
+        if (!g.stats.n) {
+            const none = !StatsGames.analysed().length;
+            return `<p class="st-sub so-empty">${none ? (StatsGames.pending() ? 'Comparaison avec vos parties…' : "Reliez un compte dans l'onglet Parties pour voir vos résultats réels.") : 'Aucune partie sur cette période.'}</p>`;
+        }
+        return `${levelHTML(g)}${prepHTML(g)}`;
     }
 
     // Derniers coups avant ma réponse : sans eux, « 4… e6 » ne dit pas de quelle position il s'agit.
@@ -301,27 +391,24 @@ const StatsOpenings = (function () {
         } catch (e) { return ''; }
     }
 
+    // Mes coups, du plus fragile au plus sûr (ex « Vos coups à connaître », allégée) : miniature, coup, niveau, un bouton.
+    // Parties, maîtrise et prochaine révision sont dans l'aperçu (toucher la miniature).
     function positionsHTML(g) {
         if (!g.all.length) return '';
-        const now = Date.now(), items = g.items.slice().sort(_byWorst), shown = st.all.has(g.key) ? items : items.slice(0, ROWS);
-        const games = r => { const list = st.reached.get(r.side + '|' + r.k) || []; if (!list.length) return '<i class="so-none">–</i>'; return `${_plural(list.length, 'partie')} · ${pct(OpeningReport.summarize(list).score)}`; };
+        const items = g.items.slice().sort(_byWorst), shown = st.all.has(g.key) ? items : items.slice(0, ROWS);
         const rows = shown.map(r => {
-            const d = isDue(r.e, now), m = Math.round(masteryOf(r.e));
-            return `<div class="st-row">
+            const label = escapeHtml(_moveLabel(r.e));
+            return `<div class="st-row so-my lv-${r.lv}">
+                <button type="button" class="so-my-b" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="${escapeHtml(g.name)}" aria-label="Voir ${label}">${_miniBoardHTML(r.path ? { side: r.side, path: r.path } : r, false)}</button>
                 <span class="st-move">${_moveLabel(r.e, false, true)}<small class="so-after">${afterHTML(r.e.path)}</small></span>
                 <span class="st-lvl">${_lvMark(r.lv)}${STATS_LEVELS[r.lv].one}</span>
-                <span class="st-errs lv-${r.lv}" title="${r.e.failures} err. / ${r.e.attempts}"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, m)}%"></i></span><span class="st-n">${_lvEngrave(r.e)}${m} / 100</span></span>
-                <span class="so-games">${games(r)}</span>
-                <span class="st-when ${d ? 'on' : ''}">${d ? 'Aujourd’hui' : dueInLabel(dueOf(r.e))}</span>
-                <span class="st-acts">
-                    <button type="button" class="st-ibtn pri" data-action="statsTrain" data-arg="${_statsArg(r)}" title="S'entraîner sur cette position (compte comme un essai)" aria-label="S'entraîner sur ${escapeHtml(_moveLabel(r.e))}">${ico('play')}</button>
-                    <button type="button" class="st-ibtn" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="${escapeHtml(g.name)}" title="Voir la position" aria-label="Voir ${escapeHtml(_moveLabel(r.e))}">${ico('eye')}</button>
-                </span></div>`;
+                <button type="button" class="st-ibtn pri" data-action="statsTrain" data-arg="${_statsArg(r)}" title="S'entraîner sur cette position (compte comme un essai)" aria-label="S'entraîner sur ${label}">${ico('play')}</button>
+            </div>`;
         }).join('');
         const more = items.length > ROWS ? `<button type="button" class="st-more" data-action="statsOpMore" data-arg="${escapeHtml(g.key)}" aria-expanded="${items.length === shown.length}">${items.length === shown.length ? 'Réduire' : `Afficher les ${items.length - shown.length} autres coups`}</button>` : '';
-        return `<div class="so-card so-pos"><h5>Vos coups à connaître</h5><p class="st-sub">${_plural(items.length, 'coup')}</p>
+        return `<div class="so-card so-pos"><h5>Mes coups, du plus fragile au plus sûr</h5><p class="st-sub">${_plural(items.length, 'coup')}</p>
             ${levelBarHTML(g.counts)}
-            <div class="st-rows"><div class="st-row st-row-hd" aria-hidden="true"><span>Coup</span><span>Niveau</span><span>Maîtrise</span><span>Parties</span><span>Révision</span><span></span></div>${rows}${more}</div></div>`;
+            <div class="st-rows">${rows}${more}</div></div>`;
     }
 
     // Filtre de niveau (lot 1) : la barre de niveaux elle-même, « À confirmer » à part (hors des barres), une ligne de rappel.
@@ -345,6 +432,14 @@ const StatsOpenings = (function () {
             ${filterHTML()}${body}</div>`;
     }
 
+    function ficheHTML(g) {
+        if (!g.all.length) return `${headHTML(g)}${gamesHTML(g)}`;
+        return `${headHTML(g)}${tabsHTML(g)}
+            ${paneHTML('line', `${slipsHTML(g)}${explorerHTML(g)}`)}
+            ${paneHTML('games', gamesHTML(g))}
+            ${paneHTML('moves', positionsHTML(g))}`;
+    }
+
     function inner() {
         const g = current();
         if (!g) return `<div class="so-layout">${indexHTML()}</div>`;
@@ -356,23 +451,23 @@ const StatsOpenings = (function () {
                 <button type="button" class="so-step" data-action="statsOpStep" data-arg="-1" title="Précédente à travailler" aria-label="Précédente à travailler">${ico('chevron-left')}</button>
                 <button type="button" class="so-step" data-action="statsOpStep" data-arg="1" title="Suivante à travailler" aria-label="Suivante à travailler">${ico('chevron-right')}</button>
             </div>
-            <div class="so-fiche">${headHTML(g)}${explorerHTML(g)}${kpisHTML(g)}${gamesHTML(g)}${positionsHTML(g)}</div>
+            <div class="so-fiche">${ficheHTML(g)}</div>
         </div></div>`;
     }
 
-    // ─── MIROIR ──────────────────────────────────────────────────────────────
-    // Toutes les ouvertures dans l'ordre du classement (points perdus, puis fragilité) : position, nom et niveaux, verdict.
+    // ─── INDEX « VITRINE » ───────────────────────────────────────────────────
+    // Toutes les ouvertures dans l'ordre du classement (points perdus, puis fragilité). Une même carte : en tuile
+    // (miniature, sceau du rang, nom, une phrase d'état) quand l'index est seul ; en ligne de 60 px quand la fiche est à côté.
     function mirrorHTML() {
         const row = g => {
-            const d = fairDelta(g.stats), moves = g.path.length && g.name !== _movesLabel(g.path) ? _movesLabel(g.path, true) : '', v = g.diag && DIAG[g.diag];
-            const label = `${g.name} · ${g.all.length ? `maîtrise ${g.mastery} / 100` : 'hors répertoire'}${v ? ` · ${v[0]}` : ''} · ${d === null ? _plural(g.stats.n, 'partie') : `${d >= 0 ? '+' : '−'}${num1(d)} %`}`;
-            const tag = v ? `<span class="so-mr-v v-${g.diag}">${v[0]}</span>`
-                : `<span class="so-mr-v">${g.all.length ? `${g.mastery}<small> / 100</small>` : 'Hors rép.'}</span>`;
+            const [cls, text] = stateOf(g), gap = g.stats.gap;
+            const label = `${g.name}${g.rank !== null ? ` · ${OpeningMarks.RANKS[g.rank]}` : ''} · ${text}${gap === null ? '' : ` · ${eloSigned(gap)}`}`;
+            const board = g.path.length ? _miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name }) : `<span class="so-mr-none">${sideDot(g.side)}</span>`;
             return `<button type="button" class="so-mr${g.key === st.cur ? ' on' : ''}" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}" aria-pressed="${g.key === st.cur}" aria-label="${escapeHtml(label)}">
-                <span class="so-mr-b">${g.path.length ? _miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name }) : sideDot(g.side)}</span>
-                <span class="so-mr-n"><span class="so-txt"><b>${statsColor === 'all' ? sideDot(g.side) : ''}${g.html}</b>${moves ? `<small>${moves}</small>` : ''}</span>
-                    ${g.all.length ? levelBarHTML(g.counts, 'so-mr-bar') : ''}${g.rank !== null ? _opRankHTML(g.rank, 'is-mini') : ''}</span>
-                <span class="so-mr-r">${tag}${d === null ? '' : `<small class="${d >= 0 ? 'up' : 'down'}">${I18n.mark(`${d >= 0 ? '+' : '−'}${num1(d)} %`)}</small>`}</span></button>`;
+                <span class="so-mr-b">${board}${g.rank !== null ? _opRankHTML(g.rank, 'so-seal') : ''}</span>
+                <span class="so-mr-n"><b class="so-mr-t">${statsColor === 'all' ? sideDot(g.side) : ''}<span>${g.html}</span></b>
+                    <span class="so-mr-s"><span class="so-mr-st is-${cls}">${text}</span>${eloTag(g.stats)}</span>
+                    ${g.all.length ? levelBarHTML(g.counts, 'so-mr-bar') : ''}</span></button>`;
         };
         return `<div class="so-mirror">${st.list.map(row).join('')}</div>`;
     }
@@ -402,7 +497,7 @@ const StatsOpenings = (function () {
 
     // ─── SÉLECTEUR ───────────────────────────────────────────────────────────
     const pickerEl = () => document.getElementById('so-picker');
-    const optHTML = g => `<button type="button" class="so-opt" role="option" tabindex="-1" aria-selected="${g.key === st.cur}" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}">${sideDot(g.side)}<span class="so-txt"><b>${g.html}</b><small>${metaOf(g)}</small></span>${wdlBar(g.stats)}${delta(fairDelta(g.stats))}</button>`;
+    const optHTML = g => `<button type="button" class="so-opt" role="option" tabindex="-1" aria-selected="${g.key === st.cur}" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}">${sideDot(g.side)}<span class="so-txt"><b>${g.html}</b><small>${metaOf(g)}</small></span>${wdlBar(g.stats)}${eloTag(g.stats)}</button>`;
     const searchable = g => { let moves = ''; try { moves = `${_movesLabel(g.path)} ${_pathToSans(g.path).join(' ')}`; } catch (e) { /* chemin illisible */ } return norm(`${g.name} ${I18n.t(g.name)} ${moves}`); };
 
     function mapHTML(list) {
@@ -542,6 +637,8 @@ const StatsOpenings = (function () {
             const g = st.list.find(x => x.key === k), v = g && OpeningMarks.idea(currentRepertoire, g.side, g.name);
             if (v) { OpeningMarks.setIdea(currentRepertoire, k, I18n.t(v.text)); paint(); }
         },
+        opTab: setTab,
+        opReviewMove: arg => { const { side, key } = _parseStatsArg(arg); startReviewQueue([{ color: side, key }], 'openings'); },
         opBack: () => { st.open = false; paint(); window.scrollTo({ top: 0 }); },
         statsOpStep: d => step(Number(d)),
         opReview: arg => {
@@ -562,9 +659,17 @@ const StatsOpenings = (function () {
     Bus.on('games:analysed', paint);
     Bus.on('games:evaluated', paint);
     // Points de la carte de l'index : Entrée ou Espace comme un clic (ceux du sélecteur passent par onKey).
+    // Onglets de la fiche : flèches gauche et droite d'un onglet à l'autre.
     document.addEventListener('keydown', e => {
         const point = e.target.closest && e.target.closest('#stats-lines .so-point');
-        if (point && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(point.dataset.arg); }
+        if (point && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); pick(point.dataset.arg); return; }
+        const tab = e.target.closest && e.target.closest('#stats-lines .so-tabs [role="tab"]');
+        if (!tab || (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight')) return;
+        e.preventDefault();
+        const i = TABS.findIndex(([t]) => t === tab.dataset.arg), next = TABS[(i + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length][0];
+        setTab(next);
+        const b = document.getElementById('so-t-' + next);
+        if (b) b.focus();
     });
 
     return { sectionHTML, prime, reset: () => { st.cur = null; st.picked = false; st.open = false; }, close, topLoss, count: () => st.list.length,

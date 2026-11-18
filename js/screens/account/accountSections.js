@@ -85,7 +85,7 @@ const AccountSections = ctx => {
             + PanelKit.group('Classement et objectif', [
                 ..._eloRows(),
                 PanelKit.row('Objectif quotidien', 'Aussi réglable dans Paramètres › Jeu et entraînement.',
-                    PanelKit.range('dailyGoal', appSettings.dailyGoal, 5, 50, 5, `${appSettings.dailyGoal} positions`, 'Objectif quotidien'))])
+                    PanelKit.seg('dailyGoal', [[15, 'Léger · 15'], [30, 'Normal · 30'], [60, 'Soutenu · 60']], appSettings.dailyGoal, 'Objectif quotidien'))])
             + PanelKit.group('Comptes d’échecs en ligne', [
                 PanelKit.row('Lichess', 'Pour comparer vos parties à votre répertoire (Analyser mes parties).',
                     `<input class="pn-input" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="pseudo Lichess" value="${esc(appSettings.lichessUser)}" data-pn="text" data-key="lichessUser" aria-label="Pseudo Lichess">`),

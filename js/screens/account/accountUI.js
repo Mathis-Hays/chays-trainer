@@ -183,7 +183,9 @@ const AccountUI = (function () {
     }
 
     // « Continuer avec Google », en tête des deux vues (redirection, pas de One Tap).
+    let googleLabel = '';
     function googleBlock(label) {
+        googleLabel = label;
         if (!providersReady && isOnline()) return '<div class="account-providers sk-online" aria-hidden="true"><span class="sk sk-btn"></span></div><div class="account-or sk-online" aria-hidden="true"><span class="sk sk-line" style="width:140px"></span></div>';
         if (!providers.includes('google')) return '';
         return `<div class="account-providers"><button class="btn account-provider account-provider-google" data-needs-network data-act="provider:google" type="button"><span class="account-provider-badge">${SVG_GOOGLE}</span>Continuer avec Google</button></div>
@@ -329,6 +331,7 @@ const AccountUI = (function () {
         if (view === 'auth' || view === 'signup') { linkMode = false; swapOffer = false; }
         confirmDelete = false; editEmail = false; studioTab = '';
         panelApi.open(view === 'account' ? section : undefined);
+        if (!providersReady) loadProviders();
         if (view === 'account' && Auth.fetchUser) Auth.fetchUser().then(u => { userInfo = u; if (isOpen() && panelApi.state.section === 'securite') render(); });
     }
     function close() { if (panelApi) panelApi.close(); }
@@ -354,6 +357,10 @@ const AccountUI = (function () {
         if (kind === 'toggle' && key === 'syncLooks') {
             appSettings.syncLooks = value; saveSettings();
             if (value) _copyLooksToPrefs();
+            return render();
+        }
+        if (kind === 'seg' && key === 'dailyGoal') {            // objectif du jour : mêmes effets que dans les Paramètres
+            if (typeof setPref === 'function') setPref(key, Number(value));
             return render();
         }
         if (kind === 'seg') {
@@ -624,8 +631,8 @@ const AccountUI = (function () {
         onNotice(Auth.takeNotice());
         if (typeof AvatarPhoto !== 'undefined') AvatarPhoto.onChange(() => { updateButton(); if (isOpen() && view === 'account') render(); });
         if (Auth.isSignedIn()) ensureIntent();
-        loadProviders();
-        if (typeof Net !== 'undefined') Net.onChange(on => { if (on && !providersReady) loadProviders(); });
+        // Fournisseurs : demandés à l'ouverture de la fenêtre (open), plus au lancement.
+        if (typeof Net !== 'undefined') Net.onChange(on => { if (on && !providersReady && isOpen()) loadProviders(); });
     }
 
     // Nouveau compte (création et première connexion à moins d'une minute d'écart) sans pseudo : accueil.
@@ -652,8 +659,19 @@ const AccountUI = (function () {
         Promise.resolve(Auth.providers ? Auth.providers() : []).then(p => {
             providers = Array.isArray(p) ? p : [];
             providersReady = providers.length > 0 || isOnline();
-            if (isOpen() && view === 'auth') render();
-        }).catch(() => { providersReady = true; if (isOpen() && view === 'auth') render(); });
+            paintProviders();
+        }).catch(() => { providersReady = true; paintProviders(); });
+    }
+    // Remplace l'emplacement d'attente sur place : la liste arrive souvent pendant la saisie (fenêtre ouverte),
+    // un nouveau rendu effacerait les erreurs affichées sous les champs.
+    function paintProviders() {
+        if (!isOpen() || !overlay) return;
+        const sk = [...overlay.querySelectorAll('.account-providers.sk-online, .account-or.sk-online')];
+        if (!sk.length) return;
+        const tpl = document.createElement('template');
+        tpl.innerHTML = googleBlock(googleLabel);
+        sk[0].replaceWith(tpl.content);
+        sk.slice(1).forEach(el => el.remove());
     }
 
     function setSyncStatus(level, text) {

@@ -99,6 +99,25 @@ t('file À revoir et score : ceux du passage le plus récent, dans les deux ordr
     assert.strictEqual(d.relearn, 0, 'égalité : reste dans la file'); assert.strictEqual(d.mastery, 24, 'égalité : score le plus bas');
     assert.strictEqual(JSON.stringify(d), JSON.stringify(f));
 });
+t('journal d\'activité : passages hors révision (p, série seule) additionnés comme les essais, absents s\'ils sont nuls', () => {
+    const K = 'chessTrainer_activity';
+    const m = S.merge(K, { d: { a: 1, f: 0, p: 1 } }, { d: { a: 3, f: 1, p: 4 } }, { d: { a: 2, f: 0, p: 2 } });
+    assert.strictEqual(m.d.p, 5, 'base 1 + 3 + 1'); assert.strictEqual(m.d.a, 4);
+    assert.strictEqual(JSON.stringify(m), JSON.stringify(S.merge(K, { d: { a: 1, f: 0, p: 1 } }, { d: { a: 2, f: 0, p: 2 } }, { d: { a: 3, f: 1, p: 4 } })));
+    assert.strictEqual('p' in S.merge(K, null, { d: { a: 1, f: 0 } }, { d: { a: 2, f: 0 } }).d, false);
+});
+t('série de réussites run (niveaux E3) : gardée par la fusion, celle du passage le plus récent, égalité → la plus courte', () => {
+    const b = { p: E('m', 1, 0, { lastReviewed: 1, run: 1 }) };
+    const l = { p: E('m', 3, 1, { lastReviewed: 5, run: 0 }) }, r = { p: E('m', 3, 0, { lastReviewed: 9, run: 3 }) };
+    const a = S.merge(DB, b, l, r).p, c = S.merge(DB, b, r, l).p;
+    assert.strictEqual(a.run, 3, 'passage le plus récent');
+    assert.strictEqual(JSON.stringify(a), JSON.stringify(c), 'symétrique');
+    const r2 = { p: E('m', 3, 0, { lastReviewed: 5, run: 4 }) };
+    assert.strictEqual(S.merge(DB, b, l, r2).p.run, 0, 'égalité : la plus courte');
+    assert.strictEqual(S.merge(DB, b, r2, l).p.run, 0);
+    assert.strictEqual(S.merge(DB, null, { p: E('m', 2, 0, { lastReviewed: 3, run: 2 }) }, { p: E('m', 2, 0, { lastReviewed: 3 }) }).p.run, 2, 'un seul côté le connaît : gardé');
+    assert.strictEqual(S.merge(DB, b, { p: E('m', 2, 0, { lastReviewed: 2, run: 2 }) }, b).p.run, 2, 'un seul côté a changé');
+});
 
 t('failures ne dépasse jamais attempts', () => {
     const r = S.merge(DB, { p: E('e2e4', 4, 0) }, { p: E('e2e4', 4, 4) }, { p: E('e2e4', 4, 4) });

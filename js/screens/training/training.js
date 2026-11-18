@@ -13,17 +13,23 @@
  *        line    Ligne complète : une ouverture jouée du premier coup jusqu'au bout de la variante
  *        timed   Contre-la-montre : TRAIN_TIMED_MS pour enchaîner un maximum de bons coups
  *      Une position ratée au premier essai revient une fois en fin de séance (sauf ligne et chrono) ;
- *      seul le premier essai compte pour le bilan. Les essais comptent dans les statistiques comme partout.
- *   2. Mode libre (startTraining) : tirage aléatoire pondéré sans fin (cf. _trainingWeight).
+ *      seul le premier essai compte pour le bilan. Seules les séances de révision (TRAIN_SCORED : due, review,
+ *      relearn, weak, unsure, line) notent dans le répertoire ; les autres gardent leurs propres comptes.
+ *   2. Mode libre (startTraining) : tirage aléatoire pondéré sans fin (cf. _trainingWeight), rien n'est noté.
  *      Ses options (Paramètres › Jeu et entraînement) : profondeur max, départ, nombre de coups à enchaîner.
  *
  * Pour chaque position : l'échiquier se place 3 demi-coups avant, rejoue automatiquement ces trois coups
  * (contexte, touchez l'échiquier pour passer), puis me rend la main.
- *   Une seule note par passage, donnée par le premier coup ; le deuxième passage d'une séance n'en donne pas :
+ *   Une seule note par passage, donnée par le premier coup, en révision seulement (_scores) ; le deuxième passage
+ *   d'une séance n'en donne pas :
  *   - succès : attempts + 1, score de maîtrise et planning de révision mis à jour (recordReview, storage.js)
  *   - erreur : coup refusé, attempts + 1 et failures + 1, la position entre dans la file « À revoir » ; on réessaie,
  *     sans rien compter de plus (erreurs suivantes comme réussite finale).
- *   - solution : 2e appui sur Indice (cf. showHint) ; compte comme une erreur, aucune réussite comptée.
+ *   - indice en trois paliers (showHint, boardLogic.js), barème de recordReview(entry, true, palier) :
+ *       type de pièce : réussite à +20 % de ce qui manque (au lieu de +35 %), échéance allongée normalement ;
+ *       pièce exacte : neutre, score gardé, revue demain, ni file « À revoir » ni allongement ;
+ *       solution (3e appui) : compte comme une erreur (× 0,4, file « À revoir »), aucune réussite comptée.
+ *     La gravure « Maîtrisée » reste réservée au coup trouvé sans aide.
  */
 
 'use strict';
@@ -65,6 +71,20 @@ const trainingState = {
     pause: null,            // fin d'exercice en attente : { key } de la position répondue (Suivant, Analyser, Modifier le coup)
     editing: null           // « Modifier le coup » : position dont on attend le nouveau coup
 };
+
+// Séance occupée (mise en situation, réponse adverse, pause) : ◀ ▶ se grisent avec elle (updateNavButtons, fiche navBlocked).
+(function watchBusy() {
+    let busy = trainingState.busy;
+    Object.defineProperty(trainingState, 'busy', {
+        enumerable: true,
+        get: () => busy,
+        set(v) {
+            const was = busy;
+            busy = !!v;
+            if (was !== busy && typeof updateNavButtons === 'function' && typeof document !== 'undefined' && document.getElementById) updateNavButtons();
+        }
+    });
+})();
 
 // ─── OPTIONS DU MODE LIBRE (préférences synchronisées, settings.js) ───────────
 
@@ -171,7 +191,9 @@ function startTraining(color) {
 // opts : { kind, label, items: [{ color, key }], returnTab, colors (chrono), line: { color, path, name } }
 function startSession(opts) {
     _clearSession();
-    const items = (opts.items || []).filter(it => readDBFor(currentRepertoire, it.color)[it.key]);
+    const dbs = {};   // une lecture par couleur : relire la base à chaque position coûtait près de 0,5 s sur téléphone
+    const db = c => dbs[c] || (dbs[c] = readDBFor(currentRepertoire, c));
+    const items = (opts.items || []).filter(it => db(it.color)[it.key]);
     if (opts.kind !== 'timed' && opts.kind !== 'line' && opts.kind !== 'club' && !items.length) return false;
     const S = trainingState.session = {
         kind: opts.kind, label: opts.label, returnTab: opts.returnTab || 'training',
@@ -367,11 +389,28 @@ function _endSession(early, stay) {
 // Bouton « Quitter » : bilan de ce qui a été joué (séance guidée), puis retour à l'onglet d'origine.
 // Écran de jeu quitté sans « Quitter » (logo, pilule du répertoire, Données…) : la séance en cours
 // est close, son bilan gardé, pour que le mode libre et le badge de couleur ne la voient plus.
+// Le logo reste actif en séance (chantier « Échiquier et séance ») : un court message dit que rien n'est perdu.
 function abandonSession() {
     const S = trainingState.session;
     if (!S) return;
-    if (S.results.size) _endSession(true, true);
+    const kept = !!S.results.size;
+    if (kept) _endSession(true, true);
     else _clearSession();
+    _trToast(kept ? 'Séance arrêtée, bilan gardé' : 'Séance arrêtée');
+}
+
+// Message bref en bas de l'écran (classe .toast commune), retiré après 2,6 s.
+function _trToast(msg) {
+    if (typeof document === 'undefined' || !document.body || !document.createElement) return;
+    let el = document.getElementById('tr-toast');
+    if (!el) {
+        el = Object.assign(document.createElement('div'), { id: 'tr-toast', className: 'toast tr-toast' });
+        el.setAttribute('role', 'status');
+    }
+    el.textContent = msg;
+    document.body.appendChild(el);
+    clearTimeout(_trToast.timer);
+    _trToast.timer = setTimeout(() => el.remove(), 2600);
 }
 
 function quitTraining() {
@@ -798,17 +837,37 @@ function _finishDrill() {
     if (S && S.kind === 'timed') { _later(nextDrill, 500); return; }
     trainingState.pause = { key: trainingState.drill.answered || trainingState.current };
     _syncAfterTools();
+    _afterDrill();
+}
+
+// Enchaîne ou attend selon trainNext ; rappelée quand l'interrupteur « Enchaîner » change.
+function _afterDrill() {
     const pref = appSettings.trainNext;
     if (pref === 'auto' || (pref === 'error' && !_drillSlipped())) {
         _later(nextDrill, TRAIN_NEXT_MS);
-        setStatusAction({ action: 'Rester ici', title: 'Ne pas enchaîner : rester sur cette position', run: trainingStay });
+        setStatusAction({ action: 'Rester ici', title: 'Ne pas enchaîner : rester sur cette position', run: trainingStay, ring: TRAIN_NEXT_MS, toggle: _chainToggle() });
         return;
     }
     _offerNext();
 }
 
 function _offerNext() {
-    setStatusAction({ action: 'Suivant', icon: 'skip-forward', title: 'Exercice suivant (Entrée)', run: () => nextDrill() });
+    setStatusAction({ action: 'Suivant', icon: 'skip-forward', title: 'Exercice suivant (Entrée)', run: () => nextDrill(), toggle: _chainToggle() });
+}
+
+// Interrupteur « Enchaîner » de la fin d'exercice (comme la case de Lichess) : allumé = trainNext 'auto',
+// éteint = 'error' (défaut). « Toujours attendre » ('wait') reste dans Paramètres › Entraînement › Exercice suivant ;
+// l'interrupteur y est éteint. Allumer à l'arrêt lance le décompte ; éteindre l'arrête si une réussite nette ne suffit pas.
+function _chainToggle() {
+    return { label: 'Enchaîner', on: appSettings.trainNext === 'auto', title: 'Passer seul à l’exercice suivant, même après une erreur ou un indice', run: trainingChain };
+}
+
+function trainingChain(on) {
+    setPref('trainNext', on ? 'auto' : 'error');
+    if (!trainingState.pause || trainingState.editing) return;
+    trainingState.timers.forEach(clearTimeout);
+    trainingState.timers = [];
+    _afterDrill();
 }
 
 // « Rester ici » : l'enchaînement prévu est annulé, la fin d'exercice attend.
@@ -915,7 +974,8 @@ function showTrainingSolution() {
         const first = !trainingState.keyErred;
         if (first) _sessionMistake(key);
         trainingState.keyErred = true;
-        if (TRAIN_SOLUTION_PENALTY && first && !_secondPass()) {
+        if (first && !_scores() && !_secondPass()) _logPlayed();
+        if (TRAIN_SOLUTION_PENALTY && first && _scores()) {
             entry.attempts++;
             entry.failures++;
             recordReview(entry, false);
@@ -934,12 +994,27 @@ function _secondPass() {
     return !!(it && it.second);
 }
 
-// Ce que le passage a changé : file « À revoir », sinon score de maîtrise.
-function _answerDetail(entry, inFile, before) {
+// Séances qui notent (chantier « Révision du jour », 18 novembre 2026) : les révisions seules écrivent essais, erreurs,
+// planning, série et maîtrise. Mode libre (sans séance), contre-la-montre, Survie, défi du jour, Adversaire du club,
+// erreurs de la séance et cadre de la pellicule ne touchent plus l'entrée : leurs records, vies, score et verdict du
+// défi (Daily.save) gardent leurs propres comptes. Le deuxième passage d'une séance ne note pas non plus.
+const TRAIN_SCORED = new Set(['due', 'review', 'relearn', 'weak', 'unsure', 'line']);
+// Un passage hors révision laisse seulement sa trace pour la série de jours (logActivity(…, true) : champ p du journal),
+// sans compter dans l'objectif du jour ni dans la file (décision du 18 novembre 2026).
+const _logPlayed = () => { if (typeof logActivity === 'function') logActivity(true, true); };
+function _scores() {
+    const S = trainingState.session;
+    return !!S && TRAIN_SCORED.has(S.kind) && !_secondPass();
+}
+
+// Ce que le passage a changé : file « À revoir », sinon la série de réussites et son niveau (échelle E3 : le score sur 100
+// ne s'affiche plus, il ne sert qu'au tri de la file du jour).
+function _answerDetail(entry, inFile) {
     if (inFile && !Number.isInteger(entry.relearn)) return 'Acquise : elle sort de la file À revoir.';
     if (Number.isInteger(entry.relearn)) return entry.relearn === inFile.step ? `À revoir : ${entry.relearn} / ${RELEARN_DAYS.length} · trop tôt pour avancer`
         : `À revoir : ${entry.relearn} / ${RELEARN_DAYS.length} · ${dueInLabel(entry.due)}`;
-    return `Maîtrise : ${Math.round(before)} → ${entry.mastery}`;
+    const run = runOf(entry);
+    return `${run} réussite${run > 1 ? 's' : ''} d’affilée · ${STATS_LEVELS[_level(entry)].one}`;
 }
 
 // Appelé par executePlayerMove() en mode entraînement (le coup n'est pas encore appliqué).
@@ -954,20 +1029,24 @@ function _engraveMastered() {
 function answerTrainingMove(entry, from, to, promo, movStr) {
     const key      = positionKey();
     const revealed = trainingState.solutionFor === key;
-    const second   = _secondPass();
+    const second   = _secondPass(), scored = _scores();
 
     if (entry && movStr === entry.move) {
-        let msg = '✓ Bien joué !', detail = 'Deuxième passage : rien de plus n’est compté.', engraved = false;
+        let msg = '✓ Bien joué !', detail = second ? 'Deuxième passage : rien de plus n’est compté.' : 'Hors révision : rien n’est noté.', engraved = false;
+        const help = typeof hintLevel === 'function' ? hintLevel(key) : 0;     // palier d'indice reçu : 0, 1 (type), 2 (pièce exacte)
         if (revealed) { msg = '✓ Solution jouée'; detail = 'Aucune réussite comptée.'; }
         else if (trainingState.keyErred) { msg = '✓ Bon coup'; detail = 'L’erreur est déjà comptée pour ce passage.'; }
-        else if (!second) {
-            const before = masteryOf(entry), lvBefore = _level(entry), inFile = Number.isInteger(entry.relearn) ? { step: entry.relearn } : null;
+        else if (!scored) { if (!second) _logPlayed(); }
+        else {
+            const lvBefore = _level(entry), inFile = Number.isInteger(entry.relearn) ? { step: entry.relearn } : null;
             entry.attempts++;
-            recordReview(entry, true);
+            recordReview(entry, true, help);
             saveDB();
             if (typeof Suite !== 'undefined') Suite.afterAnswer();
-            detail = _answerDetail(entry, inFile, before);
-            engraved = lvBefore !== 'mastered' && _level(entry) === 'mastered';
+            detail = help >= 2 ? 'Avec la pièce montrée : série gardée, revue demain.'
+                : help ? `Avec l’indice : ${_answerDetail(entry, inFile)}` : _answerDetail(entry, inFile);
+            if (help) msg = '✓ Trouvé avec l’indice';
+            engraved = !help && lvBefore !== 'mastered' && _level(entry) === 'mastered';   // la gravure reste au coup sans aide
             if (engraved) msg = '✓ Maîtrisée';
         }
         _sessionRecord(key, !trainingState.keyErred && !revealed);
@@ -980,7 +1059,8 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
         _continueSequence();
     } else if (entry && !revealed) {
         const first = !trainingState.keyErred;
-        if (first && !second) {                        // erreur : comptée une fois, sur la position exacte
+        if (first && !scored && !second) _logPlayed();
+        if (first && scored) {                         // erreur : comptée une fois, sur la position exacte, en révision seulement
             entry.attempts++;
             entry.failures++;
             recordReview(entry, false);
@@ -999,7 +1079,7 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
         }
         const told = !first ? '' : S && S.kind === 'timed' ? '−10 s. '
             : S && S.kind === 'survival' ? (S.lives > 0 ? `Plus que ${S.lives} vie${S.lives > 1 ? 's' : ''}. ` : 'Troisième erreur : la survie s’arrête après cette position. ')
-            : second ? '' : 'Elle passe dans la file À revoir. ';
+            : scored ? 'Elle passe dans la file À revoir. ' : '';
         _rejectMove(to, '✗ Pas le bon coup', `${told}Réessayez, ou appuyez sur Indice.`, from);
         noteMistake(key);
     } else {
@@ -1010,14 +1090,32 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
 GameModes.register('training', {
     inputBlocked: () => trainingState.busy,
     navBlocked: () => trainingState.busy,
+    navBlockedNote: 'Patientez : la position se met en place',
     backToLive: () => trainingBackToLive(),
     sessionCursor: true,
     hintToSolution: true,
-    hintNote: ' — ne compte pas comme une erreur',
+    hintNote: ' — gain de maîtrise réduit',
+    pieceNote: ' — maîtrise gardée, revue demain',
     solutionNote: ' — compte une erreur',
-    solutionCost: () => (TRAIN_SOLUTION_PENALTY ? ' Voir la solution compte comme une erreur.' : ''),
+    hintCost: step => !_scores() ? '' : step >= 2 ? ' Trouvé ainsi : maîtrise gardée, revue demain.' : ' Trouvé ainsi : gain de maîtrise réduit.',
+    idleAction: () => _focusHintAction(),
+    solutionCost: () => (TRAIN_SOLUTION_PENALTY && _scores() ? ' Voir la solution compte comme une erreur.' : ''),
     onMove: (from, to, promo) => trainingState.editing === positionKey() ? _editPlayed(from, to, promo)
         : answerTrainingMove(openingDB[positionKey()], from, to, promo, moveToStr(from, to, promo)),
     onSolution: () => showTrainingSolution(),
     liveStatus: () => trainingLiveStatus()
 });
+
+// Mode Focus : la rangée de boutons est cachée (css/game.css), l'Indice devient l'action de la barre d'état
+// pendant mon tour (« Indice », « Pièce », puis « Solution »). La touche Espace reste.
+function _focusHintAction() {
+    if (typeof TrainFocus === 'undefined' || !TrainFocus.active() || gameMode !== 'training') return null;
+    if (trainingState.busy || trainingState.pause || trainingState.editing || trainingState.bite || turn !== playerColor || navCursor !== -1) return null;
+    const key = positionKey();
+    if (!openingDB[key]) return null;
+    const step = trainingState.solutionFor === key ? 3 : hintLevel(key);
+    if (step >= 3) return null;                              // solution montrée : il reste à la jouer
+    return step >= 2 ? { action: 'Solution', icon: 'flame', title: 'Voir la solution (Espace) — compte une erreur', run: () => showHint() }
+        : step ? { action: 'Pièce', icon: 'lightbulb', title: 'Montrer la pièce (Espace) — maîtrise gardée, revue demain', run: () => showHint() }
+        : { action: 'Indice', icon: 'lightbulb', title: 'Indice (Espace) — gain de maîtrise réduit', run: () => showHint() };
+}

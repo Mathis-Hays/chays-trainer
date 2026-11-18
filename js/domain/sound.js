@@ -28,6 +28,17 @@ function _ctx() {
     return _audioCtx;
 }
 
+// Contexte et sortie préparés au premier toucher (pointerdown, tâche à part) : sinon leur création (près de
+// 100 ms sur un téléphone modeste) tombait dans le geste qui lance la séance, avec son premier son.
+if (typeof addEventListener === 'function')
+    addEventListener('pointerdown', () => {
+        try {
+            if (typeof appSettings === 'undefined' || !appSettings.sound || appSettings.volume <= 0) return;
+            const ctx = _ctx();
+            if (ctx) _soundOut(ctx, appSettings.volume);
+        } catch (e) { /* audio indisponible : on ignore */ }
+    }, { once: true, capture: true, passive: true });
+
 function _noise(ctx) {
     if (!_noiseBuf) {
         _noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.25), ctx.sampleRate);

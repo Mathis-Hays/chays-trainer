@@ -233,6 +233,19 @@ const refreshTimer = c => c.timers.filter(x => x.fn && x.ms !== 15000).pop();
         const c3 = boot({ backend: makeBackend() }); c3.boot();
         jeq(await c3.run('Auth.providers()'), []);
     });
+    await t('fournisseurs gardés 24 h sur l\'appareil : le lancement suivant ne redemande rien, une copie de plus de 24 h est redemandée', async () => {
+        const be2 = makeBackend({ external: { google: true } }), c2 = boot({ backend: be2 }); c2.boot();
+        jeq(await c2.run('Auth.providers()'), ['google']);
+        const kept = c2.mem.get('chessTrainer_providers');
+        assert(kept, 'copie enregistrée');
+        const be3 = makeBackend({ external: { google: true } }), c3 = boot({ backend: be3, mem: new Map([['chessTrainer_providers', kept]]) }); c3.boot();
+        jeq(await c3.run('Auth.providers()'), ['google']);
+        assert.strictEqual(be3.log.filter(l => l.includes('/settings')).length, 0, 'aucune requête');
+        const old = JSON.stringify({ list: ['google'], at: Date.now() - 25 * 3600 * 1000 });
+        const be4 = makeBackend(), c4 = boot({ backend: be4, mem: new Map([['chessTrainer_providers', old]]) }); c4.boot();
+        jeq(await c4.run('Auth.providers()'), []);
+        assert.strictEqual(be4.log.filter(l => l.includes('/settings')).length, 1);
+    });
     await t('signInWithProvider : redirection vers /authorize, refusée hors http(s)', async () => {
         const c2 = boot({ backend: makeBackend() }); c2.boot();
         let went = null; c2.location.assign = u => { went = u; };

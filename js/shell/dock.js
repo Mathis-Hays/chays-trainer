@@ -9,7 +9,8 @@
  *     principale de la page (.st-go, _trPrimary, « Commencer » de la finale à suivre), cachée ou atténuée sur téléphone (lot 5).
  *   En partie (.board-controls) : Retourner · ‹ · centre · › · Plus.
  *     Centre selon le mode : Sauter (mise en situation), Annuler (reçu d'un coup enregistré), Indice, sinon
- *     Arbre (Jouer), Passer (Entraînement), Recommencer (Finales) ; S'entraîner (aperçu) ; Ajouter (N) ou Brouillon (Analyse).
+ *     Arbre (Jouer), Passer (Entraînement), Recommencer (Finales) ; S'entraîner (aperçu) ; Ajouter (N) ou Brouillon (Analyse) ;
+ *     un mode peut choisir son centre (fiche GameModes dockCenter : Analyser dans l'éditeur de position).
  *     Les boutons du mode cachés sur téléphone passent dans « Plus » (toggleToolbarMore, mobile.js) ; Quitter
  *     devient le ✕ de la barre du haut (#topnav-exit, Dock.exit).
  * Le centre agit en touchant le bouton d'origine (proxy) : les règles de chaque action restent là où elles sont.
@@ -79,6 +80,8 @@ const Dock = (function () {
     // ─── CENTRE EN PARTIE ─────────────────────────────────────────────────────
     function gameCenter() {
         const proxy = (b, o) => ({ ...o, target: b, run: () => b.click() });
+        const own = GameModes.current().dockCenter;               // mode qui choisit son centre (éditeur : Analyser)
+        if (own) { const c = own(); if (c) return c.target ? proxy(c.target, c) : c; }
         if (gameMode === 'preview') {
             const b = modeBtn('.btn-primary.btn-grow');
             return proxy(b, { icon: 'play', label: 'S\'entraîner', title: b ? b.title : '' });

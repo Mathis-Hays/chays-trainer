@@ -9,7 +9,7 @@
  * Le moteur ne se fie PAS qu'aux marques « dirty » : au démarrage de session, il compare aussi chaque
  * clé à sa base, ce qui rattrape les modifications faites hors ligne ou déconnecté.
  *
- * Déclencheurs : connexion / reprise de session · 4 s après une modification (au plus 30 s d'attente) ·
+ * Déclencheurs : connexion / reprise de session (au lancement : après l'intro, Bus.afterIntro) · 4 s après une modification (au plus 30 s d'attente) ·
  * retour sur l'onglet · retour du réseau · sondage toutes les 2 min · « Synchroniser maintenant ».
  * Premier passage sur un appareil : selon le choix enregistré (SyncIntent) — fusionner / envoyer / récupérer.
  *
@@ -260,7 +260,9 @@ const SyncEngine = (function () {
         if (typeof document !== 'undefined')
             document.addEventListener('visibilitychange', () => { if (active()) schedule(document.hidden ? 0 : 300, true); });
         setInterval(() => { if (active() && !running && !(typeof document !== 'undefined' && document.hidden)) schedule(0, true); }, POLL_MS);
-        if (active()) { fullScan = true; schedule(1500, true); }
+        // Premier passage après l'intro (Bus.afterIntro) : le rideau se lève sur une page qui ne bouge plus.
+        const boot = () => { if (active() && !timer && !running) { fullScan = true; schedule(1500, true); } };
+        if (typeof Bus !== 'undefined' && Bus.afterIntro) Bus.afterIntro(boot); else boot();
     }
 
     return { start, syncNow, status: () => status, onStatus: fn => { statusListeners.push(fn); } };

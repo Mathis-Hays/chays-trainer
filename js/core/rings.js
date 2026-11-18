@@ -46,5 +46,19 @@ const Ring = (function () {
             + `<span>${esc(text)}</span><span class="ring-chip-max">/ ${m}</span></button>`;
     }
 
-    return { html, chip, fraction };
+    // ─── JAUGE DU RETARD (chantier « Révision du jour ») ──────────────────────
+    // today : positions proposées aujourd'hui ; held : celles qui attendent au-delà de l'objectif ; when : date « à jour
+    // vers… » déjà écrite (catchUpLabel), vide = pas dans l'année à ce rythme ; asleep : dont en veille.
+    function backlog({ today = 0, held = 0, when = '', asleep = 0, cls = '' } = {}) {
+        const t = Math.max(0, Number(today) || 0), h = Math.max(0, Number(held) || 0);
+        if (!h) return '';
+        const p = Math.max(2, Math.round(100 * t / (t + h)));
+        const right = when ? `à jour vers ${when}` : 'pas à jour avant un an à ce rythme';
+        const tip = asleep ? `dont ${asleep} en veille : jamais atteintes dans vos parties, elles passent après les autres` : '';
+        return `<div class="rv-gauge${cls ? ' ' + esc(cls) : ''}" role="img" aria-label="${esc(`${t} aujourd’hui, ${h} en attente, ${right}`)}"${tip ? ` title="${esc(tip)}"` : ''}>`
+            + `<div class="rv-gauge-bar" aria-hidden="true"><i style="width:${p}%"></i></div>`
+            + `<div class="rv-gauge-lbl" aria-hidden="true"><span>Retard : ${h} en attente</span><span>${esc(right)}</span></div></div>`;
+    }
+
+    return { html, chip, fraction, backlog };
 })();

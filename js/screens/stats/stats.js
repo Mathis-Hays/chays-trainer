@@ -18,14 +18,14 @@
  *   4. Régularité, tous répertoires : série, calendrier (12 semaines, grille fluide), réussite par semaine.
  * Une seule barre de filtres, collante : répertoire et couleur ; période, site et cadence sur Ouvertures et Parties.
  *
- * Six niveaux, utilisés partout (Statistiques, Entraînement, arbre du répertoire) ; m = score de maîtrise (masteryOf, storage.js) :
- *   à retravailler  m < 50
- *   fragile         50 ≤ m < 70
- *   en progrès      70 ≤ m < 85
- *   solide          m ≥ 85
+ * Six niveaux, utilisés partout (Statistiques, Entraînement, arbre du répertoire) ; échelle E3 (_level, levels.js),
+ * d'après la série de réussites d'affilée run (runOf, review.js) :
  *   à confirmer     aucune erreur, moins de STATS_CONFIRM_TRIES essais
- *   maîtrisée       aucune erreur en STATS_CONFIRM_TRIES essais ou plus, ou « solide » réussie plusieurs
- *                   révisions d'affilée (intervalle de révision ≥ STATS_SOLID_DAYS jours, cf. recordReview)
+ *   à retravailler  dernier essai raté (run 0)
+ *   fragile         1 réussite d'affilée
+ *   en progrès      2
+ *   solide          3 ou 4
+ *   maîtrisée       5 ou plus (STATS_MASTERED_RUN)
  */
 
 'use strict';
@@ -417,18 +417,45 @@ function _medalsWonHTML(list) {
 }
 
 // ─── VITRINE DE MÉDAILLES (lot 5, Medals) ──────────────────────────────────────
-// Les gagnées en laiton avec leur date, les autres en pointillé avec leur avancée ; « Nouvelle » trois jours.
+// Médaillier en laiton (chantier « Progrès : qualité et médailles », point 8, direction A) : les gagnées frappées, avec leur
+// date (« Nouvelle » trois jours) ; les autres en creux, l'avancée en anneau autour de la pièce. En tête, « Prochaine médaille »
+// (Medals.next) : la pièce, ce qu'il manque, et la piste de sa catégorie (étapes de la même unité).
+function _medalCoinSVG(m, size = 60) {
+    const c = size / 2, r = c - 5, C = 2 * Math.PI * r, p = m.goal ? Math.min(1, m.v / m.goal) : 0, g = escapeHtml(m.glyph), fs = (m.glyph.length > 2 ? .26 : m.glyph.length > 1 ? .32 : .38) * size;
+    if (m.at) return `<svg class="md-medal is-on" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle class="md-face" cx="${c}" cy="${c}" r="${r + 2}"/><circle class="md-rim" cx="${c}" cy="${c}" r="${r - 2.5}"/><circle class="md-grain" cx="${c}" cy="${c}" r="${r - 6}"/><text class="md-g" x="${c}" y="${c}" dy=".35em" text-anchor="middle" font-size="${fs.toFixed(1)}" translate="no">${g}</text></svg>`;
+    return `<svg class="md-medal" viewBox="0 0 ${size} ${size}" aria-hidden="true"><circle class="md-ring" cx="${c}" cy="${c}" r="${r}"/>${p > 0 ? `<circle class="md-prog" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${(p * C).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 ${c} ${c})"/>` : ''}<circle class="md-hollow" cx="${c}" cy="${c}" r="${r - 7}"/><text class="md-g" x="${c}" y="${c}" dy=".35em" text-anchor="middle" font-size="${(fs * .9).toFixed(1)}" translate="no">${g}</text></svg>`;
+}
+
+// Piste de la prochaine médaille : une étape par médaille de la même unité, le trait de laiton avance jusqu'à la valeur actuelle.
+function _medalTrackSVG(nx) {
+    const steps = nx.track, W = 260, H = 44, L = 14, R = 26, x = i => steps.length < 2 ? W / 2 : L + i * (W - L - R) / (steps.length - 1), v = nx.medal.v;
+    let last = -1;
+    const won = s => !!s.at || s.v >= s.goal;          // une médaille gagnée le reste, même si le chiffre redescend
+    steps.forEach((s, i) => { if (won(s)) last = i; });
+    const nextI = steps.indexOf(nx.medal), prevGoal = last >= 0 ? steps[last].goal : 0, frac = nextI > last && steps[nextI].goal > prevGoal ? (v - prevGoal) / (steps[nextI].goal - prevGoal) : 0;
+    const px = last < 0 ? L + frac * (x(nextI) - L) : x(last) + Math.max(0, Math.min(1, frac)) * (x(nextI) - x(last));
+    let g = `<line class="md-tr-base" x1="${L}" x2="${W - R}" y1="14" y2="14"/><line class="md-tr-on" x1="${L}" x2="${px.toFixed(1)}" y1="14" y2="14"/>`;
+    steps.forEach((s, i) => {
+        const on = won(s), cur = s === nx.medal;
+        g += `<circle class="md-tr-dot${on ? ' on' : ''}${cur ? ' cur' : ''}" cx="${x(i)}" cy="14" r="${cur ? 9 : 7}"/><text class="md-tr-t${on ? ' on' : ''}" x="${x(i)}" y="14" dy=".35em" text-anchor="middle">${escapeHtml(String(s.goal))}</text>`;
+        if (cur) g += `<text class="md-tr-v" x="${x(i)}" y="38" text-anchor="middle">${I18n.mark(`${s.v} / ${s.goal}`)}</text>`;
+    });
+    return `<svg class="md-track" viewBox="0 0 ${W} ${H}" role="img" aria-label="${I18n.mark(`${v} / ${nx.medal.goal}`)}">${g}</svg>`;
+}
+
 function _medalsHTML(now) {
     if (typeof Medals === 'undefined') return '';
-    const list = Medals.list({}, now), got = list.filter(m => m.at).length;
+    const list = Medals.list({}, now), got = list.filter(m => m.at).length, nx = Medals.next(list);
     const day = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short', year: 'numeric' }));
-    const one = m => `<li class="md${m.at ? ' is-on' : ''}${m.fresh ? ' is-new' : ''}">
-        <span class="md-coin" translate="no" aria-hidden="true">${escapeHtml(m.glyph)}</span>
-        <span class="md-t"><b>${escapeHtml(m.name)}</b><small>${escapeHtml(m.desc)}</small>
-        ${m.at ? `<em>${m.fresh ? `${I18n.t('Nouvelle')} · ` : ''}${day(m.at)}</em>`
-              : `<span class="md-bar" role="img" aria-label="${m.v} / ${m.goal}"><i style="width:${Math.round(100 * m.v / m.goal)}%"></i></span><em>${I18n.mark(`${m.v} / ${m.goal}`)}</em>`}</span></li>`;
+    const one = m => `<li class="md${m.at ? ' is-on' : ''}${m.fresh ? ' is-new' : ''}" title="${escapeHtml(m.desc)}">
+        ${_medalCoinSVG(m)}
+        <span class="md-t"><b>${escapeHtml(m.name)}</b>
+        ${m.at ? `<em>${m.fresh ? `${I18n.t('Nouvelle')} · ` : ''}${day(m.at)}</em>` : `<em>${I18n.mark(`${m.v} / ${m.goal}`)}</em>`}<small>${escapeHtml(m.desc)}</small></span></li>`;
+    const left = nx && nx.words ? `Encore ${_plural(nx.left, nx.words[0], nx.words[1])}` : nx ? escapeHtml(nx.medal.desc) : '';
+    const next = nx ? `<div class="md-next">${_medalCoinSVG(nx.medal, 64)}<span class="md-next-t"><span class="st-eyebrow">Prochaine médaille</span><b>${escapeHtml(nx.medal.name)}</b><small>${left}</small></span>${nx.track.length > 1 ? _medalTrackSVG(nx) : ''}</div>` : '';
     return `<section class="st-sec st-card st-medals edge-card" data-pane="medals">
-        <div class="st-h"><h3>Vitrine</h3><span class="st-sub">${_plural(got, 'médaille gagnée', 'médailles gagnées')} sur ${list.length}</span></div>
+        <div class="st-h"><h3>${got > 1 ? `${got} médailles sur ${list.length}` : `${got} médaille sur ${list.length}`}</h3><span class="st-sub">Vitrine</span></div>
+        ${next}
         ${Medals.CATS.map(([c, label]) => `<div class="md-cat"><span class="st-eyebrow">${label}</span><ul class="md-grid">${list.filter(m => m.cat === c).map(one).join('')}</ul></div>`).join('')}
     </section>`;
 }
@@ -507,19 +534,20 @@ function initStats() {
     // « Aujourd’hui » (refonte « Chays sans détour », lot 2) : Progrès observe, sans bouton « réviser ».
     const rp = reviewPlan(currentRepertoire, now), inScope = c => statsColor === 'all' || c === statsColor;
 
-    // Prévision : un total par jour, sans détail par niveau. Le retard (échéances d'avant aujourd'hui) est à part, avec
-    // son propre chiffre (lot 4) : sur la même échelle, 551 en retard écrasaient les sept barres en traits.
-    const late = rp.overdue(inScope), fc = rp.forecast(inScope, STATS_FORECAST_DAYS);
-    fc[0] = Math.max(0, fc[0] - late);
+    // Prévision : un total par jour, sans détail par niveau, jamais plus que l'objectif du jour (chantier « Révision du
+    // jour »). Le retard (révisions échues qui attendent au-delà de l'objectif, plan.held) est à part, avec son propre chiffre.
+    const late = rp.held(inScope), fc = rp.forecast(inScope, STATS_FORECAST_DAYS), cu = late ? rp.catchUp() : null;
     const fcMax = Math.max(1, ...fc), fcSum = fc.reduce((a, b) => a + b, 0);
-    const fcDay = i => i ? new Date(_dayStart(now, i)).toLocaleDateString(I18n.locale(), { weekday: 'long' }) : I18n.t('aujourd\'hui');
+    // Un seul formateur par style : toLocaleDateString en recréait un à chaque appel (80 ms de l'onglet sur téléphone modeste).
+    const wdLong = new Intl.DateTimeFormat(I18n.locale(), { weekday: 'long' }), wdNarrow = new Intl.DateTimeFormat(I18n.locale(), { weekday: 'narrow' });
+    const fcDay = i => i ? wdLong.format(new Date(_dayStart(now, i))) : I18n.t('aujourd\'hui');
     const forecastCard = `
         <div class="st-card st-fcard edge-card">
             <div class="st-h"><h3>Révisions à venir</h3></div>
-            ${late ? `<div class="st-late"><span><small>En retard</small><b>${late}</b></span><span>à résorber avant la prévision</span></div>` : ''}
+            ${late ? `<div class="st-late"><span><small>En retard</small><b>${late}</b></span><span>${cu ? `en attente · à jour vers ${escapeHtml(catchUpLabel(cu, now))}` : 'en attente, au-delà de l’objectif du jour'}</span></div>` : ''}
             <div class="st-fc-h"><span>${STATS_FORECAST_DAYS} prochains jours</span><b>${_plural(fcSum, 'position')}</b></div>
             <div class="st-fc" role="img" aria-label="${I18n.pair(I18n.t('Révisions prévues'), fc.map((n, i) => `${fcDay(i)} ${n}`).join(', '))}">${fc.map((n, i) =>
-                `<div title="${I18n.pair(fcDay(i), I18n.t(_plural(n, 'position')))}"><b>${n || ''}</b><i style="height:${n ? 4 + Math.round(56 * n / fcMax) : 2}px"${n ? '' : ' class="zero"'}></i><span>${new Date(_dayStart(now, i)).toLocaleDateString(I18n.locale(), { weekday: 'narrow' })}</span></div>`).join('')}</div>
+                `<div title="${I18n.pair(fcDay(i), I18n.t(_plural(n, 'position')))}"><b>${n || ''}</b><i style="height:${n ? 4 + Math.round(56 * n / fcMax) : 2}px"${n ? '' : ' class="zero"'}></i><span>${wdNarrow.format(new Date(_dayStart(now, i)))}</span></div>`).join('')}</div>
         </div>`;
 
     // ── Maîtrise ── la barre filtre comme la légende ; la règle de chaque niveau est dans son title.

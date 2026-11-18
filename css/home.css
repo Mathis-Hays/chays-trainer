@@ -246,6 +246,16 @@
 .hp-title em { font-style: normal; color: var(--accent); }
 .hp-sub { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-muted); }
 .hp-sub b { color: var(--text); font-weight: 600; }
+/* Révision du jour (chantier du 18 novembre 2026) : jauge du retard (Ring.backlog) et rythme du jour Léger, Normal,
+   Soutenu (_homePaceHTML, préférence dailyGoal) sous le titre. */
+.hp-gauge { margin-top: 14px; }
+.hp-pace { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
+.hp-pace-opt { display: grid; gap: 1px; justify-items: center; min-height: var(--tap, 44px); padding: 6px 4px;
+    border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.hp-pace-opt b { font-size: 13px; font-weight: 600; }
+.hp-pace-opt small { font-family: var(--font-note); font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.hp-pace-opt.is-on { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 12%, transparent); }
+.hp-pace-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Plan du jour (refonte « Chays sans détour », lot 2, _homeStepsHTML) : une ligne par étape, chacune lance la sienne ;
    « Commencer » prend la première qui reste. Étape faite : cochée, atténuée. */
 .hp-steps { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--border); }
@@ -386,7 +396,6 @@
 .hp-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 12px 16px; text-align: center; font-size: 13px; color: var(--text-dim); }
 .hp-empty .ico { width: 40px; height: 40px; padding: 10px; border-radius: 12px; background: var(--bg-inset); color: var(--ok); fill: none; }
 .hp-empty b { font-size: 14px; color: var(--text); }
-.hp-more { margin: 4px 6px 2px; font-size: 12px; color: var(--text-dim); }
 
 /* Sur une tablette, plus de place pour la position */
 @container home-play (min-width: 480px) {
@@ -526,6 +535,20 @@
 .btn.btn-soft.hp-answer { min-height: 36px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 12.5px;
     color: color-mix(in oklab, var(--accent) 80%, var(--text)); }   /* texte de 12,5 px : 4,5:1 au moins sur la surface, en clair comme en sombre */
 
+/* À traiter : défilement (chantier « Accueil et lancement », novembre 2026, homePanels.js). Au-delà de 5 lignes, la liste
+   garde la hauteur de 5 lignes de 64 px et défile dans la carte, téléphone compris : arrêt par ligne, pas de défilement
+   transmis à la page en bout de liste (--hp-five : hauteur mesurée des 5 premières lignes, 77 px chacune sur téléphone), fondu en bas tant qu'il reste des lignes (.at-end le retire), repère sous la liste. */
+.hp-list.is-scroll { max-height: var(--hp-five, calc(5 * 64px)); overflow-y: auto; overscroll-behavior: contain; scroll-snap-type: y proximity;
+    scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent;
+    -webkit-mask-image: linear-gradient(#000 calc(100% - 28px), transparent); mask-image: linear-gradient(#000 calc(100% - 28px), transparent); }
+.hp-list.is-scroll.at-end { -webkit-mask-image: none; mask-image: none; }
+.hp-list.is-scroll .hp-row { scroll-snap-align: start; flex-shrink: 0; }
+.hp-list.is-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 12px; }
+.hp-cue { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font: 500 11px/1 var(--font-note); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.hp-cue-bar { flex: 1; height: 3px; border-radius: 3px; background: var(--bg-inset); overflow: hidden; }
+.hp-cue-bar i { display: block; height: 100%; border-radius: 3px; background: var(--brand-brass, var(--accent)); transition: width var(--dur-1) var(--ease-out); }
+@media (prefers-reduced-motion: reduce) { .hp-cue-bar i { transition: none; } }
+
 /* Téléphone : blocs bord à bord, la marge de 16 px vient des blocs */
 @media (max-width: 599px) {
     .home-content:has(#home-tab-play:not(.hidden)) { padding-left: 0; padding-right: 0; }
@@ -618,12 +641,14 @@ button.suite-chip:active { transform: scale(.97); }
 
 /* ─── BARRE LATÉRALE (à partir de 1 100 px) ────────────────────────────────────
    La même #topnav passe en colonne, sans doubler le DOM : logo, capsule Suite, onglets, actions en pied.
-   Rail de 64 px, ou étendue à 240 px (data-side, préférence sideBar : automatique = dès 1 440 px), jamais en partie (`.in-game`, _gameTabs).
+   Rail légendé de 96 px (chantier « Navigation sans repli ») : icône et nom de chaque onglet, la barre du bas du
+   téléphone mise debout ; une seule forme, identique en partie (`.in-game`, _gameTabs) et hors partie, sans repli
+   ni sous-menu (les sous-rubriques sont dans les pages).
    --topnav-h à 0 : les barres collantes et la taille de l'échiquier récupèrent la hauteur de l'ancienne barre.
    Puce du répertoire et couleur (`.topnav-meta`) : déplacées en tête du panneau de jeu par sidebar.js. */
 .game-meta-slot { display: none; }
 @media (min-width: 1100px) {
-    :root { --topnav-h: 0px; --side-w: 64px; }
+    :root { --topnav-h: 0px; --side-w: 96px; }
     .app { margin-left: var(--side-w); width: calc(100% - var(--side-w)); }
     .setup-screen { min-height: 100vh; min-height: 100dvh; }
 
@@ -632,21 +657,33 @@ button.suite-chip:active { transform: scale(.97); }
         border-bottom: 0; border-right: 1px solid var(--border); box-shadow: 1px 0 12px rgba(40, 60, 20, .08);
         overflow: hidden auto; scrollbar-width: none;
     }
-    .topnav-inner { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; height: max-content; min-height: 100%; padding: 12px 10px; }
+    .topnav-inner { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 8px; height: max-content; min-height: 100%; padding: 12px 8px; }
     .topnav-brand { justify-content: center; min-height: 44px; }
     .topnav-brand svg:first-child { height: 40px; }
     #topnav-tabs-game { display: none !important; }       /* attribut style conservé : les règles « en partie » le lisent */
     .topnav-right { display: contents; }
 
-    #topnav-tabs-setup, #topnav-tabs-setup.in-game { order: 2; flex: none; flex-direction: column; align-items: stretch; justify-content: flex-start; align-self: center; gap: 2px; width: 44px; }
-    #topnav-tabs-setup .topnav-tab { justify-content: center; min-height: 44px; padding: 0; border-radius: 10px; font-size: 14px; }
-    #topnav-tabs-setup .topnav-tab .ico { display: block; }
-    #topnav-tabs-setup .topnav-tab > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* Onglets : icône sur son nom, comme la barre du bas du téléphone ; l'actif se lit au fond sous l'icône */
+    #topnav-tabs-setup, #topnav-tabs-setup.in-game { order: 2; flex: none; flex-direction: column; align-items: stretch; justify-content: flex-start; align-self: stretch; gap: 4px; width: auto; }
+    #topnav-tabs-setup .topnav-tab, #topnav-tabs-setup.in-game .topnav-tab {
+        flex-direction: column; justify-content: center; gap: 5px; min-height: 62px; padding: 7px 2px 6px; border-radius: 12px;
+        color: var(--text-muted); font: 500 11.5px/1.15 var(--font-sans); letter-spacing: .1px; text-align: center; cursor: pointer;
+    }
+    #topnav-tabs-setup .topnav-tab .ico {
+        display: block; box-sizing: content-box; width: 22px; height: 22px; padding: 4px 16px; border-radius: 999px;
+        transition: background var(--dur-1) var(--ease-out), color var(--dur-1) var(--ease-out);
+    }
+    #topnav-tabs-setup .topnav-tab > span, #topnav-tabs-setup.in-game .topnav-tab > span { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: nowrap; }
     .topnav-tab + .topnav-tab::before { display: none; }
-    #topnav-tabs-setup .topnav-tab.active { background: var(--bg-inset); }
-    #topnav-tabs-setup .topnav-tab.active > .ico { padding: 0; background: none; }      /* la ligne entière a déjà son fond */
-    .topnav-tab.active::after { left: -10px; right: auto; top: 11px; bottom: 11px; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
-    @media (hover: hover) { #topnav-tabs-setup .topnav-tab:hover { background: var(--bg-inset); } }
+    #topnav-tabs-setup .topnav-tab.active { background: none; color: var(--text); font-weight: 600; }
+    #topnav-tabs-setup .topnav-tab.active > .ico { padding: 4px 16px; background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent); }
+    .topnav-tab.active::after { display: none; }
+    @media (hover: hover) {
+        #topnav-tabs-setup .topnav-tab:hover { background: none; color: var(--text); }
+        #topnav-tabs-setup .topnav-tab:not(.active):hover > .ico { background: var(--bg-inset); }
+    }
+    #topnav-tabs-setup .topnav-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    .topnav-wm { display: none; }                         /* le logo seul en tête du rail */
 
     /* Capsule Suite : l'anneau seul, avec le nombre */
     .suite-slot { order: 1; justify-content: center; }
@@ -667,69 +704,6 @@ button.suite-chip:active { transform: scale(.97); }
     /* Puce du répertoire et couleur : en tête du panneau de jeu */
     .game-meta-slot:not(:empty) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
 
-    /* Replier ou étendre (préférence sideBar) : icône panneau, dernier bouton de la pilule, même place dans les deux états ; jamais en partie */
-    .topnav-pill > .side-toggle { display: grid; place-items: center; flex: none; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 999px; background: none; color: var(--text-muted); cursor: pointer; }
-    .topnav-pill > .side-toggle .ico { width: 17px; height: 17px; }
-    .topnav:has(.in-game) .side-toggle { display: none; }
-    @media (hover: hover) { .topnav-pill > .side-toggle:hover { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); } }
-    .topnav-pill > .side-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-    /* Séance guidée : rien qui la fasse quitter par mégarde (comme la palette et les touches 1 à 4) */
+    /* Séance guidée : onglets cachés ; le logo reste actif (quitter garde le bilan, abandonSession, chantier « Échiquier et séance ») */
     html[data-session] #topnav-tabs-setup { display: none; }
-    html[data-session] .topnav-brand { pointer-events: none; }
-
-    /* Menus déroulants (sidebar.js). Rail : volet à droite de l'icône */
-    .sb-menu { display: none; }
-    .sb-menu.open {
-        display: block; position: fixed; left: calc(var(--side-w) + 6px); top: var(--sb-top, 12px); width: 244px;
-        max-height: calc(100dvh - 24px); overflow-y: auto; padding: 8px; border: 1px solid var(--border-strong); border-radius: 12px;
-        background: var(--bg-elevated); box-shadow: var(--shadow);
-    }
-    .sb-title { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 36px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--text); font: 600 15px/1.2 var(--font-display); text-align: left; cursor: pointer; }
-    .sb-title .ico { width: 15px; height: 15px; color: var(--text-dim); }
-    .sb-it { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 36px; padding: 0 10px; border: 0; border-radius: 7px; background: none; color: var(--text-muted); font: 500 13px/1.2 var(--font-sans); text-align: left; cursor: pointer; }
-    .sb-it[hidden] { display: none; }
-    .sb-it > span { flex: 1; min-width: 0; }
-    .sb-it em { color: var(--text-dim); font: 500 11.5px/1 var(--font-note); font-style: normal; }
-    .sb-it.on { background: var(--accent-soft); color: var(--text); font-weight: 600; }
-    @media (hover: hover) { .sb-it:hover, .sb-title:hover { background: var(--bg-inset); color: var(--text); } .sb-it.on:hover { background: var(--accent-soft); } }
-    @media (pointer: coarse) { .sb-it, .sb-title { min-height: 44px; } }
-    @media (prefers-reduced-motion: reduce) { .sb-menu { transition: none !important; } }
-}
-@media (min-width: 1100px) {
-    html:not([data-side="wide"]) .topnav-wm, .topnav:has(.in-game) .topnav-wm { display: none; }
-    html[data-side="wide"]:not(:has(.topnav .in-game)) { --side-w: 240px; }
-
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .topnav-inner { padding: 14px 12px; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .topnav-brand { justify-content: flex-start; padding-left: 8px; }
-
-    html[data-side="wide"] .topnav:not(:has(.in-game)) #topnav-tabs-setup { align-self: stretch; width: auto; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) #topnav-tabs-setup .topnav-tab { justify-content: flex-start; gap: 11px; padding: 0 10px; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) #topnav-tabs-setup .topnav-tab > span { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .topnav-tab.active::after { left: -12px; }
-
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-slot { justify-content: stretch; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-chip { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; justify-content: stretch; column-gap: 10px; width: 100%; height: auto; min-height: 52px; padding: 8px 10px; border-radius: 12px; white-space: normal; text-align: left; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-chip .ring { grid-row: 1 / span 2; --ring-size: 28px; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-chip .ring-txt { display: none; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-k { display: block; grid-column: 2; font-size: 11px; font-weight: 500; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-k::after { content: none; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-l { display: block; grid-column: 2; line-height: 1.25; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .suite-chip > .ico { display: block; grid-column: 3; grid-row: 1 / span 2; align-self: center; }
-
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .topnav-pill { flex-direction: row; width: auto; height: 42px; border-radius: 999px; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .topnav-pill > .theme-toggle { height: auto; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .topnav-pill > .theme-toggle + .theme-toggle::before { display: block; }
-
-    /* Sous-menu : celui de l'onglet actif seulement, toujours déplié */
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-menu, html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-menu.open {
-        display: grid; position: static; width: auto; max-height: none; overflow: visible; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none;
-        grid-template-rows: 0fr; visibility: hidden; transition: grid-template-rows var(--dur-1), visibility var(--dur-1);
-    }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-menu.open { grid-template-rows: 1fr; visibility: visible; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-in { min-height: 0; overflow: hidden; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-title { display: none; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-it { position: relative; min-height: 32px; padding-left: 41px; }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-it::before { content: ''; position: absolute; left: 20px; top: 0; bottom: 0; width: 1px; background: var(--border); }
-    html[data-side="wide"] .topnav:not(:has(.in-game)) .sb-it.on::before { width: 2px; background: var(--accent); }
 }

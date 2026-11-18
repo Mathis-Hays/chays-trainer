@@ -278,13 +278,21 @@ const Auth = (function () {
     }
 
     // ─── Fournisseurs externes (Google…) ──────────────────────────────────────
+    // Demandés seulement à l'ouverture de la fenêtre de compte, gardés 24 h sur l'appareil (`chessTrainer_providers`,
+    // { list, at }) : la liste change rarement, et chaque lancement la redemandait à Supabase (22 % des requêtes).
+    const PROVIDERS_KEY = 'chessTrainer_providers', PROVIDERS_TTL = 24 * 3600 * 1000;
     let providersCache = null;
     async function providers() {
         if (providersCache) return providersCache;
+        try {
+            const kept = JSON.parse(L().get(PROVIDERS_KEY) || 'null');
+            if (kept && Array.isArray(kept.list) && Date.now() - kept.at < PROVIDERS_TTL && kept.at <= Date.now()) return (providersCache = kept.list);
+        } catch (e) { /* illisible : redemandée */ }
         const r = await request('/settings', { method: 'GET' });
         if (r.error || !r.ok) return [];
         const ext = r.json.external || {};
         providersCache = Object.keys(ext).filter(k => ext[k] === true && k !== 'email' && k !== 'phone');
+        L().set(PROVIDERS_KEY, JSON.stringify({ list: providersCache, at: Date.now() }));
         return providersCache;
     }
 

@@ -132,6 +132,7 @@ function normalizeEntry(e) {
     if (Number.isFinite(e.prio) && e.prio > 0) out.prio = e.prio;
     if (Number.isInteger(e.relearn) && e.relearn >= 0 && e.relearn < RELEARN_DAYS.length) out.relearn = e.relearn;
     if (Number.isFinite(e.mastery)) out.mastery = Math.min(100, Math.max(0, e.mastery));
+    if (Number.isInteger(e.run) && e.run >= 0) out.run = Math.min(e.run, 999);   // réussites d'affilée (niveaux E3, runOf)
     return out;   // l'ancien champ `alt` est volontairement abandonné
 }
 
@@ -278,11 +279,14 @@ function readActivity() {
     return o && typeof o === 'object' && !Array.isArray(o) ? o : {};
 }
 
-function logActivity(ok) {
+// Journal d'activité, un jour → { a: essais notés, f: erreurs, p?: passages hors révision }. a et f ne viennent que des
+// révisions (recordReview) : objectif du jour, plafond de la file, semaine. p (chantier « Révision du jour ») : Survie,
+// défi du jour, contre-la-montre, mode libre… ; il ne sert qu'à la série de jours (Habits.streak, joker, médailles de série).
+function logActivity(ok, played = false) {
     const now = Date.now(), act = readActivity(), day = dayStamp(now);
     const d = act[day] || { a: 0, f: 0 };
-    d.a++;
-    if (!ok) d.f++;
+    if (played) d.p = (d.p || 0) + 1;
+    else { d.a++; if (!ok) d.f++; }
     act[day] = d;
     const oldest = dayStamp(now - ACTIVITY_KEEP_DAYS * DAY_MS);
     Object.keys(act).forEach(k => { if (k < oldest) delete act[k]; });
@@ -487,7 +491,8 @@ function importDBFromFile(event) {
                     Object.entries(prog.activity).forEach(([day, d]) => {
                         if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !d || !(Number(d.a) >= 0)) return;
                         const cur = act[day] || { a: 0, f: 0 };
-                        if (Number(d.a) > cur.a) act[day] = { a: Number(d.a), f: Math.min(Number(d.a), Math.max(0, Number(d.f) || 0)) };
+                        if (Number(d.a) > cur.a) act[day] = { ...cur, a: Number(d.a), f: Math.min(Number(d.a), Math.max(0, Number(d.f) || 0)) };
+                        if (Number(d.p) > ((act[day] || cur).p || 0)) act[day] = { ...(act[day] || cur), p: Number(d.p) };
                     });
                     dataStore.setJSON(ACTIVITY_KEY, act);
                 }
@@ -549,17 +554,28 @@ function rebuildPaths(db, color) {
 
 // Les deux couleurs d'un répertoire : les chemins retrouvés sont enregistrés (et synchronisés), pour que l'Entraînement,
 // Aujourd'hui, Ouvertures et Progrès les voient tous. Rien n'est relu tant que la base enregistrée n'a pas changé
-// (signature : taille des deux couleurs) ; une base arrivée ensuite (synchronisation, import) est réparée à la lecture suivante.
+// (signature : taille et empreinte FNV-1a des deux couleurs), même d'un lancement à l'autre : la signature est gardée
+// dans `chessTrainer_pathsSeen` (locale ; relire et parcourir la base coûtait 0,2 s au lancement sur téléphone).
+// Une base arrivée ensuite (synchronisation, import) change de signature : elle est réparée à la lecture suivante.
 // Renvoie le nombre d'entrées complétées.
+const PATHS_SEEN_KEY = 'chessTrainer_pathsSeen';
 const _pathsSeen = new Map();
-const _pathsSig = rep => ['w', 'b'].map(c => (dataStore.get(dbKeyFor(rep, c)) || '').length).join(':');
+const _fnv = str => { let h = 0x811c9dc5; for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 0x01000193); } return (h >>> 0).toString(36); };
+const _pathsRaw = rep => ['w', 'b'].map(c => dataStore.get(dbKeyFor(rep, c)) || '');
+const _pathsSig = raws => raws.map(raw => raw.length + '.' + _fnv(raw)).join(':');
+function _pathsStored() { try { return JSON.parse(dataStore.get(PATHS_SEEN_KEY) || '{}') || {}; } catch (e) { return {}; } }
 function repairPaths(rep) {
-    if (_pathsSeen.get(rep) === _pathsSig(rep)) return 0;
+    const raws = _pathsRaw(rep), seen = _pathsSeen.get(rep);
+    if (seen && seen[0] === raws[0] && seen[1] === raws[1]) return 0;     // même lancement : comparaison des chaînes, sans empreinte
+    if (!seen && _pathsStored()[rep] === _pathsSig(raws)) { _pathsSeen.set(rep, raws); return 0; }
     let total = 0;
     ['w', 'b'].forEach(c => {
         const db = readDBFor(rep, c), n = rebuildPaths(db, c);
         if (n) { dataStore.set(dbKeyFor(rep, c), JSON.stringify(db)); total += n; }
     });
-    _pathsSeen.set(rep, _pathsSig(rep));
+    const after = _pathsRaw(rep), all = _pathsStored();
+    _pathsSeen.set(rep, after);
+    all[rep] = _pathsSig(after);
+    dataStore.set(PATHS_SEEN_KEY, JSON.stringify(all));
     return total;
 }

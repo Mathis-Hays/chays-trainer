@@ -179,7 +179,7 @@ t('accueil Jouer : Aujourd\'hui, Jouer, À traiter dans cet ordre ; une seule ac
     assert(/homeReview: \(\) => startDailyReview\(\)/.test(app), '« Commencer la révision » → startDailyReview');
     assert.strictEqual((app.match(/class="btn btn-primary hp-cta"/g) || []).length, 3, 'une action pleine par état : dû, à jour, vide (tests/shell/homeSummary.test.js)');
     const tr = fs.readFileSync(scriptPath('trainingUI.js'), 'utf8');
-    assert(/function startDailyReview\(limit\) \{\s*_trColor = 'mix';\s*_trOpening = null;[\s\S]{0,120}startTrainingExercise\('due', limit\);/.test(tr),
+    assert(/function startDailyReview\(more\) \{\s*_trColor = 'mix';\s*_trOpening = null;[\s\S]{0,120}startTrainingExercise\('due', more\);/.test(tr),
         'Révision du jour : les deux couleurs, sans filtre d\'ouverture');
 });
 

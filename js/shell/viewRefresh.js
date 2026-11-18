@@ -29,8 +29,12 @@ function refreshViews(keys) {
 
 Bus.on('data:changed', refreshViews);
 
-// Positions vues en partie recalculées (lancement, parties récupérées) : le menu de l'Entraînement recompte.
-Bus.on('seen:ready', () => { if (typeof initTraining === 'function' && !_viewHidden('home-tab-training')) initTraining(); });
+// Positions vues en partie recalculées (lancement, parties récupérées) : le menu de l'Entraînement recompte, et la file
+// du jour d'Aujourd'hui se trie de nouveau (importance et veille, reviewPlan). patchHTML : sans changement, rien ne bouge.
+Bus.on('seen:ready', () => {
+    if (typeof initTraining === 'function' && !_viewHidden('home-tab-training')) initTraining();
+    if (typeof renderHomeSummary === 'function') renderHomeSummary();
+});
 
 // Parties relues au lancement (AutoReview, lot 5) : le plan d'Aujourd'hui et les écrans affichés se mettent à jour.
 Bus.on('games:reviewed', () => {

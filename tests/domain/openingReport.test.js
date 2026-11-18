@@ -33,6 +33,18 @@ t('performance : Elo moyen des adversaires à 50 %, bornée à 95 %, absente sou
     assert.strictEqual(R.summarize([game('w'), game('w')]).perf, null);
 });
 
+t('score dit en Elo : niveau joué, mon Elo moyen et l\'écart entre les deux ; rien sous 3 parties classées', () => {
+    const s = R.summarize([game('l', { me: 1560, opp: 1480 }), game('l', { me: 1560, opp: 1480 }), game('d', { me: 1560, opp: 1480 }), game('w', { me: 1560, opp: 1480 })]);
+    assert.strictEqual(s.me, 1560);
+    assert.strictEqual(s.perf, Math.round(1480 + 400 * Math.log10(.375 / .625)));
+    assert.strictEqual(s.gap, s.perf - 1560);
+    assert(s.gap < 0, 'perdre contre plus faible : sous mon Elo');
+    const two = R.summarize([game('w'), game('w')]);
+    assert.strictEqual(two.me, 1500);
+    assert.strictEqual(two.gap, null);
+    assert.strictEqual(R.summarize([game('w', { opp: undefined })]).me, null);
+});
+
 t('Elo inconnu : compté au score, jamais à l\'attendu', () => {
     const s = R.summarize([game('w', { opp: undefined })]);
     assert.strictEqual(s.score, 100);
@@ -64,6 +76,7 @@ t('détail : suivi, couverture ; une fin de ligne préparée n\'est pas une rép
     near(d.left.score, 0);
     assert.strictEqual(d.swaps.length, 1);
     assert.deepStrictEqual([d.swaps[0].played, d.swaps[0].expected, d.swaps[0].n], ['Nc3', 'Nf3', 1]);
+    assert.deepStrictEqual(plain([d.swaps[0].path, d.swaps[0].playedUci, d.swaps[0].expectedUci]), [['e2e4', 'e7e5'], 'b1c3', 'g1f3'], 'position et flèches de « Vos oublis en partie »');
 });
 
 t('réponses adverses : seuls les coups de l\'adversaire, part calculée à la position, état de la dernière sortie', () => {

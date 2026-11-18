@@ -131,6 +131,8 @@ function _trNextItems(nMiss, next = {}) {
     const out = [];
     if (nMiss) out.push({ action: 'trainingRetry', icon: 'rotate-ccw', label: nMiss > 1 ? `Revoir les ${nMiss} erreurs` : 'Revoir l’erreur', meta: 'Tout de suite, pendant que c’est frais', tone: 'err' });
     if (next.due) out.push({ action: 'trainingEx', arg: 'due', icon: 'play', label: 'Révision du jour', meta: `${next.due} à réviser · ≈ ${next.minutes} min`, tone: 'accent' });
+    // Objectif du jour atteint, du retard reste : « Encore N » proposé, jamais imposé.
+    if (!next.due && next.more) out.push({ action: 'trainingMore', icon: 'plus', label: `Encore ${next.more}`, meta: `${next.held} en attente${next.when ? ` · à jour vers ${next.when}` : ''}`, tone: 'accent' });
     if (next.news) out.push({ action: 'suiteNews', icon: 'folder-open', label: next.news > 1 ? `Répondre à ${next.news} nouveautés` : 'Répondre à une nouveauté', meta: 'Coups adverses vus dans vos parties', tone: 'new' });
     return out.slice(0, 3);
 }
@@ -328,6 +330,9 @@ function initTraining() {
     // ── Révision du jour ──
     const minutes = Math.max(1, Math.round(due.length * TRAIN_SECONDS_PER_POSITION / 60));
     const next = due.length ? 0 : plan.next(_trInScope(rows));
+    // Plafond du jour (chantier « Révision du jour ») : ce qui dépasse l'objectif attend, avec sa jauge et sa date.
+    const held = plan.held(_trInScope(rows)), cu = held ? plan.catchUp() : null;
+    const gauge = Ring.backlog({ today: due.length, held, when: cu ? catchUpLabel(cu, now) : '', asleep: plan.asleep(_trInScope(rows)), cls: 'trr-gauge' });
     const fresh = due.filter(r => !r.e.attempts).length, again = due.length - fresh;
     const act = readActivity(), streak = _streak(act), today = (act[dayStamp(now)] || { a: 0 }).a, goal = appSettings.dailyGoal;
     const scopeName = { w: 'Blancs', b: 'Noirs', mix: 'Blancs et Noirs' }[_trColor] + (_trOpening ? ' · ' + escapeHtml(_trOpening.name) : '');
@@ -340,9 +345,11 @@ function initTraining() {
             <span class="st-eyebrow">Révision du jour · ${scopeName}</span>
             ${due.length ? `<div class="trr-big"><b>${due.length}</b><span>à réviser aujourd’hui · ≈ ${minutes} min</span></div>
                 <div class="trr-split">${[fresh ? `${fresh} nouvelle${fresh > 1 ? 's' : ''}` : '', again ? `${again} révision${again > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ')}</div>`
+                         : held ? `<div class="trr-big is-text"><b>Objectif atteint</b><span>${held} en attente pour les jours suivants</span></div>`
                          : `<div class="trr-big is-text"><b>À jour</b><span>Prochaine révision ${Number.isFinite(next) && next ? dueInLabel(next, true) : 'bientôt'}</span></div>`}
+            ${gauge}
             ${forecast}
-            ${due.length ? _trBtn(primary === 'due', 'trainingEx', 'due', 'Commencer', 'play') : ''}
+            ${due.length ? _trBtn(primary === 'due', 'trainingEx', 'due', 'Commencer', 'play') : held ? _trBtn(false, 'trainingMore', null, `Encore ${Math.min(goal, held)}`, 'plus') : ''}
             <span class="trr-foot"><span>${streak} jour${streak > 1 ? 's' : ''} d'affilée</span><span>${Math.min(today, goal)} / ${goal} aujourd'hui</span></span>
         </section>`;
 
@@ -441,7 +448,7 @@ function initTraining() {
     _trPreviewKind = shown;
     const stage = `<section class="trr-stage" id="trr-stage" aria-label="Aperçu de la position">${_trStageHTML(shown)}</section>`;
 
-    panel.innerHTML = `<div class="trr${s ? ' has-bilan' : ''}">${stage}${_trSummaryHTML(s, primary === 'retry', { due: due.length, minutes, news: _trNews() })}${hero}${exercises}${mast}</div>`;
+    panel.innerHTML = `<div class="trr${s ? ' has-bilan' : ''}">${stage}${_trSummaryHTML(s, primary === 'retry', { due: due.length, minutes, news: _trNews(), held, more: Math.min(goal, held), when: cu ? catchUpLabel(cu, now) : '' })}${hero}${exercises}${mast}</div>`;
     panel.querySelectorAll('[data-focus]').forEach(el => el.classList.toggle('is-preview', el.dataset.focus === shown));
     _trBindPreview(panel);
 }
@@ -453,10 +460,9 @@ function startDailyChallenge(color, key) {
     return startSession({ kind: 'daily', label: 'Défi du jour', items: [{ color, key }], returnTab: 'play' });
 }
 
-function startTrainingExercise(kind, limit) {
+// more : « Encore N » (Révision du jour) : N positions de plus que l'objectif du jour, dans le même ordre d'importance.
+function startTrainingExercise(kind, more) {
     const rows = _trRows(), now = Date.now(), items = (list, cmp = _trOrder) => list.sort(cmp).map(r => ({ color: r.color, key: r.key }));
-    const prioFirst = (a, b) => (b.e.prio ? 1 : 0) - (a.e.prio ? 1 : 0)     // « Traitée depuis » jamais réussie, puis la file À revoir
-        || (Number.isInteger(b.e.relearn) ? 1 : 0) - (Number.isInteger(a.e.relearn) ? 1 : 0) || _trOrder(a, b);
     if (kind === 'line') { _trLineOpen = !_trLineOpen; initTraining(); return; }
     if (kind === 'free') { startTraining(_trColor); return; }
     if (kind === 'club') { const c = _trClubColor(); if (!c || !ClubMatch.start(c)) initTraining(); return; }
@@ -470,15 +476,16 @@ function startTrainingExercise(kind, limit) {
     }
     const pick = {
         relearn: () => rows.filter(r => Number.isInteger(r.e.relearn) && isDue(r.e, now)),
-        due:    () => { const plan = reviewPlan(currentRepertoire, now); return rows.filter(r => plan.today(r.color, r.key)); },
         weak:   () => _trSeen(rows).filter(r => r.lv === 'weak' || r.lv === 'fragile').sort(_trOrder).slice(0, TRAIN_WEAK_MAX),
         unsure: () => _trSeen(rows).filter(r => r.lv === 'unsure').sort((a, b) => a.e.attempts - b.e.attempts).slice(0, TRAIN_WEAK_MAX)
     }[kind];
-    const label = { relearn: 'À revoir', due: 'Révision du jour', weak: 'Points faibles', unsure: 'À confirmer' }[kind];
-    if (pick) {
-        const list = items(pick(), kind === 'due' ? prioFirst : _trOrder);
-        return startSession({ kind, label, items: limit > 0 ? list.slice(0, limit) : list });
+    const label = { relearn: 'À revoir', due: 'Révision du jour', weak: 'Points faibles', unsure: 'À confirmer' };
+    if (kind === 'due') {
+        // File du jour du programme (reviewPlan) : plafonnée à l'objectif, déjà triée par importance ; portée affichée.
+        const plan = reviewPlan(currentRepertoire, now, more > 0 ? { left: more } : undefined), inScope = new Set(rows.map(r => r.color + '|' + r.key));
+        return startSession({ kind, label: label.due, items: plan.todayList((c, k) => inScope.has(c + '|' + k)) });
     }
+    if (pick) return startSession({ kind, label: label[kind], items: items(pick()) });
     return false;
 }
 
@@ -495,13 +502,13 @@ function startOpeningReview({ color, opening, path, kind }) {
 
 // Accueil Jouer : « Commencer la révision » lance la Révision du jour du répertoire actif, les deux couleurs,
 // sans filtre d'ouverture (la séance est celle de l'Entraînement : elle compte).
-// limit : retour en douceur (Habits.comeback) : seules les premières positions de la file, dans le même ordre.
-function startDailyReview(limit) {
+// more : « Encore N », une fois l'objectif du jour atteint (rien n'est imposé : proposé à la fin de la séance).
+function startDailyReview(more) {
     _trColor = 'mix';
     _trOpening = null;
     _trFocus = null;
     trainingState.lastSummary = null;
-    startTrainingExercise('due', limit);
+    startTrainingExercise('due', more);
 }
 
 function _startLine(line) {
@@ -527,6 +534,7 @@ registerActions({
     trainingColor: c => { _trColor = c; _trLineOpen = false; _trFocus = null; initTraining(); },
     trainingRep: name => { if (name !== currentRepertoire) selectRepertoire(name); },
     trainingEx: (kind, el) => _trLaunch(el, () => { if (kind !== 'line') trainingState.lastSummary = null; startTrainingExercise(kind); }),
+    trainingMore: (a, el) => _trLaunch(el, () => startDailyReview(reviewGoal())),
     trainingToggle: kind => {
         if (kind === 'line') _trLineOpen = !_trLineOpen;
         if (kind === 'free') _trFreeOpen = !_trFreeOpen;

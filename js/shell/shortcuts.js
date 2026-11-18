@@ -61,6 +61,9 @@ const Shortcuts = (function () {
             q: () => quitAnalysis(),
             '+': () => engineLines(1), '=': () => engineLines(1), '-': () => engineLines(-1)
         },
+        editor: {
+            q: () => PositionEditor.quit()
+        },
         endgame: {
             n: () => retryEndgame(),
             p: () => nextEndgame(),
@@ -98,7 +101,6 @@ const Shortcuts = (function () {
 
     function atHome(e, k) {
         if (e.repeat) return false;
-        if (k === 'b') return SideBar.toggle();
         if (k === 'l') {
             if (!reviewPlan(currentRepertoire).forecast(null, 1)[0]) return false;
             startDailyReview();

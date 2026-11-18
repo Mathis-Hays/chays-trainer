@@ -54,7 +54,8 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert(/\d+\/20/.test($('#st-tab-n-medals').textContent));
         assert.strictEqual($$('.st-medals .md').length, 20);
         assert(w.document.getElementById('stats-body').classList.contains('pane-medals'));
-        assert($('.md.is-on .md-coin') && $('.md:not(.is-on) .md-bar'));
+        assert($('.md.is-on .md-medal.is-on .md-face') && $('.md:not(.is-on) .md-medal .md-ring'), 'pièce frappée ; les autres en creux, avancée en anneau');
+        assert($('.st-medals .md-next') && /Prochaine médaille/.test($('.st-medals .md-next').textContent), 'prochaine médaille en tête');
         assert(got().m1, 'une position maîtrisée : la première médaille, rangée à l\'affichage');
     });
 
@@ -85,6 +86,22 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         const card = w.document.querySelector('.st-week[data-pane="overview"]');
         assert(card && card.querySelector('.st-wk-line') && card.querySelectorAll('.st-wk-days > div').length === 7);
         assert.strictEqual(card.querySelectorAll('.st-wk-hist li').length, 8);
+    });
+
+    await t('prochaine médaille : la plus avancée de celles qui se comptent, ce qu\'il manque, sa piste', () => {
+        const m = (id, cat, unit, v, goal, at = 0) => ({ id, cat, unit, v, goal, at });
+        const list = [m('m1', 'mastery', 'mastered', 1, 1, 5), m('m25', 'mastery', 'mastered', 25, 25, 6), m('m100', 'mastery', 'mastered', 62, 100), m('m250', 'mastery', 'mastered', 62, 250),
+                      m('line', 'mastery', '', 0, 1), m('s7', 'habit', 'streak', 3, 7), m('s30', 'habit', 'streak', 3, 30)];
+        const x = J(`Medals.next(${JSON.stringify(list)})`);
+        assert.strictEqual(x.medal.id, 'm100', '62 % du but, devant 3 / 7');
+        assert.strictEqual(x.left, 38);
+        assert.deepStrictEqual(x.words, ['position maîtrisée', 'positions maîtrisées']);
+        assert.deepStrictEqual(x.track.map(y => y.id), ['m1', 'm25', 'm100', 'm250'], 'la piste de la Maîtrise, par but');
+        const tie = J(`Medals.next(${JSON.stringify([m('s7', 'habit', 'streak', 2, 4), m('t', 'habit', 'tries', 50, 100)])})`);
+        assert.strictEqual(tie.medal.id, 's7', 'à égalité, celle qui demande le moins');
+        assert.strictEqual(J(`Medals.next(${JSON.stringify([m('line', 'mastery', '', 0, 1)])})`).medal.id, 'line', 'sinon la première qui reste');
+        assert.strictEqual(J(`Medals.next(${JSON.stringify([m('m1', 'mastery', 'mastered', 1, 1, 5)])})`), null, 'toutes gagnées');
+        J('Medals.list({})').forEach(md => assert(md.goal === 1 || md.unit, `${md.id} : une unité pour « Encore N … »`));
     });
 
     assert.deepStrictEqual(errors, []);

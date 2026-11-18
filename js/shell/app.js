@@ -141,6 +141,17 @@ function _homeForecastHTML(fc, now) {
             + `<i style="height:${v ? Math.max(3, Math.round(36 * v / max)) : 2}px"></i><span aria-hidden="true">${escapeHtml(day(i))}</span></li>`).join('')}</ol></div>`;
 }
 
+// Rythme du jour (objectif quotidien dailyGoal, chantier « Révision du jour ») : Léger, Normal, Soutenu, réglé sur place.
+const HOME_PACES = [[15, 'Léger'], [30, 'Normal'], [60, 'Soutenu']];
+function _homePaceHTML(goal) {
+    return `<div class="hp-pace" role="radiogroup" aria-label="Rythme du jour">${HOME_PACES.map(([n, label]) => {
+        const m = Math.max(1, Math.round(n * TRAIN_SECONDS_PER_POSITION / 60));
+        return `<button type="button" role="radio" class="hp-pace-opt${n === goal ? ' is-on' : ''}" aria-checked="${n === goal}" data-action="homePace" data-arg="${n}">`
+            + `<b>${label}</b><small>${n} · ${m} min</small></button>`;
+    }).join('')}</div>`;
+}
+registerActions({ homePace: n => { if (typeof setPref === 'function') setPref('dailyGoal', Number(n)); } });
+
 // Fin de ligne menant à une position (sans mon dernier coup : la position telle qu'elle sera posée).
 const _homeLineBefore = path => _lineTail(path.slice(0, -1));
 
@@ -165,16 +176,19 @@ function renderHomeSummary() {
         const list = side(c), d = list.filter(r => rp.today(r.color, r.key)).length, counts = {};
         document.getElementById('home-meta-' + c).textContent = !list.length ? 'Aucune position'
             : pl(list.length, 'position', 'positions') + ' · ' + (d ? `${d} à réviser` : 'à jour');
-        document.getElementById('home-art-' + c).innerHTML = _homeArtHTML(list.map(r => r.e), c);
+        patchHTML(document.getElementById('home-art-' + c), _homeArtHTML(list.map(r => r.e), c));
         STATS_LEVEL_ORDER.forEach(l => { counts[l] = 0; });
         list.filter(r => r.e.attempts > 0).forEach(r => { counts[_level(r.e)]++; });
-        document.getElementById('home-bar-' + c).innerHTML = STATS_MASTERY_LEVELS.some(l => counts[l]) ? levelBarHTML(counts, 'hp-bar') : '';
+        patchHTML(document.getElementById('home-bar-' + c), STATS_MASTERY_LEVELS.some(l => counts[l]) ? levelBarHTML(counts, 'hp-bar') : '');
     });
 
     // Surtitre : salutation · série (avec son joker, Habits.streak) ; « Bon retour » le jour d'une reprise (Habits.comeback).
+    // Le plafond du jour (reviewPlan, objectif du jour) fait le reste : la reprise n'a plus sa propre part.
     const h = new Date().getHours(), name = appSettings.pseudo.trim();
-    const act = readActivity(), st = Habits.streak(act, now), today = (act[dayStamp(now)] || { a: 0 }).a, goal = appSettings.dailyGoal;
-    const cb = Habits.comeback(act, due.length, now, goal);
+    const act = readActivity(), st = Habits.streak(act, now), today = (act[dayStamp(now)] || { a: 0 }).a, goal = rp.goal;
+    const cb = Habits.comeback(act, now);
+    const held = rp.held(), cu = held ? rp.catchUp() : null, when = cu ? catchUpLabel(cu, now) : '';
+    const gauge = Ring.backlog({ today: due.length, held, when, asleep: rp.asleep(), cls: 'hp-gauge' });
     const evening = h >= 18 || h < 5, word = cb && cb.first ? 'Bon retour' : evening ? 'Bonsoir' : 'Bonjour';
     const hello = name ? `${word}, ${name}` : word;
     const head = `<p class="hp-over">${escapeHtml(hello)}`
@@ -185,23 +199,24 @@ function renderHomeSummary() {
         const pick = c => `<button type="button" class="hp-pick is-${c}" data-action="homePick" data-arg="${c}" aria-pressed="${c === 'w'}">
             ${_miniBoardHTML({ side: c, path: [], k: INIT_FEN }, true, { label: c === 'w' ? 'Blancs' : 'Noirs' })}
             <span><b>${c === 'w' ? 'Blancs' : 'Noirs'}</b><small>${c === 'w' ? '1. ?' : 'contre 1. e4, 1. d4…'}</small></span></button>`;
-        host.innerHTML = `<div class="hp-start edge-card">${head}<h2 class="hp-title">Par quelle couleur commencer&nbsp;?</h2>
+        patchHTML(host, `<div class="hp-start edge-card">${head}<h2 class="hp-title">Par quelle couleur commencer&nbsp;?</h2>
             <div class="hp-picks">${pick('w')}${pick('b')}</div>
             <div class="hp-ctas"><button type="button" class="btn btn-primary hp-cta" id="hp-start-cta" data-action="homeAddLine" data-arg="w">${ico('play')}<span>Commencer avec les Blancs</span></button></div>
             <div class="hp-alts"><button type="button" class="hp-link" data-action="homeImportPgn">${ico('upload')}Importer un PGN</button>
-            <button type="button" class="hp-link" data-action="homeGames">${ico('flame')}Partir de mes parties</button></div></div>`;
+            <button type="button" class="hp-link" data-action="homeGames">${ico('flame')}Partir de mes parties</button></div></div>`);
         HomePanels.render();
         return;
     }
 
-    const link = `<button type="button" class="hp-link" data-action="homeExercises">Autres exercices ${ico('chevron-right')}</button>`;
+    const link = (!due.length && held ? `<button type="button" class="hp-link" data-action="trainingMore">${ico('plus')}Encore ${Math.min(rp.goal, held)}</button>` : '')
+        + `<button type="button" class="hp-link" data-action="homeExercises">Autres exercices ${ico('chevron-right')}</button>`;
     let title, sub, focus = '', cta, plan = '';
-    const steps = _homeSteps(due, rp, now, cb), next = steps.find(x => !x.done);
+    const steps = _homeSteps(due, rp, now, { held, when }), next = steps.find(x => !x.done);
     _homeStepsNow = steps;
-    if (cb && !cb.left) {
-        // Reprise en douceur : la part du jour est faite, le reste attend les jours suivants.
-        title = `Reprise du jour <em>faite</em>.`;
-        sub = `${pl(cb.held, 'révision gardée', 'révisions gardées')} pour les jours suivants` + (today >= goal ? ' · objectif atteint' : '');
+    if (!due.length && held) {
+        // Objectif du jour atteint : le reste attend les jours suivants ; « Encore N » est proposé, jamais imposé.
+        title = `Objectif du jour <em>atteint</em>.`;
+        sub = `${pl(held, 'révision attend', 'révisions attendent')} les jours suivants`;
         plan = _homeForecastHTML(rp.forecast(null, 7), now);
     } else if (due.length) {
         // La position la plus en retard, telle qu'elle sera posée (avant mon coup).
@@ -210,16 +225,14 @@ function renderHomeSummary() {
         const d0 = dueOf(nx.e), late = d0 ? Math.floor((now - d0) / DAY_MS) : 0, colors = new Set(due.map(r => r.color));
         const minutes = Math.max(1, Math.round(due.length * TRAIN_SECONDS_PER_POSITION / 60));
         const fresh = due.filter(r => !r.e.attempts).length;
-        if (cb) {
-            // Retour en douceur : une part du retard aujourd'hui, le reste réparti sur la semaine (rien n'est effacé).
-            const m = Math.max(1, Math.round(cb.left * TRAIN_SECONDS_PER_POSITION / 60));
-            title = `<em>${cb.left}</em> ${cb.left > 1 ? 'positions' : 'position'}<br>${cb.first ? 'pour reprendre la main' : 'pour aujourd’hui'}`;
-            sub = `<b>Environ ${m} min</b> · ${cb.held > 1 ? `les ${cb.held} autres sont réparties` : 'la dernière est gardée'} sur les jours suivants`;
+        if (held) {
+            // Plafond atteint : l'objectif du jour, les plus importantes d'abord ; le retard en jauge, avec sa date.
+            title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>${cb && cb.first ? 'pour reprendre la main' : 'pour aujourd’hui'}`;
+            sub = `<b>Environ ${minutes} min</b> · les plus importantes d’abord`;
         } else {
             title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>à réviser`;
             sub = `<b>Environ ${minutes} min</b> · ${colors.size > 1 ? 'Blancs et Noirs' : colors.has('w') ? 'Blancs' : 'Noirs'}`
-                + (fresh ? ` · dont ${pl(fresh, 'nouvelle', 'nouvelles')}` : '')
-                + (today < goal ? ` · encore ${goal - today} pour l'objectif` : '');
+                + (fresh ? ` · dont ${pl(fresh, 'nouvelle', 'nouvelles')}` : '');
         }
         focus = `<div class="hp-focus">${_miniBoardHTML({ side: nx.color, path, k: nx.key }, false, { cls: 'hp-focus-board', label: 'Position la plus en retard, avant votre coup' })}
             <span class="hp-focus-txt"><span class="hp-focus-over">La plus en retard${late >= 1 ? ` · ${late} j` : ''}</span>
@@ -239,9 +252,11 @@ function renderHomeSummary() {
         const c = side('w').length <= side('b').length ? 'w' : 'b';
         cta = `<button type="button" class="btn btn-primary hp-cta" data-action="homeAddLine" data-arg="${c}">${ico('plus')}Ajouter une ligne aux ${c === 'w' ? 'Blancs' : 'Noirs'}</button>${link}`;
     }
-    host.innerHTML = `<div class="hp-day edge-card${next ? '' : ' is-done'}">${head}
+    // Bloc réécrit seulement si son HTML change (patchHTML) : un redessin à l'identique (parties relues, synchro,
+    // pseudo du compte) ne détruit plus la ligne survolée.
+    patchHTML(host, `<div class="hp-day edge-card${next ? '' : ' is-done'}">${head}
         <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div>${_homeGoalHTML(today, goal)}</div>
-        ${focus}${_homeDailyHTML(rows, now)}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}${_homeGainHTML(now)}</div>`;
+        ${gauge}${due.length || held ? _homePaceHTML(goal) : ''}${focus}${_homeDailyHTML(rows, now)}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}${_homeGainHTML(now)}</div>`);
     HomePanels.render();                         // À traiter : nouveautés des parties, dernières parties
     if (typeof Dock !== 'undefined') Dock.refresh();   // le centre du dock reprend « Commencer », maintenant dessiné
 }
@@ -252,18 +267,18 @@ function renderHomeSummary() {
 // Une étape faite reste affichée, cochée (révisions à jour, finale réussie aujourd'hui) ; une étape sans objet disparaît.
 let _homeStepsNow = [];
 
-// cb : retour en douceur (Habits.comeback) : l'étape Révisions ne propose que la part du jour (limit), faite = cochée.
-function _homeSteps(due, rp, now, cb) {
+// late : { held, when } : révisions qui attendent au-delà de l'objectif du jour et date « à jour vers… ».
+function _homeSteps(due, rp, now, late = {}) {
     const pl = (n, one, many) => `${n} ${n > 1 ? many : one}`, out = [];
     const s = trainingState.lastSummary, miss = s && s.kind !== 'timed' ? s.rows.filter(r => !r.ok).length : 0;
     if (miss) out.push({ id: 'retry', icon: 'rotate-ccw', tone: 'err', title: 'Erreurs de la séance', sub: 'À revoir tant qu’elles sont fraîches', n: miss });
-    if (cb && !cb.left) {
-        out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: `Reprise du jour faite · <span>${cb.held} pour les jours suivants</span>`, html: true, done: true });
+    const wait = late.held ? `${late.held} en attente${late.when ? ` · à jour vers ${escapeHtml(late.when)}` : ''}` : '';
+    if (!due.length && late.held) {
+        out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: `Objectif du jour atteint · <span>${wait}</span>`, html: true, done: true });
     } else if (due.length) {
         const names = _homePlan(due).slice(0, 3).map(g => `<span>${g.html}</span>`).join(', ');
         const back = due.filter(r => Number.isInteger(r.e.relearn) || r.e.prio).length;
-        out.push(cb ? { id: 'due', icon: 'book', title: 'Révisions', sub: names + ' · <span>reprise en douceur</span>', n: cb.left, html: true, limit: cb.left }
-                    : { id: 'due', icon: 'book', title: 'Révisions', sub: names + (back ? ` · <span>dont ${back} à revoir</span>` : ''), n: due.length, html: true });
+        out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: names + (back ? ` · <span>dont ${back} à revoir</span>` : '') + (wait ? ` · <span>${wait}</span>` : ''), n: due.length, html: true });
     } else {
         const at = rp.next();
         out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: Number.isFinite(at) ? `À jour · <span>Prochaine révision ${dueInLabel(at, true)}</span>` : 'À jour', html: true, done: true });
@@ -282,10 +297,14 @@ function _homeSteps(due, rp, now, cb) {
 
 // ─── CE QUE LE RÉPERTOIRE RAPPORTE (atelier « L'envie de revenir », lot 4) ────
 // Une phrase, seulement quand les parties relues montrent un gain (OpeningReport.payoff) : jamais de reproche.
+let _homePriming = false;
 function _homeGainHTML(now) {
     if (typeof StatsGames === 'undefined' || typeof OpeningReport === 'undefined') return '';
     const rows = StatsGames.analysed();
-    if (!rows.length) { StatsGames.prime(); return ''; }
+    if (!rows.length) {                                      // archive relue après l'intro (Bus.afterIntro), une demande à la fois
+        if (!_homePriming) { _homePriming = true; Bus.afterIntro(() => { _homePriming = false; StatsGames.prime(); }, 600); }
+        return '';
+    }
     const p = OpeningReport.payoff(rows, now), gain = p.gain === null ? 0 : Math.round(p.gain);
     if (gain < 1) return '';
     return `<p class="hp-gain">${ico('book')}<span><span>Quand vous suivez votre répertoire, vous marquez <b>+${gain} %</b> de plus que quand vous le quittez.</span>
@@ -322,7 +341,7 @@ function homeRunStep(id) {
     const x = _homeStepsNow.find(s => s.id === id);
     if (!x || x.done) return;
     if (id === 'retry') UI_ACTIONS.trainingRetry(null, null);
-    else if (id === 'due') startDailyReview(x.limit);
+    else if (id === 'due') startDailyReview();
     else if (id === 'news') {
         const answer = document.querySelector('#hp-news .hp-answer');
         if (answer) answer.click();
@@ -460,6 +479,8 @@ function showGameScreen(color) {
 
     applyModeUI();
 }
+
+Bus.on('game:show', showGameScreen);         // demandé par un écran sans lien vers la coquille (éditeur de position)
 
 function startGame(color) {
     playerColor = color;
@@ -624,8 +645,10 @@ registerActions({ selectRepertoire, resumeLastPlay, createRepertoire: () => crea
     purgeExpiredTrash();                    // corbeille : purge des éléments de plus de 30 jours
     renderRepertoireList();
     updateTrashBadges();
-    if (typeof SeenPositions !== 'undefined') setTimeout(() => SeenPositions.refresh(), 800);
-    setTimeout(() => MasteryLog.record(currentRepertoire), 1000);   // historique de maîtrise : un relevé par jour d'utilisation   // filtre « Vu en partie », après le premier rendu
+    Bus.emit('app:ready');                  // accueil dessiné : le rideau du lancement peut se lever (splash.js)
+    // Après l'intro (Bus.afterIntro) : filtre « Vu en partie », puis historique de maîtrise (un relevé par jour d'utilisation).
+    if (typeof SeenPositions !== 'undefined') Bus.afterIntro(() => SeenPositions.refresh(), 300);
+    Bus.afterIntro(() => MasteryLog.record(currentRepertoire), 500);
 })();
 
 function createRepertoirePrompt() {

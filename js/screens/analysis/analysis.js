@@ -5,9 +5,10 @@
  * le moteur Stockfish (engine.js) et un BROUILLON en arbre. Rien n'est écrit dans le répertoire
  * pendant l'exploration ; « Ajouter au répertoire » montre d'abord ce qui sera fusionné.
  *
- *   openAnalysis(path?, displayPly?) : ouvre l'analyse sur une ligne (coups UCI depuis le début) ;
- *       par défaut, la ligne de l'écran Jouer et la position affichée.
- *   Brouillon : arbre { uci, san, kids } depuis la position initiale ; la ligne affichée est
+ *   openAnalysis(path?, displayPly?, back?, fen?) : ouvre l'analyse sur une ligne (coups UCI depuis le début, ou depuis
+ *       la position fen : éditeur de position, chantier « Éditeur et photo ») ; par défaut, la ligne de l'écran Jouer
+ *       et la position affichée. Depuis une position posée, « Ajouter au répertoire » est remplacé par une note.
+ *   Brouillon : arbre { uci, san, kids } depuis la position de départ (analysis.start) ; la ligne affichée est
  *       moveHistory (navigation ◀ ▶ habituelle). Gardé pour la session (sessionStorage) et proposé à
  *       la prochaine ouverture sur le même répertoire et la même couleur.
  *   Lignes du moteur : un clic joue le coup (animé), « + » recopie la variante dans le brouillon.
@@ -27,8 +28,10 @@ const CLOUD_EVAL_URL     = 'https://lichess.org/api/cloud-eval';
 
 const analysis = {
     rep: '', color: 'w', tree: { kids: [] }, dirty: false,
+    start: null,          // FEN de départ (position posée dans l'éditeur) ; null : position initiale
     running: false, job: null, wait: null, lines: [], fen: '', cloud: null, cloudFen: '',
     back: null,           // retour de Quitter quand l'Analyse vient d'ailleurs (fin d'exercice de l'Entraînement)
+    origin: null,         // Jouer quitté pour l'Analyse : { line, ply } (ligne et coup affiché), où Quitter ramène
     paused: false,        // « Arrêter » : calcul suspendu sur la position affichée seulement ; la suivante le relance
     retries: 0,           // nouveaux essais d'un calcul annulé par le moteur (Worker mort, erreur), sur la même position
     bar: null,            // dernière ligne montrée par la barre d'évaluation, gardée le temps du calcul suivant
@@ -41,8 +44,13 @@ const analysis = {
 
 // ─── BROUILLON ────────────────────────────────────────────────────────────────
 
+// Position de départ de l'analyse : la position initiale, ou celle posée dans l'éditeur.
+const _anRoot = () => analysis.start ? Chess.fromFen(analysis.start) : Chess.start();
+// Demi-coups avant le premier coup du brouillon (1 quand les Noirs ont le trait au départ) : numérotation des coups.
+const _anPly0 = () => analysis.start && analysis.start.split(/\s+/)[1] === 'b' ? 1 : 0;
+
 function _anInsert(path) {
-    let node = analysis.tree, pos = Chess.start();
+    let node = analysis.tree, pos = _anRoot();
     path.forEach(uci => {
         let kid = node.kids.find(k => k.uci === uci);
         if (!kid) { kid = { uci, san: Chess.san(pos, uci), kids: [] }; node.kids.push(kid); }
@@ -61,7 +69,7 @@ function _anLeaves(node = analysis.tree, path = [], out = []) {
 const _anCount = () => { let n = 0; const walk = nd => nd.kids.forEach(k => { n++; walk(k); }); walk(analysis.tree); return n; };
 
 function _anSaveDraft() {
-    try { sessionStorage.setItem(ANALYSIS_DRAFT_KEY, JSON.stringify({ rep: analysis.rep, color: analysis.color, tree: analysis.tree, line: _anLine() })); }
+    try { sessionStorage.setItem(ANALYSIS_DRAFT_KEY, JSON.stringify({ rep: analysis.rep, color: analysis.color, start: analysis.start, tree: analysis.tree, line: _anLine() })); }
     catch (e) { /* stockage de session indisponible : le brouillon vit seulement en mémoire */ }
 }
 function _anReadDraft() {
@@ -74,9 +82,15 @@ const _anLine = () => moveHistory.map(m => moveToStr(m.from, m.to, m.promo));
 // ─── OUVERTURE / FERMETURE ────────────────────────────────────────────────────
 
 // back : retour proposé par Quitter (Q) à la place de Jouer, par exemple l'exercice suivant de l'Entraînement.
-function openAnalysis(path, displayPly, back) {
+// fen : position de départ (éditeur de position) ; path part alors d'elle.
+function openAnalysis(path, displayPly, back, fen) {
     if (gameMode === 'analysis') return;
     analysis.back = typeof back === 'function' ? back : null;
+    analysis.start = typeof fen === 'string' && fen && fen.split(/\s+/).slice(0, 4).join(' ') !== INIT_FEN.split(' ').slice(0, 4).join(' ') ? fen : null;
+    // Ouverte depuis l'écran Jouer : sa ligne et le coup affiché sont retenus avant que l'Analyse ne remplace moveHistory.
+    const gs = document.getElementById('game-screen');
+    const fromPlay = !analysis.back && gameMode === 'play' && !!gs && !gs.classList.contains('hidden');
+    analysis.origin = fromPlay ? { line: _anLine(), ply: navCursor === -1 ? moveHistory.length - 1 : navCursor === NAV_START ? -1 : navCursor } : null;
     if (!path) { path = _anLine(); displayPly = navCursor === -1 ? path.length - 1 : navCursor === NAV_START ? -1 : navCursor; }
     if (typeof closeToolbarMore === 'function') closeToolbarMore();
     const draft = _anReadDraft();
@@ -88,7 +102,8 @@ function openAnalysis(path, displayPly, back) {
     analysis.lastMerge = null;
     analysis.seen = null;
     // Brouillon de la session sur ce répertoire et cette couleur : repris s'il contient la ligne demandée (ou si elle est vide).
-    const resume = draft && draft.rep === analysis.rep && draft.color === analysis.color && draft.tree && draft.tree.kids.length;
+    const resume = draft && draft.rep === analysis.rep && draft.color === analysis.color && (draft.start || null) === analysis.start
+        && draft.tree && draft.tree.kids.length;
     if (resume) {
         analysis.tree = draft.tree;
         if (!path.length && Array.isArray(draft.line)) { path = draft.line; displayPly = path.length - 1; }
@@ -99,7 +114,7 @@ function openAnalysis(path, displayPly, back) {
     gameMode = 'analysis';
     loadDB();
     showGameScreen(playerColor);
-    loadPositionFromPath(path);
+    loadPositionFromPath(path, { fen: analysis.start });
     if (displayPly !== undefined && displayPly < path.length - 1) navGo(displayPly);
     analysis.running = appSettings.engineAuto;
     analysis.paused = false;
@@ -134,9 +149,16 @@ function quitAnalysis() {
     analysis.back = null;
     stopAnalysis();
     if (back) { back(); return; }
+    // Retour à Jouer tel qu'on l'a laissé (ligne et coup affiché) ; sans origine (palette, accueil), la ligne analysée.
+    // Les deux se lisent AVANT startGame, qui vide moveHistory.
+    // Position posée (éditeur) : sa ligne ne part pas du début, Jouer reprend la position initiale.
+    const o = analysis.origin, line = o ? o.line.slice() : analysis.start ? [] : _anLine();
+    analysis.origin = null;
+    analysis.start = null;
     gameMode = 'play';
     startGame(analysis.color);
-    loadPositionFromPath(_anLine());
+    loadPositionFromPath(line);
+    if (o && o.ply < line.length - 1) navGo(o.ply);
 }
 
 function discardAnalysis() {
@@ -163,7 +185,7 @@ function analysisMove(from, to, promo) {
 
 function analysisGo(arg) {
     const path = arg ? arg.split(',') : [];
-    loadPositionFromPath(path);
+    loadPositionFromPath(path, { fen: analysis.start });
     analysisPositionChanged();
 }
 
@@ -319,7 +341,7 @@ function _anWin(l) {
 
 // Variante en notation (numéros de coup compris) depuis la position affichée.
 function _anPvText(pv, max = 10, html = false) {
-    let pos = Chess.fromFen(analysis.fen), ply = _displayedPath().length, out = '';
+    let pos = Chess.fromFen(analysis.fen), ply = _displayedPath().length + _anPly0(), out = '';
     pv.slice(0, max).forEach((u, i) => {
         const w = pos.turn === 'w';
         if (w) out += `${Math.floor(ply / 2) + 1}. `; else if (i === 0) out += `${Math.floor(ply / 2) + 1}… `;
@@ -398,8 +420,8 @@ function _anEngineState(lines, cloud) {
 function _anFinal() {
     if (!analysis.fen || Chess.legalMoves(Chess.fromFen(analysis.fen)).length) return '';
     const path = _displayedPath();
-    if (!path.length) return 'Pat';
-    try { return Chess.san(Chess.replay(path.slice(0, -1)), path[path.length - 1]).endsWith('#') ? 'Mat' : 'Pat'; }
+    if (!path.length) { const p = Chess.fromFen(analysis.fen); return PositionSetup.inCheck(p, p.turn) ? 'Mat' : 'Pat'; }
+    try { return Chess.san(Chess.replay(path.slice(0, -1), _anRoot()), path[path.length - 1]).endsWith('#') ? 'Mat' : 'Pat'; }
     catch (e) { return 'Pat'; }
 }
 
@@ -511,6 +533,7 @@ function _anAddHTML(s) {
 const _anLegendHTML = () => `<div class="ab-legend" aria-hidden="true">${Object.entries(AN_MARK_LABELS).map(([k, v]) => `<span><i class="ab-mk is-${k}"></i>${v}</span>`).join('')}</div>`;
 
 function _anDraftHTML() {
+    if (analysis.start) return _anSetupDraftHTML();
     const leaves = _anLeaves(), n = _anCount();
     const marks = analysisMarks(leaves, analysis.color, openingDB);
     const sum = analysisPlanSummary(analysisMergePlan(leaves, analysis.color, openingDB), typeof oppSeen !== 'undefined' ? oppSeen : {});
@@ -524,6 +547,19 @@ function _anDraftHTML() {
         <div class="ab-tree" id="an-moves">${tree}</div>
         ${n ? `${_anFuseHTML(sum)}${_anLegendHTML()}` : '<p class="ab-empty">Jouez les deux camps sur l’échiquier, ou recopiez une ligne du moteur avec « + ».</p>'}
         ${_anAddHTML(sum)}</div>`;
+}
+
+// Brouillon d'une position posée (éditeur) : l'arbre seul, sans marques ni fusion ; le répertoire n'accueille que des
+// lignes jouées depuis le début. « Modifier la position » rouvre l'éditeur sur la position de départ.
+function _anSetupDraftHTML() {
+    const n = _anCount();
+    analysis.seen = null;
+    return `<div class="ab-card ab-draft">
+        <div class="ab-h"><b>Brouillon</b><span class="vbadge is-muted is-dashed">position posée</span><small>${_pl(n, 'coup', 'coups')}</small>
+            ${n ? `<button type="button" class="ab-ghost" data-action="discardAnalysis" title="Effacer le brouillon">${ico('trash')}<span>Abandonner</span></button>` : ''}</div>
+        <div class="ab-tree" id="an-moves">${_anTreeHTML({})}</div>
+        <p class="ab-empty ab-setup-note">Ligne jouée depuis une position posée : elle ne peut pas rejoindre le répertoire, qui part du début.</p>
+        <button type="button" class="btn btn-soft ab-setup-edit" data-action="analysisEditSetup">${ico('pencil')}<span>Modifier la position</span></button></div>`;
 }
 
 // Bandeau au-dessus du brouillon : brouillon repris, ou dernière fusion (annulable).
@@ -560,7 +596,7 @@ function _anTreeHTML(marks = {}) {
             first = false; forceNum = alts.length > 0;
         }
     }
-    line(analysis.tree, [], 0, true);
+    line(analysis.tree, [], _anPly0(), true);
     return out.join(' ').replace(/\( </g, '(<').replace(/ \)<\/span>/g, ')</span>') || '<span class="ab-empty">Aucun coup</span>';
 }
 

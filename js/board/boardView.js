@@ -23,6 +23,9 @@ let navCursor = -1;
 // Entrée / Espace équivalent à un clic. Chaque case porte un libellé lisible (« e4, pion blanc »).
 const _PIECE_NAMES = { K: 'roi', Q: 'dame', R: 'tour', B: 'fou', N: 'cavalier', P: 'pion' };
 let _kbFocus = null;
+// Les cases ne gardent le focus que s'il vient du clavier (Tab, flèches) : après un clic ou un glisser, ← → reviennent
+// à la navigation dans les coups (chantier « Échiquier et séance »). _sqPointerAt : dernier appui sur l'échiquier.
+let _sqKeyFocus = false, _sqPointerAt = -1e9;
 
 function _squareLabel(idx, p) {
     if (!p) return squareToName(idx);
@@ -38,11 +41,12 @@ function setSquareBadge(idx, type) { _sqBadge = idx >= 0 ? { idx, key: positionK
 function renderBoard() {
     clearErrorFx();         // un réaffichage ne doit jamais rejouer la secousse d'une erreur passée
     const el        = document.getElementById('board');
-    const focused   = el.contains(document.activeElement) && document.activeElement.dataset.idx !== undefined
-                    ? Number(document.activeElement.dataset.idx) : null;
+    const focused   = _sqKeyFocus && el.contains(document.activeElement) && document.activeElement.dataset.idx !== undefined
+                    ? Number(document.activeElement.dataset.idx) : null;   // focus rendu seulement s'il vient du clavier
     el.innerHTML    = '';
     if (_kbFocus === null) _kbFocus = boardFlipped ? 52 : 12;
 
+    const hint = typeof hintMarks === 'function' ? hintMarks() : null;   // indice en paliers : pièces du type soulignées, pièce exacte cerclée
     const ranks = boardFlipped ? [0,1,2,3,4,5,6,7] : [7,6,5,4,3,2,1,0];
     const files = boardFlipped ? [7,6,5,4,3,2,1,0] : [0,1,2,3,4,5,6,7];
 
@@ -60,6 +64,10 @@ function renderBoard() {
             if (appSettings.lastMove && idx === lastFrom) sq.classList.add('hl-from');   // Paramètres › Apparence
             if (appSettings.lastMove && idx === lastTo)   sq.classList.add('hl-to');
             if (selected === idx)             sq.classList.add('hl-selected');
+            if (hint && hint.ring === idx)    sq.classList.add('hl-hint-piece');
+            if (hint && hint.type.includes(idx)) sq.classList.add('hl-hint-type');
+            const own = GameModes.current().squareClass(idx);           // éditeur : case douteuse d'une image
+            if (own) sq.classList.add(own);
             if (legalMoves.includes(idx)) {
                 sq.classList.add('hl-legal');
                 if (board[idx]) sq.classList.add('has-piece');
@@ -82,7 +90,7 @@ function renderBoard() {
             if (row === 7) sq.insertAdjacentHTML('beforeend', `<span class="coord coord-file">${'abcdefgh'[c]}</span>`);
 
             sq.addEventListener('click', () => {
-                if (_dragJustEnded() || appSettings.moveInput === 'drag') return;     // « Glisser » seulement : pas de clic
+                if (_dragJustEnded() || (appSettings.moveInput === 'drag' && !GameModes.current().onSquare)) return;     // « Glisser » seulement : pas de clic (sauf éditeur)
                 handleClick(idx);
             });
             el.appendChild(sq);
@@ -203,21 +211,47 @@ function setStatus(msg, type = 'info', detail = '', opts = null) {
 }
 
 // Pose (ou retire, sans opts) le bouton de la barre d'état sans toucher au texte : fin d'exercice, dont le titre peut être en train de se graver.
+// Sans opts, le mode peut proposer son action « au repos » (idleAction : l'Indice en Focus).
+// opts.toggle = { label, on, title?, run(on) } : interrupteur avant le bouton (« Enchaîner ») ;
+// opts.ring = ms : anneau de décompte autour de l'icône du bouton (enchaînement prévu dans ms).
 function setStatusAction(opts) {
     const bar = document.getElementById('status-bar');
     if (!bar) return;
-    const old = bar.querySelector('.status-act');
-    if (old) old.remove();
+    bar.querySelectorAll('.status-act, .status-switch').forEach(x => x.remove());
+    let idle = false;
+    if (!opts || !opts.action) { opts = GameModes.current().idleAction(); idle = !!opts; }
     bar.classList.toggle('has-act', !!(opts && opts.action));
     if (!opts || !opts.action) { Bus.emit('ui:refresh'); return; }
+    if (opts.toggle) bar.append(_statusSwitch(opts.toggle));
     const btn = Object.assign(document.createElement('button'), { type: 'button', className: 'btn btn-soft status-act' });
     btn.dataset.act = opts.action;                       // libellé français d'origine, lu par le dock (le texte peut être traduit)
+    if (idle) btn.dataset.idle = '1';
     if (opts.title) btn.title = opts.title;
-    if (opts.icon && typeof ico === 'function') btn.innerHTML = ico(opts.icon);      // icône du sprite, sans texte inséré
+    if (opts.ring > 0) {
+        btn.classList.add('has-ring');
+        btn.insertAdjacentHTML('beforeend', `<svg class="act-ring" viewBox="0 0 20 20" aria-hidden="true" style="--ring-ms:${Math.round(opts.ring)}ms"><circle cx="10" cy="10" r="8"/><circle class="act-ring-v" cx="10" cy="10" r="8" pathLength="100"/></svg>`);
+    } else if (opts.icon && typeof ico === 'function') btn.insertAdjacentHTML('beforeend', ico(opts.icon));      // icône du sprite, sans texte inséré
     btn.append(Object.assign(document.createElement('span'), { textContent: opts.action }));
     btn.addEventListener('click', () => { if (typeof opts.run === 'function') opts.run(); });
     bar.append(btn);
     Bus.emit('ui:refresh');
+}
+
+// Rafraîchit l'action « au repos » (Focus basculé, palier d'indice) sans toucher à une action posée par le mode.
+function refreshIdleAction() {
+    const bar = document.getElementById('status-bar'), cur = bar && bar.querySelector('.status-act');
+    if (bar && (!cur || cur.dataset.idle)) setStatusAction(null);
+}
+
+function _statusSwitch(t) {
+    const lab = Object.assign(document.createElement('label'), { className: 'status-switch' });
+    if (t.title) lab.title = t.title;
+    const input = Object.assign(document.createElement('input'), { type: 'checkbox', checked: !!t.on });
+    input.setAttribute('role', 'switch');
+    input.addEventListener('change', () => { if (typeof t.run === 'function') t.run(input.checked); });
+    lab.append(input, Object.assign(document.createElement('i'), { className: 'status-switch-track' }), Object.assign(document.createElement('span'), { textContent: t.label }));
+    lab.querySelector('i').setAttribute('aria-hidden', 'true');
+    return lab;
 }
 
 // ─── NAVIGATION VISUELLE (Précédent / Suivant) ────────────────────────────────
@@ -243,10 +277,17 @@ function updateNavButtons() {
     const prevBtn = document.getElementById('btn-prev');
     const nextBtn = document.getElementById('btn-next');
     if (!prevBtn || !nextBtn) return;
-    prevBtn.disabled = (moveHistory.length === 0 || _navPos() <= -1);
+    // Séance occupée (mise en situation, réponse adverse, pause) : ◀ ▶ grisés avec leur raison, plus gelés sans signe.
+    const mode = GameModes.current(), held = mode.navBlocked();
+    prevBtn.disabled = held || (moveHistory.length === 0 || _navPos() <= -1);
     prevBtn.style.opacity = prevBtn.disabled ? '0.4' : '';
-    nextBtn.disabled = (navCursor === -1);
+    nextBtn.disabled = held || (navCursor === -1);
     nextBtn.style.opacity = nextBtn.disabled ? '0.4' : '';
+    [prevBtn, nextBtn].forEach(b => {
+        if (!b.dataset.title) b.dataset.title = b.title;
+        b.title = held && mode.navBlockedNote ? mode.navBlockedNote : b.dataset.title;
+        b.classList.toggle('is-held', held);
+    });
 }
 
 // Affiche la position après le coup d'indice p (p = -1 : position initiale).
@@ -500,14 +541,17 @@ function _setOver(idx, on) {
 }
 
 function _beginDrag(d) {
-    // Seules les pièces du camp au trait sont déplaçables (jamais de capture « par accident »).
-    const side = _navSide();
-    if ((d.cls.includes('piece-w') ? 'w' : 'b') !== side) return false;
+    d.own = GameModes.current().onDrop;                   // éditeur : toute pièce se glisse, le mode décide du dépôt
+    if (!d.own) {
+        // Seules les pièces du camp au trait sont déplaçables (jamais de capture « par accident »).
+        const side = _navSide();
+        if ((d.cls.includes('piece-w') ? 'w' : 'b') !== side) return false;
 
-    if (GameModes.current().backToLive()) return false;   // séance : ramène au présent, sans rejouer
-    if (navCursor !== -1) _syncEngineToNavCursor();      // glisser depuis une position passée = nouvelle variante
-    if (selected !== d.from) handleClick(d.from);
-    if (selected !== d.from) return false;
+        if (GameModes.current().backToLive()) return false;   // séance : ramène au présent, sans rejouer
+        if (navCursor !== -1) _syncEngineToNavCursor();      // glisser depuis une position passée = nouvelle variante
+        if (selected !== d.from) handleClick(d.from);
+        if (selected !== d.from) return false;
+    }
 
     const src = document.querySelector(`#board .sq[data-idx="${d.from}"]`);
     if (src) src.classList.add('drag-source');
@@ -541,7 +585,8 @@ function _endDrag(e, cancelled) {
     if (cancelled) return;
 
     const to = _squareAt(e.clientX, e.clientY);
-    if (to === null)         handleClick(d.from);   // relâché hors de l'échiquier : désélection
+    if (d.own)               d.own(d.from, to);     // éditeur : posée sur la case, ou retirée hors de l'échiquier
+    else if (to === null)    handleClick(d.from);   // relâché hors de l'échiquier : désélection
     else if (to !== d.from)  handleClick(to);       // joue / refuse / change de pièce (comme un clic)
     // relâché sur sa propre case : la pièce reste sélectionnée
 }
@@ -553,7 +598,7 @@ let altHeld = false;
 
 _boardEl.addEventListener('pointerdown', e => {
     if (e.button !== 0 || !e.isPrimary || !_canInteract()) return;
-    if (appSettings.moveInput === 'click') return;                     // « Cliquer » seulement : pas de glisser
+    if (appSettings.moveInput === 'click' && !GameModes.current().onDrop) return;   // « Cliquer » seulement : pas de glisser (sauf éditeur)
     const pieceEl = e.target.closest('.piece');
     if (!pieceEl) return;
     const sq = pieceEl.closest('.sq');
@@ -605,7 +650,15 @@ _boardEl.addEventListener('keydown', e => {
         if (_canInteract()) handleClick(idx);
     }
 });
-_boardEl.addEventListener('focusin', e => { const sq = e.target.closest && e.target.closest('.sq'); if (sq) _kbFocus = Number(sq.dataset.idx); });
+_boardEl.addEventListener('pointerdown', () => { _sqPointerAt = performance.now(); _sqKeyFocus = false; }, true);
+_boardEl.addEventListener('focusin', e => {
+    const sq = e.target.closest && e.target.closest('.sq');
+    if (!sq) return;
+    if (performance.now() - _sqPointerAt < 1000) { _sqKeyFocus = false; sq.blur(); return; }   // focus donné par la souris ou le doigt
+    _sqKeyFocus = true;
+    _kbFocus = Number(sq.dataset.idx);
+});
+_boardEl.addEventListener('focusout', e => { if (!_boardEl.contains(e.relatedTarget)) _sqKeyFocus = false; });
 _boardEl.addEventListener('pointercancel', e => _endDrag(e, true));
 
 // ─── CLIC SUR LA BARRE DE COUPS ───────────────────────────────────────────────
