@@ -235,7 +235,7 @@ const StatsInsights = (function () {
 
     // Carte 5 : score avec et sans zeitnot.
     function zeitnotBars(z) {
-        const rows = [['Avec zeitnot', z.withIt, 'si-down'], ['Sans zeitnot', z.without, 'si-up']].filter(([, t]) => fair(t)), W = 360, L = 100, R = 44, H = 8 + rows.length * 30, k = (W - L - R) / 100;
+        const rows = [['Avec zeitnot', z.withIt, 'si-down'], ['Sans zeitnot', z.without, 'si-me']].filter(([, t]) => fair(t)), W = 360, L = 100, R = 44, H = 8 + rows.length * 30, k = (W - L - R) / 100;
         let g = `<line class="g si-dash" x1="${L + 50 * k}" x2="${L + 50 * k}" y1="0" y2="${H - 4}"/><text x="${L + 50 * k}" y="${H + 8}" text-anchor="middle">50 %</text>`;
         rows.forEach(([n, t, cls], i) => { const y = 6 + i * 30; g += `<text class="lab" x="0" y="${y + 12}">${n}</text>${hBar(L, L + Math.max(1, t.score * k), y, 16, cls, I18n.mark(`${n} · ${pct(t.score)} · ${t.n}`))}<text class="v" x="${L + t.score * k + 5}" y="${y + 12}">${pct(t.score)}</text>`; });
         return rows.length ? svgOf(W, H + 10, 'Score avec et sans zeitnot', g) : '';
@@ -243,7 +243,7 @@ const StatsInsights = (function () {
 
     // Carte 6 : score selon la pendule au coup 20, en trois situations.
     function sidesChart(s) {
-        const rows = [['En retard', s.behind, 'si-down'], ['À égalité', s.even, 'si-mid'], ['En avance', s.ahead, 'si-up']], W = 360, H = 150, T = 18, B = 34, base = H - B, k = (base - T) / 100, band = W / 3, bw = Math.min(60, band * .44);
+        const rows = [['En retard', s.behind, 'si-down'], ['À égalité', s.even, 'si-neutral'], ['En avance', s.ahead, 'si-me']], W = 360, H = 150, T = 18, B = 34, base = H - B, k = (base - T) / 100, band = W / 3, bw = Math.min(60, band * .44);
         let g = `<line class="b" x1="0" x2="${W}" y1="${base}" y2="${base}"/><line class="g si-dash" x1="0" x2="${W}" y1="${base - 50 * k}" y2="${base - 50 * k}"/><text x="${W}" y="${base - 50 * k - 4}" text-anchor="end">50 %</text>`;
         rows.forEach(([n, t, cls], i) => {
             const x = band * i + (band - bw) / 2;

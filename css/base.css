@@ -80,6 +80,11 @@
     --data-win: #5e432f;
     --data-draw: #ddd0bd;
     --data-loss: #c8452c;
+    /* Comparaisons sans jugement (vous / l'adversaire, situation de référence, sans objet) : --data-me noyer foncé,
+       --data-them bois moyen nettement plus clair (et en pointillé sur les courbes), --data-neutral sable grisé. */
+    --data-me: #4a3426;
+    --data-them: #a3825f;
+    --data-neutral: #b5aa9c;
 }
 
 /* ─── THÈME SOMBRE ────────────────────────────────────────────────────────────
@@ -135,6 +140,9 @@
     --data-win: #d9bd8c;
     --data-draw: #4a3a2c;
     --data-loss: #ec6f5a;
+    --data-me: #ecdcc0;
+    --data-them: #8a6c51;
+    --data-neutral: #5f564c;
     color-scheme: dark;
 }
 html[data-theme="dark"][data-dark="night"] {
@@ -244,6 +252,7 @@ html[data-theme="dark"][data-dark="board"] {
         --data-up: oklch(34.6% 0.039 53);      --data-up-ink: oklch(34.6% 0.039 53);
         --data-down: oklch(57% 0.171 33);      --data-down-ink: oklch(49.5% 0.142 32);
         --data-win: oklch(40.7% 0.049 57);     --data-draw: oklch(86.3% 0.029 78);    --data-loss: oklch(57% 0.171 33);
+        --data-me: oklch(34.6% 0.039 53);      --data-them: oklch(62.9% 0.064 68);    --data-neutral: oklch(74.3% 0.023 74);
     }
     [data-theme="dark"] {
         --lv-weak: oklch(69.1% 0.163 32);      --lv-fragile: oklch(42.1% 0.043 61);   --lv-fragile-ink: oklch(72% 0.069 61);
@@ -251,6 +260,7 @@ html[data-theme="dark"][data-dark="board"] {
         --data-up: oklch(85.6% 0.066 81);      --data-up-ink: oklch(87.7% 0.063 81);
         --data-down: oklch(68.7% 0.159 31);    --data-down-ink: oklch(73.8% 0.129 32);
         --data-win: oklch(81.1% 0.072 81);     --data-draw: oklch(36.2% 0.032 63);    --data-loss: oklch(68.7% 0.159 31);
+        --data-me: oklch(90% 0.041 82);        --data-them: oklch(55.4% 0.055 63);    --data-neutral: oklch(45.9% 0.02 70);
     }
 }
 [data-theme="dark"] .panel, [data-theme="dark"] .menu { border-color: var(--border-strong); }
