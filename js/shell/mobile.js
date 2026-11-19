@@ -36,8 +36,29 @@ function _swKeepList() {
     return [...out];
 }
 if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    // Version en attente trouvée au lancement : elle prend la main et la page se recharge une seule fois, avant
+    // tout usage (6 s au plus après l'ouverture). Plus tard, rien : la nouvelle version attendra le lancement suivant.
+    const opened = Date.now(), sw = navigator.serviceWorker;
+    let reloaded = false;
+    const takeOver = reg => {
+        if (!reg || !reg.waiting || !sw.controller || Date.now() - opened > 6000) return;
+        try { if (sessionStorage.getItem('chays_swTakeOver') === String(opened)) return; } catch (e) { /* sans stockage de session */ }
+        sw.addEventListener('controllerchange', () => {
+            if (reloaded || Date.now() - opened > 8000) return;
+            reloaded = true;
+            location.reload();
+        }, { once: true });
+        reg.waiting.postMessage({ type: 'take-over' });
+    };
     window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+        sw.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+            takeOver(reg);
+            // Nouvelle version tout juste installée pendant l'ouverture (sw.js revérifié au lancement).
+            reg.addEventListener('updatefound', () => {
+                const w = reg.installing;
+                if (w) w.addEventListener('statechange', () => { if (w.state === 'installed') takeOver(reg); });
+            });
+        }).catch(() => {});
         navigator.serviceWorker.ready.then(reg => { if (reg.active) reg.active.postMessage({ type: 'keep', urls: _swKeepList() }); }).catch(() => {});
     });
 }

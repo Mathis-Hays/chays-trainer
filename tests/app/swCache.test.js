@@ -104,7 +104,20 @@ function load({ build, failing = [] } = {}) {
         await sw.run('install'); await sw.run('activate');
         assert.deepStrictEqual(calls, []);
         const code = SRC.replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, '');
-        assert(!/skipWaiting\s*\(|clients\.claim\s*\(/.test(code), 'aucun appel dans sw.js');
+        assert(!/clients\.claim\s*\(/.test(code), 'aucun clients.claim dans sw.js');
+        assert.strictEqual((code.match(/skipWaiting\s*\(/g) || []).length, 1, 'skipWaiting seulement sur demande de la page');
+    });
+    await t('au lancement, la page peut faire prendre la main à la version en attente (« take-over »)', async () => {
+        const calls = [];
+        const sw = load({ build: 'new' });
+        sw.ctx.self.skipWaiting = () => { calls.push('skipWaiting'); };
+        await sw.run('message', { data: { type: 'keep', urls: [] } });
+        assert.deepStrictEqual(calls, [], '« keep » ne prend pas la main');
+        await sw.run('message', { data: { type: 'take-over' } });
+        assert.deepStrictEqual(calls, ['skipWaiting']);
+        const mobile = fs.readFileSync(require('../_app.js').scriptPath('mobile.js'), 'utf8');
+        assert(/type:\s*'take-over'/.test(mobile) && /Date\.now\(\)\s*-\s*opened\s*>\s*6000/.test(mobile), 'mobile.js : demandé au lancement seulement');
+        assert(/location\.reload\(\)/.test(mobile) && /reloaded/.test(mobile), 'mobile.js : un seul rechargement');
     });
     console.log(`\n${n} tests réussis.`);
 })().catch(e => { console.error(e); process.exit(1); });

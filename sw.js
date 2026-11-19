@@ -8,8 +8,10 @@
  *     chaque lancement (une seule requête), installe le nouveau service worker, qui range tout le code
  *     de cette version dans un cache neuf, puis attend : ni skipWaiting ni clients.claim (chantier « Accueil et
  *     lancement », novembre 2026), une page déjà ouverte reste servie par sa version jusqu'au bout. Le nouveau
- *     service worker prend la main quand plus aucune page de l'ancien n'est ouverte, et ses anciens caches ne sont
- *     supprimés qu'à ce moment. Code ancien et nouveau ne se mêlent jamais ; la nouvelle version s'ouvre au
+ *     service worker prend la main quand plus aucune page de l'ancien n'est ouverte, ou au lancement suivant : la page
+ *     qui s'ouvre et trouve une version en attente lui envoie « take-over » puis se recharge une fois (mobile.js),
+ *     sinon un onglet gardé ouvert ou une app installée resteraient sur l'ancienne version (un simple rechargement
+ *     ne suffit pas). Les anciens caches ne sont supprimés qu'à ce moment. Code ancien et nouveau ne se mêlent jamais ; la nouvelle version s'ouvre au
  *     lancement suivant (toute première visite : la page n'est servie hors ligne qu'à partir de la suivante). Avant, chaque lancement redemandait les
  *     124 fichiers au réseau (2 à 8 s sur téléphone modeste).
  *     BUILD est écrit au déploiement par la commande de construction de vercel.json (commit). Sans lui
@@ -72,6 +74,9 @@ self.addEventListener('install', e => {
 // La page signale l'échiquier, le jeu de pièces et la langue en usage (adresses de même origine) : rangés s'ils manquent.
 self.addEventListener('message', e => {
     const d = e.data || {};
+    // Au lancement seulement (mobile.js) : la page qui vient de s'ouvrir demande à la version en attente de
+    // prendre la main, puis se recharge une fois. Jamais pendant l'usage : une page ouverte n'est pas prise.
+    if (d.type === 'take-over') { self.skipWaiting(); return; }
     if (d.type !== 'keep' || !Array.isArray(d.urls)) return;
     const urls = d.urls.filter(u => typeof u === 'string' && new URL(u, self.location.href).origin === self.location.origin).slice(0, 80);
     const job = Promise.all(urls.map(async u => {
