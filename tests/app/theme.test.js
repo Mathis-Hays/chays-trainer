@@ -167,9 +167,9 @@ t('badges de verdict (.vbadge) : texte tiré vers --text, 4,5:1 sur la teinte du
         }
     };
     for (const [id, v] of Object.entries(LIGHTS))
-        check(`clair ${id}`, v, .45, { ok: light.ok, err: light.err, warn: light['lv-progress'], new: light.new, muted: v['text-muted'] });
+        check(`clair ${id}`, v, .45, { ok: light.ok, err: light.err, warn: light.warn, new: light.new, muted: v['text-muted'] });
     for (const [id, v] of Object.entries(DARK_BGS))
-        check(id, v, .72, { ok: base.ok, err: base.err, warn: base['lv-progress'], new: base.new, muted: v['text-muted'] });
+        check(id, v, .72, { ok: base.ok, err: base.err, warn: base.warn, new: base.new, muted: v['text-muted'] });
     assert.strictEqual(bad.join(' ; '), '');
 });
 
@@ -220,23 +220,38 @@ t('Safari 16 : accents de repli (color-mix) lisibles sur les 13 échiquiers, en 
     assert.strictEqual(bad.join(' ; '), '');
 });
 
-// Niveaux de maîtrise : échelle divergente lisible en deutéranopie (arbitrage du 12 novembre 2026).
-t('niveaux de maîtrise : distincts en deutéranopie, aucun vert, l\'ambre d\'avertissement à part', () => {
+// Niveaux de maîtrise : palette « Noyer, un seul accent » (novembre 2026), lisible en deutéranopie et en protanopie.
+t('niveaux de maîtrise : distincts en deutéranopie et en protanopie, aucun vert, l\'ambre d\'avertissement à part', () => {
     const base = fs.readFileSync(require('path').join(__dirname, '../../css/base.css'), 'utf8');
     const block = sel => { const i = base.indexOf(sel); return base.slice(i, base.indexOf('}', i)); };
     const read = (b, name) => { const m = new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, 'i').exec(b); return m && m[1]; };
     const light = block(':root, [data-theme="light"] {'), dark = block('\n[data-theme="dark"] {');
     const D = [[.367, .861, -.228], [.280, .673, .047], [-.012, .043, .969]];
-    const deut = h => { const v = hex(h).map(lin); return D.map(r => gam(Math.max(0, Math.min(1, r[0] * v[0] + r[1] * v[1] + r[2] * v[2]))) * 255); };
+    const P = [[.152, 1.053, -.205], [.115, .786, .099], [-.004, -.048, 1.052]];
+    const sim = M => h => { const v = hex(h).map(lin); return M.map(r => gam(Math.max(0, Math.min(1, r[0] * v[0] + r[1] * v[1] + r[2] * v[2]))) * 255); };
     [[light, 'clair'], [dark, 'sombre']].forEach(([b, name]) => {
-        const err = read(b, 'err'), lv = [err, read(b, 'lv-fragile'), read(b, 'lv-progress'), read(b, 'lv-solid'), read(b, 'lv-mastered')];
+        const lv = [read(b, 'lv-weak'), read(b, 'lv-fragile'), read(b, 'lv-progress'), read(b, 'lv-solid'), read(b, 'lv-mastered')];
         assert(lv.every(Boolean), name + ' : ' + lv.join(' '));
         assert(read(b, 'warn'), name + ' : --warn');
-        let min = Infinity;
-        lv.forEach((a, i) => lv.slice(i + 1).forEach(c => { min = Math.min(min, Math.hypot(...deut(a).map((x, k) => x - deut(c)[k]))); }));
-        assert(min >= 45, `${name} : deux niveaux se confondent (${Math.round(min)})`);
+        for (const [cvd, f] of [['deutéranopie', sim(D)], ['protanopie', sim(P)]]) {
+            let min = Infinity;
+            lv.forEach((a, i) => lv.slice(i + 1).forEach(c => { min = Math.min(min, Math.hypot(...f(a).map((x, k) => x - f(c)[k]))); }));
+            assert(min >= 45, `${name}, ${cvd} : deux niveaux se confondent (${Math.round(min)})`);
+        }
         lv.slice(1).forEach(c => { const [r, g, bb] = hex(c); assert(!(g > r && g > bb), `${name} : ${c} est vert`); });
     });
+});
+
+// Graphiques : une seule paire bien / mal (--data-*), textes -ink lisibles sur les cartes, fenêtres et fonds de chaque ambiance.
+t('graphiques : jetons --data-* en clair et en sombre, textes à 4,5:1, repli hex puis oklch() simple', () => {
+    const light = varsOf(':root, [data-theme="light"]'), KEYS = ['data-up', 'data-up-ink', 'data-down', 'data-down-ink', 'data-win', 'data-draw', 'data-loss'], bad = [];
+    for (const k of KEYS) assert(light[k] && base[k], '--' + k);
+    const ink = (sets, v0) => { for (const [id, v] of Object.entries(sets)) for (const s of ['surface', 'bg-elevated', 'bg'])
+        for (const k of ['data-up-ink', 'data-down-ink', 'lv-fragile-ink']) { const c = contrast(hex(v0[k]), hex(v[s])); if (c < 4.5) bad.push(`${id} ${k}/${s} ${c.toFixed(2)}`); } };
+    ink(LIGHTS, light); ink(DARK_BGS, base);
+    assert.strictEqual(bad.join(' ; '), '');
+    const sup = css.slice(css.indexOf('@supports (color: oklch(0% 0 0))'));
+    assert(/--data-up:\s+oklch\(\d/.test(sup) && /--lv-mastered:\s+oklch\(\d/.test(sup), 'bloc oklch() simple après les hex');
 });
 
 console.log(`\n${n} tests réussis.`);

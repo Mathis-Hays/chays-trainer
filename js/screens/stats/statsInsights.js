@@ -98,7 +98,7 @@ const StatsInsights = (function () {
     function heatHTML(h) {
         const days = [0, 1, 2, 3, 4, 5, 6].map(d => I18n.mark(new Date(2024, 0, 1 + d).toLocaleDateString(I18n.locale(), { weekday: 'short' })));
         const slots = ['0-4', '4-8', '8-12', '12-16', '16-20', '20-24'];
-        const color = t => t.n < MIN ? '' : `background:color-mix(in oklab, ${t.score >= 50 ? 'var(--new)' : 'var(--lv-fragile)'} ${Math.min(100, Math.abs(t.score - 50) * 6)}%, var(--bg-inset))`;
+        const color = t => t.n < MIN ? '' : `background:color-mix(in oklab, ${t.score >= 50 ? 'var(--data-up)' : 'var(--data-down)'} ${Math.min(100, Math.abs(t.score - 50) * 6)}%, var(--bg-inset))`;
         const text = c => `${days[c.day]}, ${slots[c.slot]} h`;
         const take = h.best && h.worst ? `Meilleur créneau : ${text(h.best)} (${pct(h.best.t.score)}). Le moins bon : ${text(h.worst)} (${pct(h.worst.t.score)}).` : 'Il faut plus de parties par créneau pour comparer.';
         return card('so-c6', 'Quand jouez-vous le mieux ?', take, `<div class="si-heat" role="img" aria-label="Score par jour et par tranche horaire"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}${h.grid.map((row, d) => `<span class="d">${days[d]}</span>${row.map((t, s) => `<i style="${color(t)}" title="${I18n.mark(`${days[d]}, ${slots[s]} h · ${t.n} · ${t.n ? pct(t.score) : '–'}`)}"></i>`).join('')}`).join('')}</div><div class="si-ramp">Sous 50 % <i></i> Au-dessus</div>`);
@@ -316,7 +316,7 @@ const StatsInsights = (function () {
         const tr = GameQuality.trend(months), title = !tr ? 'Votre précision progresse-t-elle ?' : { up: 'Votre précision monte', down: 'Votre précision baisse', flat: 'Votre précision tient' }[tr.dir];
         const span = tr && tr.change !== null ? Math.max(1, Math.round((tr.at - tr.from) / (30.44 * 864e5))) : 0;
         const now = new Date(), thisMonth = tr && new Date(tr.at).getMonth() === now.getMonth() && new Date(tr.at).getFullYear() === now.getFullYear();
-        const when = thisMonth ? 'Ce mois-ci' : `En ${monthLong(tr.at)}`;
+        const when = !tr ? '' : thisMonth ? 'Ce mois-ci' : `En ${monthLong(tr.at)}`;   // sans tendance (trop peu de mois), pas de date
         const take = tr && tr.vsOpp !== null ? (tr.vsOpp >= 0 ? `${when}, vous jouez ${points(tr.vsOpp)} plus juste que vos adversaires.` : `${when}, vous jouez ${points(tr.vsOpp)} moins juste que vos adversaires.`) : `Sur ${I18n.t(_plural(q.games, 'partie analysée', 'parties analysées'))}.`;
         const hero = tr ? `<div class="si-hero"><b>${pct(tr.value)}</b>${tr.change === null ? '' : Math.abs(tr.change) < .5 ? `<span class="so-delta">${I18n.t('stable')}</span>` : `<span class="so-delta ${tr.change >= 0 ? 'up' : 'down'}"><i aria-hidden="true">${tr.change >= 0 ? '▲' : '▼'}</i>${I18n.mark(`${signed(tr.change)} pts`)}</span><span>${I18n.mark(`${I18n.t('en')} ${_plural(span, 'mois', 'mois')}`)}</span>`}</div>` : '';
         return card('so-c6 si-acc', title, take, `${hero}${accuracyChart(months)}<p class="si-cap">Précision du site quand elle existe, sinon calcul Chays ; ruban : vos adversaires</p>`);

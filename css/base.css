@@ -59,15 +59,27 @@
     --shadow-sm: 0 1px 2px rgba(47, 40, 20, .06), 0 6px 16px -10px rgba(47, 40, 20, .2);
 
     /* Niveaux de maîtrise d'une position (stats.js, STATS_LEVELS), du plus fragile au plus sûr.
-       Échelle divergente lisible par tous les daltonismes (arbitrage du 12 novembre 2026) : vermillon → ambre → sable → bleu.
-       Le rouge et le vert restent aux pertes et aux gains (--err, --ok) ; aucun niveau n'est vert. */
-    --lv-weak: var(--err);
-    --lv-fragile: #d98a2b;
-    --lv-fragile-ink: #94560f;
-    --lv-progress: #b9a074;
-    --lv-solid: #5c9ec4;
+       Palette « Noyer, un seul accent » (artefact « Couleurs des statistiques », novembre 2026) : les niveaux suivent la
+       clarté du bois, du buis pâle au noyer sombre (inversé en sombre) ; seul « À retravailler » porte le vermillon.
+       Aucun niveau n'est vert ; distincts en deutéranopie et protanopie (tests/app/theme.test.js). Valeurs hex ici
+       (repli), les mêmes en oklch() dans le bloc @supports plus bas. --lv-unsure garde le gris de chaque ambiance. */
+    --lv-weak: #c1422a;
+    --lv-fragile: #c3ad88;
+    --lv-fragile-ink: #6f5a35;             /* texte d'un coup fragile : 4,5:1 au moins sur les cartes */
+    --lv-progress: #b99260;
+    --lv-solid: #927258;
     --lv-unsure: #a3a593;
-    --lv-mastered: #24607f;
+    --lv-mastered: #342216;
+
+    /* Graphiques (Statistiques, Progrès) : une seule paire bien / mal. « Mieux que prévu » en noyer, « moins bien » et
+       les défaites en vermillon ; -ink : version texte, 4,5:1 sur les cartes. --new et --ok restent à l'interface. */
+    --data-up: #4a3426;
+    --data-up-ink: #4a3426;
+    --data-down: #c8452c;
+    --data-down-ink: #a33a29;
+    --data-win: #5e432f;
+    --data-draw: #ddd0bd;
+    --data-loss: #c8452c;
 }
 
 /* ─── THÈME SOMBRE ────────────────────────────────────────────────────────────
@@ -108,12 +120,21 @@
     --shadow: 0 14px 36px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 255, 255, .04);
     --shadow-sm: 0 2px 8px rgba(0, 0, 0, .35), inset 0 1px 0 rgba(255, 255, 255, .03);
 
-    --lv-fragile: #f0a046;
-    --lv-fragile-ink: #f2ad5e;
-    --lv-progress: #d6c39a;
-    --lv-solid: #7dbbe0;
+    --lv-weak: #ef6f58;
+    --lv-fragile: #5f4835;
+    --lv-fragile-ink: #c59b78;
+    --lv-progress: #836546;
+    --lv-solid: #c9a87f;
     --lv-unsure: #74777c;
-    --lv-mastered: #4f9fd4;
+    --lv-mastered: #e6d3b0;
+
+    --data-up: #e6cc9f;
+    --data-up-ink: #ecd3a8;
+    --data-down: #ec6f5a;
+    --data-down-ink: #f08a76;
+    --data-win: #d9bd8c;
+    --data-draw: #4a3a2c;
+    --data-loss: #ec6f5a;
     color-scheme: dark;
 }
 html[data-theme="dark"][data-dark="night"] {
@@ -211,6 +232,25 @@ html[data-theme="dark"][data-dark="board"] {
         --text-muted:    oklch(from var(--board-dark) .77 min(calc(c * .2), .015) h);
         --text-dim:      oklch(from var(--board-dark) .67 min(calc(c * .2), .015) h);
         --lv-unsure:     oklch(from var(--board-dark) .55 min(calc(c * .15), .012) h);
+    }
+}
+/* Niveaux et graphiques en oklch() simple (Safari 15.4+, sans « from ») : mêmes couleurs que les hex ci-dessus.
+   Une propriété personnalisée n'est pas validée à la lecture : le repli hex n'existe que grâce à ce @supports.
+   Ordre : le clair puis le sombre, sinon le clair l'emporterait en sombre (même spécificité). */
+@supports (color: oklch(0% 0 0)) {
+    :root, [data-theme="light"] {
+        --lv-weak: oklch(55.5% 0.167 33);      --lv-fragile: oklch(75.7% 0.056 81);   --lv-fragile-ink: oklch(48% 0.06 81);
+        --lv-progress: oklch(68.5% 0.082 73);  --lv-solid: oklch(57.7% 0.055 60);     --lv-mastered: oklch(27.1% 0.035 54);
+        --data-up: oklch(34.6% 0.039 53);      --data-up-ink: oklch(34.6% 0.039 53);
+        --data-down: oklch(57% 0.171 33);      --data-down-ink: oklch(49.5% 0.142 32);
+        --data-win: oklch(40.7% 0.049 57);     --data-draw: oklch(86.3% 0.029 78);    --data-loss: oklch(57% 0.171 33);
+    }
+    [data-theme="dark"] {
+        --lv-weak: oklch(69.1% 0.163 32);      --lv-fragile: oklch(42.1% 0.043 61);   --lv-fragile-ink: oklch(72% 0.069 61);
+        --lv-progress: oklch(52.9% 0.059 67);  --lv-solid: oklch(75.1% 0.067 73);     --lv-mastered: oklch(87.4% 0.051 83);
+        --data-up: oklch(85.6% 0.066 81);      --data-up-ink: oklch(87.7% 0.063 81);
+        --data-down: oklch(68.7% 0.159 31);    --data-down-ink: oklch(73.8% 0.129 32);
+        --data-win: oklch(81.1% 0.072 81);     --data-draw: oklch(36.2% 0.032 63);    --data-loss: oklch(68.7% 0.159 31);
     }
 }
 [data-theme="dark"] .panel, [data-theme="dark"] .menu { border-color: var(--border-strong); }

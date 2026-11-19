@@ -554,7 +554,7 @@ function initStats() {
     const totA = rows.reduce((s, r) => s + r.e.attempts, 0), totF = rows.reduce((s, r) => s + r.e.failures, 0);
     const mastery = Math.round(100 * counts.mastered / rows.length);
     // Courbe (lot 4) : dès deux jours de relevés ; elle remplace alors la barre, la légende garde le filtre et dit
-    // l'évolution de chaque niveau depuis le premier relevé (vert quand elle va dans le bon sens).
+    // l'évolution de chaque niveau depuis le premier relevé (--data-up-ink quand elle va dans le bon sens).
     const series = _masterySeries(now), first = series && series[0].counts;
     const gain = series ? Math.round(mastery - _masteredPct(first)) : 0;
     const lvDelta = l => {
