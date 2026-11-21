@@ -22,7 +22,8 @@ const StatsInsights = (function () {
         const s = dataStore.getJSON(FILTERS_KEY, null) || {};
         return { period: [0, 3, 6, 12].includes(s.period) ? s.period : 12, site: GameArchive.SITE_NAME[s.site] ? s.site : 'all', speed: SPEEDS[s.speed] ? s.speed : 'all' };
     }
-    const st = { ...readFilters(), view: 'bilan', paused: false, evalError: '', shown: 0 };
+    // Vue 'resume' par défaut (lot 4 « Chays épuré ») : chiffres et trois constats ; « Toutes les analyses » ouvre les vues.
+    const st = { ...readFilters(), view: 'resume', paused: false, evalError: '', shown: 0 };
     const saveFilters = () => dataStore.setJSON(FILTERS_KEY, { period: st.period, site: st.site, speed: st.speed });
     const pct = v => `${Math.round(v)} %`;
     const signed = v => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v))}`;
@@ -59,7 +60,8 @@ const StatsInsights = (function () {
     }
 
     function viewsHTML() {
-        return `<div class="tr-seg si-views" role="group" aria-label="Vue">${[['bilan', 'Bilan'], ['temps', 'Temps'], ['qualite', 'Qualité'], ['positions', 'Positions'], ['repertoire', 'Répertoire']].map(([v, l]) => `<button type="button" class="tr-seg-btn${st.view === v ? ' active' : ''}" aria-pressed="${st.view === v}" data-action="statsInView" data-arg="${v}">${l}</button>`).join('')}</div>`;
+        if (st.view === 'resume') return '';
+        return `<div class="tr-seg si-views" role="group" aria-label="Vue">${[['resume', 'Résumé'], ['bilan', 'Bilan'], ['temps', 'Temps'], ['qualite', 'Qualité'], ['positions', 'Positions'], ['repertoire', 'Répertoire']].map(([v, l]) => `<button type="button" class="tr-seg-btn${st.view === v ? ' active' : ''}" aria-pressed="${st.view === v}" data-action="statsInView" data-arg="${v}">${l}</button>`).join('')}</div>`;
     }
 
     // ─── GRAPHIQUES ──────────────────────────────────────────────────────────
@@ -181,10 +183,7 @@ const StatsInsights = (function () {
     function bilanHTML(games, list) {
         if (list.length < MIN) return '<p class="st-sub">Trop peu de parties avec ces filtres.</p>';
         const s = OpeningReport.summarize(list), months = OpeningReport.months(list, st.period || 12, Date.now()), above = GameInsights.aboveElo(months);
-        const gaps = GameInsights.byGap(list), worstI = gaps.map((t, i) => i).filter(i => fair(gaps[i]) && gaps[i].delta !== null).sort((a, b) => gaps[a].delta - gaps[b].delta)[0];
-        const worst = worstI === undefined ? null : gaps[worstI];
-        const gapTake = worst && worst.delta < -2 ? GAP_TAKES[worstI](pct(worst.score), pct(worst.expected)) : 'Vous tenez ce que votre Elo prévoit, quel que soit l\'adversaire.';
-        const aboveTake = above.known >= 2 ? `${above.above} mois sur ${above.known}, vous avez joué mieux que votre classement.${above.best && above.best.gap > 0 ? ` Meilleur : ${monthLong(above.best.at)}, ${signed(above.best.gap)}.` : ''}` : '';
+        const gaps = GameInsights.byGap(list), gapTake = gapTakeOf(gaps), aboveTake = aboveTakeOf(above);
         const se = GameInsights.sessions(list), rankNames = ['1re partie', '2e partie', '3e partie', '4e partie', '5e et plus'], afterNames = ['Après 1 défaite', 'Après 2 défaites', 'Après 3 et plus'];
         const first = se.ranks[0], fifth = se.ranks[4];
         const sessionTake = fair(first) && fair(fifth) ? `Votre score passe de ${pct(first.score)} à la première partie à ${pct(fifth.score)} à partir de la cinquième.` : `Sessions sur la période : ${se.count}.`;
@@ -194,12 +193,7 @@ const StatsInsights = (function () {
         const scope = eloScope(games), volAll = scope.length ? GameInsights.volume(scope, st.period || 12, Date.now()) : null, vol = volAll && volAll.months.some(m => m.n) ? volAll : null;
         const volTake = vol && vol.high !== null ? (vol.high > vol.low ? `Quand vous jouez beaucoup, vous montez : ${signed(vol.high)} Elo par mois, contre ${signed(vol.low)} les mois calmes.` : `Les mois chargés ne vous font pas monter : ${signed(vol.high)} Elo par mois, contre ${signed(vol.low)} les mois calmes.`) : 'Il faut quatre mois joués au moins pour comparer.';
         const volBig = vol && vol.high !== null ? `<div class="si-duo">${big('Mois chargés', I18n.mark(signed(vol.high)), I18n.mark(`${vol.threshold} ${I18n.t('parties et plus')} · ${_plural(vol.highN, 'mois', 'mois')}`), side(vol.high))}${big('Mois calmes', I18n.mark(signed(vol.low)), I18n.mark(`${I18n.t('moins de')} ${vol.threshold} · ${_plural(vol.lowN, 'mois', 'mois')}`), side(vol.low))}</div>` : '';
-        return `<div class="so-kpis">
-                <div class="so-card so-kpi"><span>Score</span><b>${pct(s.score)}</b><small>${_plural(s.n, 'partie')}</small></div>
-                <div class="so-card so-kpi"><span>Face à l'attendu</span><b>${delta(s.delta)}</b><small>${s.expected === null ? 'Elo inconnu' : `Attendu : ${pct(s.expected)}`}</small></div>
-                <div class="so-card so-kpi"><span>Niveau joué</span><b>${s.perf === null ? '–' : s.perf}</b><small>Elo d'après vos résultats</small></div>
-                <div class="so-card so-kpi"><span>Gains</span><b>${s.w}</b><small>${_plural(s.d, 'nulle')} · ${_plural(s.l, 'perte')}</small></div>
-            </div>
+        return `${kpisHTML(s)}
             <div class="so-grid">
                 ${card('so-c6 si-above', 'Vos mois au-dessus de votre Elo', aboveTake, above.known >= 2 ? `${aboveChart(above)}<p class="si-cap">Niveau joué moins votre Elo moyen du mois (3 parties au moins)</p>` : '<p class="st-sub">Pas encore assez de mois joués.</p>')}
                 ${en.wins.n + en.losses.n ? card('so-c6', 'Comment finissent vos parties ?', en.losses.n && en.wins.n ? `${pct(en.losses.time)} de vos défaites et ${pct(en.wins.time)} de vos gains se jouent au temps.` : '', `<div class="si-two"><div><h6>Gains</h6>${endBars(en.wins)}</div><div><h6>Défaites</h6>${endBars(en.losses)}</div></div>`) : ''}
@@ -208,6 +202,37 @@ const StatsInsights = (function () {
                 ${vol ? card('so-c6 si-volume', 'Vos mois chargés vous font-ils monter ?', volTake, `${volBig}${busyStrip(vol)}${vol.threshold !== null ? legend([['si-busy', 'Mois chargés'], ['si-mid', 'Mois calmes']]) : ''}`) : ''}
                 ${card('so-c6 si-gaps', 'Face aux plus forts, face aux plus faibles', gapTake, `${gapChart(gaps)}<p class="si-cap">Points de score gagnés ou perdus par rapport à ce que votre Elo prévoit, selon l'adversaire</p>`)}
             </div>`;
+    }
+
+    // Chiffres du bilan, aussi en tête du Résumé.
+    const kpisHTML = s => `<div class="so-kpis">
+                <div class="so-card so-kpi"><span>Score</span><b>${pct(s.score)}</b><small>${_plural(s.n, 'partie')}</small></div>
+                <div class="so-card so-kpi"><span>Face à l'attendu</span><b>${delta(s.delta)}</b><small>${s.expected === null ? 'Elo inconnu' : `Attendu : ${pct(s.expected)}`}</small></div>
+                <div class="so-card so-kpi"><span>Niveau joué</span><b>${s.perf === null ? '–' : s.perf}</b><small>Elo d'après vos résultats</small></div>
+                <div class="so-card so-kpi"><span>Gains</span><b>${s.w}</b><small>${_plural(s.d, 'nulle')} · ${_plural(s.l, 'perte')}</small></div>
+            </div>`;
+    function gapTakeOf(gaps) {
+        const worstI = gaps.map((t, i) => i).filter(i => fair(gaps[i]) && gaps[i].delta !== null).sort((a, b) => gaps[a].delta - gaps[b].delta)[0];
+        const worst = worstI === undefined ? null : gaps[worstI];
+        return worst && worst.delta < -2 ? GAP_TAKES[worstI](pct(worst.score), pct(worst.expected)) : 'Vous tenez ce que votre Elo prévoit, quel que soit l\'adversaire.';
+    }
+    const aboveTakeOf = above => above.known >= 2 ? `${above.above} mois sur ${above.known}, vous avez joué mieux que votre classement.${above.best && above.best.gap > 0 ? ` Meilleur : ${monthLong(above.best.at)}, ${signed(above.best.gap)}.` : ''}` : '';
+
+    // ─── RÉSUMÉ (bilan « Chays épuré », lot 4) ───────────────────────────────
+    // Les chiffres, puis trois constats déjà écrits par les vues (une phrase chacun, rien de nouveau à lire) ; chacun
+    // ouvre sa vue. Le temps passe devant quand il pèse (20 % des défaites ou plus).
+    function resumeHTML(list) {
+        if (list.length < MIN) return '<p class="st-sub">Trop peu de parties avec ces filtres.</p>';
+        const s = OpeningReport.summarize(list), above = GameInsights.aboveElo(OpeningReport.months(list, st.period || 12, Date.now()));
+        const en = GameInsights.ends(list), facts = [];
+        const endTake = en.losses.n && en.wins.n ? `${pct(en.losses.time)} de vos défaites et ${pct(en.wins.time)} de vos gains se jouent au temps.` : '';
+        if (endTake && en.losses.time >= 20) facts.push(['temps', 'Comment finissent vos parties ?', endTake]);
+        if (above.known >= 2) facts.push(['bilan', 'Vos mois au-dessus de votre Elo', aboveTakeOf(above)]);
+        facts.push(['bilan', 'Face aux plus forts, face aux plus faibles', gapTakeOf(GameInsights.byGap(list))]);
+        if (endTake && facts.length < 3 && en.losses.time < 20) facts.push(['bilan', 'Comment finissent vos parties ?', endTake]);
+        return `${kpisHTML(s)}<div class="si-facts">${facts.slice(0, 3).map(([v, title, take]) =>
+            `<button type="button" class="si-fact" data-action="statsInView" data-arg="${v}"><b>${title}</b><span>${take}</span>${ico('chevron-right')}</button>`).join('')}</div>
+            <button type="button" class="btn btn-soft si-all" data-action="statsInView" data-arg="bilan">Toutes les analyses ${ico('chevron-right')}</button>`;
     }
 
     // Parties de la courbe d'Elo affichée : site et cadence du niveau choisi.
@@ -534,6 +559,7 @@ const StatsInsights = (function () {
         if (st.view === 'positions') return `<div class="si-wrap">${positionsHTML(list)}</div>`;
         if (st.view === 'qualite') return `<div class="si-wrap">${qualiteHTML(games, list, rows.filter(r => keep(r.g)))}</div>`;
         if (st.view === 'temps') return `<div class="si-wrap">${tempsHTML(list, rows.filter(r => keep(r.g)))}</div>`;
+        if (st.view === 'resume') return `<div class="si-wrap">${resumeHTML(list)}</div>`;
         const from = since();
         return `${recordsHTML(games.filter(g => g.at >= from))}<div class="si-wrap">${bilanHTML(games, list)}</div>`;
     }
@@ -549,5 +575,7 @@ const StatsInsights = (function () {
 
     // show : vue ouverte par un constat « À faire » ; period : mois retenus (0 = tout), lu par la fiche d'ouverture.
     // since : début de la période (0 = tout), lu par la courbe d'Elo.
-    return { filtersHTML, viewsHTML, viewHTML, keep, pump, since, view: () => st.view, show: v => { st.view = v; }, period: () => st.period };
+    // active : filtres des parties écartés de leur valeur par défaut (pastille du bouton « Filtrer » des Ouvertures).
+    return { filtersHTML, viewsHTML, viewHTML, keep, pump, since, view: () => st.view, show: v => { st.view = v; }, period: () => st.period,
+             active: () => (st.period !== 12) + (st.site !== 'all') + (st.speed !== 'all') };
 })();

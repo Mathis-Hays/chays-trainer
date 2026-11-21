@@ -277,9 +277,10 @@ async function boot() {
         w.localStorage.setItem(w.eval(`dbKeyFor(currentRepertoire, 'w')`), JSON.stringify(db));
         w.eval(`trainingState.lastSummary = null; _trOpening = null; initTraining()`);
         const row = $('.trr-row[data-focus="relearn"]');
-        assert(row && !row.disabled, 'la ligne À revoir apparaît');
+        assert(row && !row.disabled && /À reprendre/.test(row.textContent), 'À revoir et Points faibles : une seule ligne « À reprendre », la file d\'abord');
+        assert(!$('.trr-row[data-focus="weak"]'), 'pas de seconde ligne');
         assert.strictEqual(row.querySelector('.trr-n').textContent, '1', 'une seule à échéance');
-        assert(/2 dans la file/.test(row.textContent));
+        assert(/2 à revoir/.test(row.textContent));
         w.eval(`startTrainingExercise('relearn')`);
         assert.strictEqual(w.eval('trainingState.session.items.length'), 1);
         assert.strictEqual(w.eval('trainingState.session.items[0].key'), keys[0]);

@@ -47,11 +47,15 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert.strictEqual(l.find(m => m.id === 'stars30').v, 3);
     });
 
-    await t('Progrès : onglet Médailles, gagnées en laiton, les autres avec leur avancée', () => {
+    await t('Progrès : vitrine des médailles par la bande, gagnées en laiton, les autres avec leur avancée', () => {
         ev(`(() => { addRepertoire('M'); const k = Chess.key(Chess.replay([])); dataStore.set(dbKeyFor('M', 'w'), JSON.stringify({ [k]: { move: 'e2e4', san: 'e4', attempts: 6, failures: 0, path: ['e2e4'], ply: 1 } })); currentRepertoire = 'M'; })()`);
-        ev(`switchHomeTab('stats'); statsPane = 'medals'; initStats()`);
         const $ = s => w.document.querySelector(s), $$ = s => [...w.document.querySelectorAll(s)];
-        assert(/\d+\/20/.test($('#st-tab-n-medals').textContent));
+        ev(`switchHomeTab('stats'); statsPane = 'overview'; initStats()`);
+        const band = $('.st-band [data-arg="medals"]');
+        assert(band && /médailles? sur 20/.test(band.textContent), 'Chays épuré, lot 4 : plus d\'onglet, la bande ouvre la vitrine');
+        assert(!$('#st-tab-n-medals') && !$('.st-tab[data-arg="medals"]'));
+        band.click();
+        assert($('.st-tabs-back .st-back'), 'retour « ‹ Progrès » à la place des onglets');
         assert.strictEqual($$('.st-medals .md').length, 20);
         assert(w.document.getElementById('stats-body').classList.contains('pane-medals'));
         assert($('.md.is-on .md-medal.is-on .md-face') && $('.md:not(.is-on) .md-medal .md-ring'), 'pièce frappée ; les autres en creux, avancée en anneau');

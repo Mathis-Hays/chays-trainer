@@ -163,7 +163,7 @@ function _paintMovesBar(active) {
     const bar = document.getElementById('moves-bar');
     bar.classList.toggle('locked', GameModes.current().movesLocked);   // Finales : non cliquable
     if (!moveHistory.length) {
-        bar.innerHTML = '<span style="color:var(--text-dim)">Aucun coup joué</span>';
+        bar.innerHTML = '';                                     // lot 7 « Chays épuré » : plus de « Aucun coup joué »
         return;
     }
     let html = '';

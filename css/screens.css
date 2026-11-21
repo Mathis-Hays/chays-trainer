@@ -74,6 +74,7 @@
 .st-claim { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 20px; line-height: 1.2; text-wrap: balance; }
 .st-claim em { font-style: normal; white-space: nowrap; color: var(--data-down-ink); }   /* un constat dit toujours une perte */
 .st-todo-go { align-self: flex-start; margin-top: auto; }
+.st-todo-note { font-size: 12px; color: var(--text-dim); }
 .st-today .st-big b { font-size: 46px; }
 
 /* Écart à l'attendu, autour de zéro ; part d'un total (is-share), depuis la gauche. */
@@ -88,6 +89,54 @@
 /* Onglets : soulignés, avec le compteur de ce qu'ils contiennent. */
 .st-tabs { display: flex; gap: 4px; margin-bottom: -8px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
 .st-tabs::-webkit-scrollbar { display: none; }
+/* Bande série + médailles (lot 4 « Chays épuré ») : au-dessus des deux onglets, chaque moitié ouvre sa vue. */
+.st-band { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+.st-band-i { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--surface); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+    transition: border-color var(--dur-1), background-color var(--dur-1); }
+@media (hover: hover) { .st-band-i:hover { border-color: var(--accent); } }
+.st-band-i:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.st-band-i > .ico { width: 16px; height: 16px; fill: none; color: var(--text-muted); }
+.st-band-ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; color: var(--warn); background: color-mix(in srgb, var(--warn) 13%, transparent); }
+.st-band-ic.is-brass { background: none; }
+.st-band-ic .ico { width: 18px; height: 18px; fill: none; }
+.st-band-ic svg:not(.ico) { width: 32px; height: 32px; }
+.st-band-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.st-band-t b { font-size: 14px; font-weight: 600; }
+.st-band-t small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; color: var(--text-muted); }
+.st-tabs-back { border-bottom: 0; }
+/* Parties › Résumé (lot 4 « Chays épuré ») : trois constats en lignes, puis « Toutes les analyses ». */
+.si-facts { display: flex; flex-direction: column; margin-top: 14px; border-top: 1px solid var(--border); }
+.si-fact { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; align-items: center; column-gap: 12px; row-gap: 2px; width: 100%;
+    padding: 12px 4px; border: 0; border-bottom: 1px solid var(--border); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.si-fact b { grid-column: 1; font-size: 14px; font-weight: 600; }
+.si-fact span { grid-column: 1; font-size: 13.5px; line-height: 1.45; color: var(--text-muted); }
+.si-fact > .ico { grid-column: 2; grid-row: 1 / span 2; width: 16px; height: 16px; fill: none; color: var(--text-muted); }
+@media (hover: hover) { .si-fact:hover { background: var(--surface-hover); } }
+.si-fact:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.si-all { align-self: flex-start; margin-top: 14px; }
+/* Ouvertures (lot 5 « Chays épuré ») : « Filtrer » à droite de la couleur, son volet sur la ligne suivante ;
+   hors répertoire repliées en fin d'index ; fiche : « Autres façons » de réviser repliées. */
+#op-filters { display: contents; }
+.so-filter-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; margin-left: auto; padding: 0 10px 0 12px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.so-filter-btn b { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 11.5px; text-align: center; }
+.so-filter-btn .ico { width: 14px; height: 14px; fill: none; transition: transform var(--dur-2) var(--ease-out); }
+.so-filter-btn[aria-expanded="true"] { border-color: var(--accent); }
+.so-filter-btn[aria-expanded="true"] .ico { transform: rotate(180deg); }
+.so-filter-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.so-filter-panel { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.so-filter-panel[hidden] { display: none; }
+.so-out { margin-top: 14px; }
+.so-out > summary { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px; list-style: none; cursor: pointer; font-weight: 600; color: var(--text-muted); }
+.so-out > summary::-webkit-details-marker { display: none; }
+.so-out > summary b { padding: 0 7px; border-radius: 999px; background: var(--bg-inset); font-size: 12px; }
+.so-out > summary .ico { width: 14px; height: 14px; fill: none; margin-left: auto; transition: transform var(--dur-2) var(--ease-out); }
+.so-out[open] > summary .ico, .so-more[open] > summary .ico { transform: rotate(180deg); }
+.so-more > summary { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; list-style: none; cursor: pointer; font-size: 13.5px; font-weight: 600; opacity: .85; }
+.so-more > summary::-webkit-details-marker { display: none; }
+.so-more > summary .ico { width: 14px; height: 14px; fill: none; transition: transform var(--dur-2) var(--ease-out); }
+@media (max-width: 599px) { .st-band { margin-inline: 16px; grid-template-columns: minmax(0, 1fr); } }
 .st-tab { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
           background: none; color: var(--text-muted); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: color var(--dur-1), border-color var(--dur-1); }
 .st-tab:hover { color: var(--text); }
@@ -1138,7 +1187,6 @@
 .so-chip:disabled { opacity: .45; cursor: default; }
 @media (hover: hover) { .so-chip:not(:disabled):hover { background: color-mix(in srgb, var(--card-b-ink) 10%, transparent); } }
 .so-chip:focus-visible { outline: 2px solid var(--card-b-ink); outline-offset: 2px; }
-.so-due { flex-basis: 100%; font-size: 12px; opacity: .75; }
 .so-acts .so-free { color: var(--card-b-ink); }
 /* Explorateur (atelier « Ouvertures et Progrès », lot 2) : échiquier | fil de la ligne et coups suivants ; trous en ambre. */
 .so-x-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }

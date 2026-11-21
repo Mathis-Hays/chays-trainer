@@ -78,13 +78,14 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         // Il y a dix jours : rien de maîtrisé, deux à retravailler (dont une position aujourd'hui fragile).
         w.eval(`MasteryLog.put(currentRepertoire, { [MasteryLog.dayOf(Date.now() - 10 * 864e5)]: { w: [2, 0, 1, 0, 0, 1], b: [0, 0, 0, 0, 0, 0], at: 1 } }); initStats()`);
         assert(!$('.st-mbar'), 'la courbe remplace la barre');
-        assert.strictEqual($$('.st-curve path').length, 5, 'cinq niveaux empilés, À confirmer à part');
-        assert(/^\+25 %$/.test($('.st-gain').textContent) && $('.st-gain').classList.contains('up'), 'une sur quatre maîtrisée, contre aucune');
+        assert.strictEqual($$('.st-curve path').length, 3, 'trois états empilés (Chays épuré, lot 3), À confirmer à part');
+        assert(/^\+\d+ %$/.test($('.st-gain').textContent) && $('.st-gain').classList.contains('up'), 'des positions sues, contre aucune');
         assert(/depuis le/.test($('.st-since').textContent));
-        assert.strictEqual($('.st-lg[data-arg="weak"] .st-lg-d').textContent, '−1');
-        assert($('.st-lg[data-arg="weak"] .st-lg-d').classList.contains('up'), 'moins de positions à retravailler : bon sens');
-        $('.st-legend .st-lg[data-arg="weak"]').click();
-        assert.strictEqual(w.eval('statsFilter'), 'weak', 'la légende filtre toujours');
+        assert.deepStrictEqual($$('.st-mastery .st-lg').map(b => b.dataset.arg), ['learn', 'doing', 'known', 'unsure']);
+        const d = $('.st-lg[data-arg="known"] .st-lg-d');
+        assert(d && /^\+\d+$/.test(d.textContent) && d.classList.contains('up'), 'plus de positions sues : bon sens');
+        $('.st-legend .st-lg[data-arg="learn"]').click();
+        assert.strictEqual(w.eval('statsFilter'), 'learn', 'la légende filtre toujours');
         w.eval(`dataStore.remove(MasteryLog.KEY)`);
     });
 
@@ -103,19 +104,19 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('clic sur un segment de la barre de maîtrise = même filtre que la puce de légende', () => {
         seed(w, [-1, 2, 0, 5]);
-        $('.st-legend .st-lg[data-arg="weak"]').click();
+        $('.st-legend .st-lg[data-arg="learn"]').click();
         const byLegend = { filter: w.eval('statsFilter'), lines: $('#stats-lines .so-fiche').innerHTML };
         seed(w, [-1, 2, 0, 5]);
-        const seg = $('.st-mbar button[data-arg="weak"]');
+        const seg = $('.st-mbar button[data-arg="learn"]');
         assert.strictEqual(seg.dataset.action, 'statsLegend');
         seg.click();
-        assert.strictEqual(w.eval('statsFilter'), 'weak');
+        assert.strictEqual(w.eval('statsFilter'), 'learn');
         assert.deepStrictEqual({ filter: w.eval('statsFilter'), lines: $('#stats-lines .so-fiche').innerHTML }, byLegend);
-        assert.strictEqual($('.st-mbar button[data-arg="weak"]').getAttribute('aria-pressed'), 'true');
+        assert.strictEqual($('.st-mbar button[data-arg="learn"]').getAttribute('aria-pressed'), 'true');
         assert($('.st-mbar').classList.contains('has-on'));
-        assert.strictEqual($('.st-legend .st-lg[data-arg="weak"]').getAttribute('aria-pressed'), 'true');
+        assert.strictEqual($('.st-legend .st-lg[data-arg="learn"]').getAttribute('aria-pressed'), 'true');
         assert(!$('.st-mbar [data-arg="unsure"]'), '« À confirmer » reste hors de la barre');
-        $('.st-mbar button[data-arg="weak"]').click();
+        $('.st-mbar button[data-arg="learn"]').click();
         assert.strictEqual(w.eval('statsFilter'), 'all', 'second clic : filtre retiré');
     });
 
@@ -142,7 +143,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('légende : la règle du niveau en title ; plus de bulle ⓘ ni de mention de Jouer', () => {
         seed(w, [-1, 2, 0, 5]);
-        assert(/dernier essai raté/.test($('.st-lg[data-arg="weak"]').title));
+        assert(/dernier essai raté/.test($('.st-lg[data-arg="learn"]').title));
         assert(/moins de 3 essais/.test($('.st-lg[data-arg="unsure"]').title));
         assert(!$('#stats-info-btn') && !$('#stats-info'));
         assert(!/Jouer/.test($('#stats-body').textContent));
@@ -156,7 +157,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         const facts = $('#side-panel #stats-facts');
         assert(facts && facts.previousElementSibling.id === 'status-bar');
         assert.strictEqual(facts.children.length, 3);
-        assert(/Niveau/.test(facts.textContent) && /Maîtrise/.test(facts.textContent) && /Révision/.test(facts.textContent));
+        assert(/État/.test(facts.textContent) && /Maîtrise/.test(facts.textContent) && /Révision/.test(facts.textContent));
         assert.strictEqual(facts.style.display, '');
         w.eval(`goHome('stats'); startGame('w')`);
         assert.strictEqual(facts.style.display, 'none');
@@ -176,13 +177,13 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         assert.strictEqual(primaries()[0].dataset.action, 'statsAddLine');
     });
 
-    await t('levelBarHTML sans le paramètre buttons : sortie inchangée (non-régression)', () => {
+    await t('levelBarHTML sans le paramètre buttons : trois états décoratifs (Chays épuré, lot 3)', () => {
         const out = w.eval(`levelBarHTML({ weak: 1, fragile: 0, progress: 2, solid: 0, unsure: 4, mastered: 3 }, 'hp-bar')`);
         assert.strictEqual(out, '<span class="lv-bar hp-bar" aria-hidden="true">'
-            + '<i class="lv-weak" style="flex:1" title="À retravailler : 1"></i>'
-            + '<i class="lv-progress" style="flex:2" title="En progrès : 2"></i>'
-            + '<i class="lv-mastered" style="flex:3" title="Maîtrisées : 3"></i></span>');
-        assert.strictEqual(w.eval(`levelBarHTML({ solid: 2 })`), '<span class="lv-bar " aria-hidden="true"><i class="lv-solid" style="flex:2" title="Solides : 2"></i></span>');
+            + '<i class="lv-weak" style="flex:1" title="À apprendre : 1"></i>'
+            + '<i class="lv-progress" style="flex:2" title="En cours : 2"></i>'
+            + '<i class="lv-mastered" style="flex:3" title="Sues : 3"></i></span>');
+        assert.strictEqual(w.eval(`levelBarHTML({ solid: 2 })`), '<span class="lv-bar " aria-hidden="true"><i class="lv-mastered" style="flex:2" title="Sues : 2"></i></span>');
     });
 
     await t('calendrier : 12 semaines à toute largeur, cases fluides, rien à faire défiler', () => {
@@ -231,8 +232,8 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('la barre et la légende mènent à l\'onglet Ouvertures, où la liste est visible', () => {
         seedWeak();
-        $('.st-legend .st-lg[data-arg="weak"]').click();
-        assert.strictEqual(w.eval('statsFilter'), 'weak');
+        $('.st-legend .st-lg[data-arg="learn"]').click();
+        assert.strictEqual(w.eval('statsFilter'), 'learn');
         assert(!$('#home-tab-openings').classList.contains('hidden') && $('#home-tab-openings #stats-lines'), 'onglet Ouvertures affiché');
         w.eval(`statsPane = 'overview'; statsFilter = 'all'`);
     });

@@ -106,15 +106,16 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert.strictEqual(J(`OpeningReport.payoff(${JSON.stringify(kept.concat(old))}, ${now})`).gain, null, 'au-delà d\'un an : ignorées');
     });
 
-    await t('Aujourd\'hui : une phrase seulement quand le répertoire rapporte', () => {
+    await t('Progrès › À faire : un constat seulement quand le répertoire rapporte (plus sur Aujourd\'hui)', () => {
         const now = Date.now();
         const rows = []; for (let i = 0; i < 6; i++) rows.push({ g: { at: now - i * 864e5, result: 'w', me: 1500, opp: 1500, color: 'w' }, a: { dev: null } });
         const lose = []; for (let i = 0; i < 6; i++) lose.push({ g: { at: now - i * 864e5, result: 'l', me: 1500, opp: 1500, color: 'w' }, a: { dev: { by: 'me' } } });
         ev(`currentRepertoire = 'Rangs2'; switchHomeTab('play'); window._a = StatsGames.analysed; StatsGames.analysed = () => ${JSON.stringify(rows.concat(lose))}; renderHomeSummary()`);
-        const line = w.document.querySelector('#hp-today .hp-gain');
-        assert(line && /\+100 %/.test(line.textContent), line && line.textContent);
-        ev(`StatsGames.analysed = () => ${JSON.stringify(rows.map(r => Object.assign({}, r, { a: { dev: { by: 'me' } } })).concat(lose.map(r => Object.assign({}, r, { a: { dev: null } }))))}; renderHomeSummary()`);
-        assert(!w.document.querySelector('#hp-today .hp-gain'), 'aucun reproche quand il ne rapporte pas');
+        assert(!w.document.querySelector('#hp-today .hp-gain'), 'plus sur Aujourd\'hui');
+        const card = w.eval('_todoPayoffCard()');
+        assert(/rapporte/.test(card) && /\+100 %/.test(card), card);
+        ev(`StatsGames.analysed = () => ${JSON.stringify(rows.map(r => Object.assign({}, r, { a: { dev: { by: 'me' } } })).concat(lose.map(r => Object.assign({}, r, { a: { dev: null } }))))}`);
+        assert.strictEqual(w.eval('_todoPayoffCard()'), '', 'aucun reproche quand il ne rapporte pas');
         ev(`StatsGames.analysed = window._a; renderHomeSummary()`);
     });
 

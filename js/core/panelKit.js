@@ -84,7 +84,8 @@ const PanelKit = (function () {
             jumpEl.hidden = jumps.length < 2 || !jumps.some(j => j.id === cfg.id);
             jumpEl.innerHTML = jumps.map(j => { const on = j.id === cfg.id;
                 return `<button type="button" data-pn="jump" data-key="${j.id}" title="${esc(j.label)}"${on ? ' aria-current="page" class="is-on"' : ''}>${ico(j.icon)}<span>${esc(j.label)}</span></button>`; }).join('');
-            nav.innerHTML = sections.map(s => `<button type="button" class="${s.id === st.section && !q ? 'is-on' : ''}" data-pn="section" data-key="${s.id}"${s.id === st.section && !q ? ' aria-current="true"' : ''}>
+            // s.sep : intertitre avant la rubrique (Paramètres : « Tous les réglages » après Essentiel).
+            nav.innerHTML = sections.map(s => `${s.sep ? `<span class="pn-nav-sep">${esc(s.sep)}</span>` : ''}<button type="button" class="${s.id === st.section && !q ? 'is-on' : ''}" data-pn="section" data-key="${s.id}"${s.id === st.section && !q ? ' aria-current="true"' : ''}>
                 ${ico(s.icon)}<span>${s.label}<small>${s.desc || ''}</small></span>${s.badge ? `<i class="pn-badge">${s.badge}</i>` : s.local ? localMark() : ''}${ico('chevron-right', 'pn-chev')}</button>`).join('');
             const top = content.scrollTop;
             content.innerHTML = cfg.render(q ? null : st.section, q);

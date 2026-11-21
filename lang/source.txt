@@ -132,8 +132,8 @@ Jouez votre réponse pour l'enregistrer.
 s isolés
 isolé
 Placer {0} coup{1} dans la corbeille ? Ces coups ne sont rattachés à aucune ligne partant de la position de départ. Ils restent restaurables pendant 30 jours.
-, {0} à retravailler
-Cette variante : {0} % de coups maîtrisés ({1} coups{2})
+, {0} à apprendre
+Cette variante : {0} % de coups sus ({1} coups{2})
 Le premier coup ouvre l’arbre
 Aucune ligne rattachée à la position de départ ({0} coup(s) isolé(s)).
 {1} Mettre à la corbeille
@@ -552,6 +552,11 @@ moins de {0} essais, sans erreur
 Maîtrisées
 Maîtrisée
 {0} réussites d’affilée ou plus
+À apprendre
+dernier essai raté, ou une seule réussite depuis
+En cours
+Sues
+Sue
 Maîtrise
 Rangs d’ouverture
 Régularité
@@ -1845,6 +1850,7 @@ Passer
 {0} Importer un PGN
 Suivant {0}
 Étape {3} sur {4}
+Filtrer
 Aucune ouverture travaillée
 Répertoire vide
 positions enregistrées
@@ -1964,8 +1970,11 @@ Clic gauche
 Fenêtres
 Chercher dans la fenêtre
 Échap
+Essentiel
+Mode, échiquier, pièces, objectif, sons
 Apparence
 Mode, échiquier, pièces, flèches
+Tous les réglages
 Jeu et entraînement
 Partie, révisions, mode libre, notation
 Réseau, lignes, profondeur
@@ -2175,6 +2184,10 @@ Ouvrir Données
 Installer l’application
 id="install-section"
 {0}Installer
+Révisions et sons
+Sauvegarde et compte
+Ouvrir le Compte
+Tous les réglages {0}
 · cavalier en L
 Aperçu : position après 3. Fb5
 Flèches {5}{6}
@@ -2254,22 +2267,22 @@ Réussite par semaine
 cette sem.
 Joker libre cette semaine
 Joker utilisé cette semaine
-Maîtrise par couleur · {0}
+Positions sues par couleur · {0}
 Essais par jour sur {5} semaines
 d'affilée
 jours actifs
 Peu <i></i>
 </i> Beaucoup
-Positions par niveau
+Positions par état
 Coup à retrouver
 Blancs ·
 Noirs ·
 Voir la position {2}, {3}
 Trouver le coup des {0}
-· {0} dans la file À revoir
+· dont {0} ratée{1} récemment
 Afficher les {0} autres positions
 {0}Progrès
-Points faibles
+À reprendre
 Ouverture · Score face à l'attendu
 openings|
 Voir la fiche
@@ -2279,6 +2292,11 @@ Voir le temps
 Score <em>{0}</em> face à l'attendu
 games|bilan
 Voir le bilan
+Répertoire · Ce qu'il rapporte
+Le suivre vous fait marquer <em>+{0} %</em>
+Score face à l’attendu, suivi contre quitté · {0} parties relues sur un an
+games|repertoire
+Voir le répertoire
 st-todo n-{0}
 class="zero"
 Votre semaine
@@ -2299,6 +2317,9 @@ Prochaine médaille
 {0} médailles sur {1}
 {0} médaille sur {1}
 Vitrine
+<b>{0} jour{1} d’affilée</b>
+Prochaine médaille · {0}
+Régularité et médailles
 Médailles gagnées
 Positions du répertoire
 Ouvertures
@@ -2322,17 +2343,14 @@ Révisions à venir
 depuis le {2}
 La courbe commence avec ce relevé : un point par jour d'utilisation.
 Maîtrise · {0}
-maîtrisées
-Comment chaque niveau est décidé
+Comment chaque état est décidé
 Réussite : {7} % sur {8}
 Tout voir
-Médailles
 Aperçu · {0}
 {0} · maîtrise {1} / 100 ({2} err. / {3})
 Cette position
-À revoir
 {3} err. / {4}
-Niveau
+État
 Révision
 Retour à Progrès{0}
 Pseudo introuvable sur ce site.
@@ -2385,6 +2403,7 @@ Période
 Tout
 Tous les sites
 Toutes les cadences
+Résumé
 Bilan
 Qualité
 Positions
@@ -2423,9 +2442,6 @@ Vous perdez des points contre les adversaires bien plus faibles : {0} au lieu de
 · {0} Elo
 Parties par mois
 Trop peu de parties avec ces filtres.
-Vous tenez ce que votre Elo prévoit, quel que soit l'adversaire.
-Meilleur : {0}, {1}.
-{0} mois sur {1}, vous avez joué mieux que votre classement.{2}
 1re partie
 2e partie
 3e partie
@@ -2446,8 +2462,6 @@ Mois chargés
 parties et plus
 Mois calmes
 moins de
-Elo inconnu
-Attendu : {0}
 Vos mois au-dessus de votre Elo
 Niveau joué moins votre Elo moyen du mois (3 parties au moins)
 Pas encore assez de mois joués.
@@ -2460,10 +2474,16 @@ Juste après des défaites
 Vos mois chargés vous font-ils monter ?
 Face aux plus forts, face aux plus faibles
 Points de score gagnés ou perdus par rapport à ce que votre Elo prévoit, selon l'adversaire
+Elo inconnu
+Attendu : {0}
 Score
 Face à l'attendu
 Niveau joué
 Elo d'après vos résultats
+Vous tenez ce que votre Elo prévoit, quel que soit l'adversaire.
+Meilleur : {0}, {1}.
+{0} mois sur {1}, vous avez joué mieux que votre classement.{2}
+Toutes les analyses {2}
 Meilleur Elo
 Plus longue série
 gains d'affilée
@@ -2633,7 +2653,6 @@ Comment jouez-vous les déséquilibres ?
 Premier déséquilibre matériel tenu au moins trois coups
 Le moteur ne répond pas. Réessayez plus tard.
 analyse des parties en arrière-plan
-À apprendre
 Maîtrise de {0} sur 100, et {1} points de moins que prévu. Apprendre ses positions fragiles est le gain le plus direct.
 À remplacer ?
 Vous la connaissez ({0} sur 100), mais vous sortez de l'ouverture à {1} et perdez {2} points. La ligne elle-même mérite un examen.
@@ -2675,8 +2694,8 @@ Réviser les points faibles
 Réviser la ligne entière
 Confirmer les nouvelles
 Ligne entière
-{0} à réviser sur {1}
-Ligne
+Autres façons {3}
+Explorer
 En partie
 Mes coups
 Sections de la fiche
@@ -2746,13 +2765,13 @@ S'entraîner sur {0}
 Réduire
 Afficher les {0} autres coups
 Mes coups, du plus fragile au plus sûr
-Tous les niveaux
 Tout afficher
 Liste
 Carte
 Aucune position à ce niveau.
 Précédente à travailler
 Suivante à travailler
+Hors répertoire <b>{1}</b>{2}
 Il faut au moins {0} parties dans une ouverture travaillée pour la placer sur la carte.
 Maîtrise à l'entraînement
 Points face à l'attendu
@@ -2859,7 +2878,7 @@ Coup remplacé
 ✓ Fin de la variante.
 Aucune solution connue pour cette position.
 Jouez-le pour continuer (aucune réussite comptée).
-Acquise : elle sort de la file À revoir.
+Acquise : elle sort des positions à reprendre.
 À revoir : {0} / {1} · trop tôt pour avancer
 À revoir : {0} / {1} · {2}
 {0} réussite{1} d’affilée · {2}
@@ -2875,7 +2894,7 @@ Avec l’indice : {0}
 ✓ Maîtrisée
 Plus que {0} vie{1}.
 Troisième erreur : la survie s’arrête après cette position.
-Elle passe dans la file À revoir.
+Elle passe dans « À reprendre ».
 {0}Réessayez, ou appuyez sur Indice.
 ✗ Ce n'est pas le coup de la solution
 Réessayez.
@@ -2972,9 +2991,9 @@ Réglages du mode libre
 Partir du début de partie
 Contre-la-montre
 · {0} position{1}
-{0} dans la file · {1} réussites espacées pour en sortir
-Prochaine {0}
-Aucune position fragile ni à retravailler
+Ratées récemment, d’abord · {0} à revoir à intervalles
+Prochaine ratée à revoir {0}
+Rien à reprendre pour l’instant
 Aucune ouverture reconnue
 Aucune position à confirmer
 record {0}
@@ -3007,7 +3026,6 @@ Cet appareil a été déconnecté depuis un autre appareil. Vos données restent
 translateY(8px)
 cubic-bezier(.16, 1, .3, 1)
 Répertoire {2}
-Nouveau répertoire
 Objectif du jour : {0} sur {1} positions
 Joker de la semaine libre : un jour manqué ne casse pas la série.
 Joker de la semaine utilisé : le prochain arrive lundi.
@@ -3036,12 +3054,8 @@ révisions attendent
 {0} les jours suivants
 pour reprendre la main
 pour aujourd’hui
-<b>Environ {0} min</b> · les plus importantes d’abord
 à réviser
-<b>Environ {0} min</b> · {1}
-· dont {0}
-Position la plus en retard, avant votre coup
-La plus en retard{1}
+Environ {1} min{2}
 Révisions <em>à jour</em>.
 Prochaine révision <b>{0}</b>
 Aucune révision prévue
@@ -3056,18 +3070,13 @@ Des réponses à trouver
 Une réponse à trouver
 Une finale
 faite aujourd’hui
-Quand vous suivez votre répertoire, vous marquez <b>+{1} %</b> de plus que quand vous le quittez.
-Score face à l’attendu d’après l’Elo · {2} parties relues sur un an
+Trouver le coup des {0} · {1}
 {0} jour{1} d’affilée
-Défi du jour{0}
 Relever
-{0}Réussi
-{0}Un nouveau demain
+Un nouveau demain
 aria-disabled="true"
-Position du défi du jour, avant votre coup
-Position du répertoire
-<b>Trouver le coup des {5}</b>
-Plan du jour
+<b>Défi du jour</b>
+Aussi aujourd’hui
 Commencer avec les
 Le répertoire par défaut ne peut pas être supprimé.
 Supprimer le répertoire « {0} » ({1} coup(s) Blancs, {2} coup(s) Noirs) ? Il sera placé dans la corbeille et restera restaurable pendant 30 jours.
@@ -3086,6 +3095,7 @@ Couleur jouée
 <b>Reprendre</b>
 Partie reprise
 Vous êtes revenu à la position où vous vous étiez arrêté.
+Nouveau répertoire
 ex : Défense Sicilienne
 Créer
 Ce répertoire existe déjà.
@@ -3128,6 +3138,7 @@ Non connecté
 Données gardées sur cet appareil
 (pointer: fine)
 assets/boards/{0}.webp
+chays_swTakeOver
 sw.js
 Ouvre Chays Trainer comme une vraie application, même sans connexion.
 Sur iPhone / iPad : touche le bouton Partager de Safari, puis « Sur l'écran d'accueil ».
@@ -3149,7 +3160,7 @@ points faibles contre-la-montre mode libre ligne complète séance
 Rien à réviser aujourd’hui
 réviser répétition espacée séance
 Exercice d’Entraînement
-erreurs fragiles
+points faibles erreurs fragiles à revoir
 Jouer les Blancs
 Ajouter ou revoir une ligne
 nouvelle ligne
@@ -3227,6 +3238,7 @@ Chays
 Trainer
 Supprimer le répertoire
 Données (import / export)
+Moteur et brouillon, rien n’est écrit
 Préc.
 Suiv.
 Corriger
@@ -3254,7 +3266,6 @@ Retour à Progrès
 Compte et réglages
 Comment ça marche ?
 Autres répertoires
-Échiquier libre : moteur et brouillon, rien n’est écrit
 Actions sur les répertoires
 Aujourd'hui
 Modifier la description du répertoire

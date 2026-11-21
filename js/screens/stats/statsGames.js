@@ -195,7 +195,7 @@ const StatsGames = (function () {
         const other = Object.keys(SITE_NAME).find(s => !users()[s]);
         const view = StatsInsights.view(), done = analysed();
         return `${head}${st.error ? `<p class="sg-err" role="alert">${escapeHtml(st.error)}</p>` : ''}${StatsInsights.viewsHTML()}
-            ${view === 'bilan' ? eloHTML() : ''}${view === 'repertoire' ? repertoireHTML() : `<div id="si-view">${StatsInsights.viewHTML(st.games, done)}</div>`}
+            ${view === 'bilan' || view === 'resume' ? eloHTML() : ''}${view === 'repertoire' ? repertoireHTML() : `<div id="si-view">${StatsInsights.viewHTML(st.games, done)}</div>`}
             ${st.note ? `<p class="st-sub" role="status">${escapeHtml(st.note)}</p>` : ''}
             <button type="button" class="st-link sg-add" data-action="statsGamesBackfill">Charger tout l'historique</button>
             ${other ? `<button type="button" class="st-link sg-add" data-action="statsGamesForm" data-arg="${other}">${SITE_NAME[other]} : ajouter un compte</button>` : ''}`;

@@ -6,7 +6,8 @@
  * correspondant, déjà filtré (openTrainingFrom, trainingUI.js), sans lancer de séance.
  *   « À faire » : trois constats au plus. Aujourd'hui (révisions dues ; seule action pleine de la page : Révision
  *      du jour, Points faibles quand tout est à jour), l'ouverture qui coûte le plus de points, ce que disent les parties.
- *   Puis quatre onglets, à toutes les largeurs (statsPane) :
+ *   Bande « série + médailles » (lot 4 « Chays épuré », _bandHTML) qui ouvre Régularité et Médailles, puis deux onglets
+ *   (Répertoire = overview, Parties = games ; les numéros ci-dessous sont l'ancien découpage, gardé pour le contenu) :
  *   1. Maîtrise : part des positions maîtrisées, sa courbe dans le temps (MasteryLog, atelier lot 4 ; la barre tant
  *      qu'il n'y a qu'un relevé) et la légende qui filtre ; retard à part puis prévision sur 7 jours, constats des parties ;
  *      points faibles en cartes « Trouver le coup » (la carte ouvre l'aperçu).
@@ -42,12 +43,13 @@ const STATS_STATE = 'unsure';
 const STATS_MASTERY_LEVELS = STATS_LEVEL_ORDER.filter(l => l !== STATS_STATE);
 
 let statsColor  = 'all';     // 'w' | 'b' | 'all' ; « Les deux » à chaque lancement
-let statsFilter = 'all';     // 'all' ou un niveau
-let statsPane   = 'overview'; // onglet affiché : 'overview' (Maîtrise) | 'openings' | 'games' | 'regularity'
+let statsFilter = 'all';     // 'all', un état (learn, doing, known, levels.js) ou 'unsure'
+let statsPane   = 'overview'; // vue : onglets 'overview' (Répertoire) | 'games' (Parties) ; par la bande : 'regularity' | 'medals'
 let statsWeak   = null;      // vue complète « Points faibles » : { shown, y } (y : défilement de la page quittée), sinon null
 
 // Repère de niveau : couleur ET forme (lisible sans distinguer les couleurs), cf. .lv-mark.
-const _lvMark = l => `<i class="lv-mark lv-${l}" aria-hidden="true"></i>`;
+// Lot 3 « Chays épuré » : une position prend le repère de son état (À apprendre, En cours, Sue).
+const _lvMark = l => `<i class="lv-mark lv-${levelMark(l)}" aria-hidden="true"></i>`;
 // Rang d'une ouverture (atelier « L'envie de revenir », lot 4, OpeningMarks) : trois chevrons, autant de pleins que le rang + 1.
 function _opRankHTML(r, cls = '') {
     const name = OpeningMarks.RANKS[r];
@@ -61,17 +63,22 @@ function _lvEngrave(e) {
     return Engrave.depth(lv === 'unsure' ? Math.min(m, 49) : m, lv === 'mastered');
 }
 
-const _lvPair = (l, n) => I18n.pair(I18n.t(STATS_LEVELS[l].label), n);
+const _lvPair = (l, n) => I18n.pair(I18n.t(levelInfo(l).label), n);
+// Repère d'un groupe (lot 3 « Chays épuré ») : la couleur et la forme de sa case représentative.
+const _lvgMark = g => _lvMark(LEVEL_GROUPS[g] ? LEVEL_GROUPS[g].mark : g);
+// Nombre de positions d'un filtre (groupe, case ou « À confirmer ») dans des comptes par case.
+const _filterCount = (counts, f) => f === 'all' ? 0 : LEVEL_GROUPS[f] ? groupCounts(counts)[f] : counts[f] || 0;
 
-// Barre de répartition ; counts : { niveau: nombre }. opts.buttons : un bouton par segment, qui filtre la liste
-// comme la légende (statsLegend, ou opts.action) ; opts.active : niveau du filtre en cours. Sans opts, des <i> décoratifs.
+// Barre de répartition en trois états (À apprendre, En cours, Sues) ; counts : { case: nombre }. opts.buttons : un
+// bouton par segment, qui filtre la liste comme la légende (statsLegend, ou opts.action) ; opts.active : filtre en
+// cours. Sans opts, des <i> décoratifs.
 function levelBarHTML(counts, cls, opts) {
-    const lv = STATS_MASTERY_LEVELS.filter(l => counts[l]);
-    if (!opts || !opts.buttons) return `<span class="lv-bar ${cls || ''}" aria-hidden="true">${lv
-        .map(l => `<i class="lv-${l}" style="flex:${counts[l]}" title="${_lvPair(l, counts[l])}"></i>`).join('')}</span>`;
-    const on = opts.active && opts.active !== 'all' ? opts.active : '';
-    return `<span class="lv-bar lv-bar-btn${on ? ' has-on' : ''} ${cls || ''}" role="group" aria-label="Filtrer la liste par niveau">${lv.map(l =>
-        `<button type="button" class="lv-${l}${on === l ? ' on' : ''}" style="flex:${counts[l]}" data-action="${opts.action || 'statsLegend'}" data-arg="${l}" aria-pressed="${on === l}" title="${_lvPair(l, counts[l])}" aria-label="${I18n.mark(`${I18n.t(STATS_LEVELS[l].label)}, ${counts[l]}`)}"></button>`).join('')}</span>`;
+    const gc = groupCounts(counts), gs = LEVEL_GROUP_ORDER.filter(g => gc[g]);
+    if (!opts || !opts.buttons) return `<span class="lv-bar ${cls || ''}" aria-hidden="true">${gs
+        .map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}" title="${_lvPair(g, gc[g])}"></i>`).join('')}</span>`;
+    const on = opts.active && opts.active !== 'all' ? levelGroup(opts.active) : '';
+    return `<span class="lv-bar lv-bar-btn${on ? ' has-on' : ''} ${cls || ''}" role="group" aria-label="Filtrer la liste par niveau">${gs.map(g =>
+        `<button type="button" class="lv-${LEVEL_GROUPS[g].mark}${on === g ? ' on' : ''}" style="flex:${gc[g]}" data-action="${opts.action || 'statsLegend'}" data-arg="${g}" aria-pressed="${on === g}" title="${_lvPair(g, gc[g])}" aria-label="${I18n.mark(`${I18n.t(LEVEL_GROUPS[g].label)}, ${gc[g]}`)}"></button>`).join('')}</span>`;
 }
 
 const _plural = (n, one, many) => `${n} ${n > 1 ? many || one + 's' : one}`;
@@ -204,21 +211,22 @@ function _regularityHTML() {
             </svg></div>`;
     }
 
-    // Maîtrise par couleur (répertoire actif).
+    // Positions sues par couleur (répertoire actif), même calcul que partout (knownPct).
     const bySide = ['w', 'b'].map(c => {
         const list = Object.values(readDBFor(currentRepertoire, c)).filter(e => e.attempts > 0);
         if (!list.length) return '';
-        const pct = Math.round(100 * list.filter(e => _level(e) === 'mastered').length / list.length);
+        const byLv = {}; list.forEach(e => { const l = _level(e); byLv[l] = (byLv[l] || 0) + 1; });
+        const pct = knownPct(byLv);                                   // seul calcul de la maîtrise affichée (levels.js)
         return `<div class="st-cmp"><span>${c === 'w' ? 'Blancs' : 'Noirs'}</span><span class="st-cmp-bar"><i style="width:${pct}%"></i></span><b>${pct} %</b></div>`;
     }).join('');
 
     // Deux groupes : l'assiduité (série, calendrier), puis la qualité (réussite, maîtrise par couleur) ; côte à côte sur ordinateur.
     return `<div class="st-reg-a">
-        <div class="st-reg-kpis"><div><b>${_plural(streak, 'jour')}</b><span>d'affilée</span><small class="st-joker">${st.jokerFree ? 'Joker libre cette semaine' : 'Joker utilisé cette semaine'}</small></div><div><b>${active} / ${STATS_DAYS}</b><span>jours actifs</span></div></div>
+        <div class="st-reg-kpis">${streak ? `<div><b>${_plural(streak, 'jour')}</b><span>d'affilée</span><small class="st-joker">${st.jokerFree ? 'Joker libre cette semaine' : 'Joker utilisé cette semaine'}</small></div>` : ''}<div><b>${active} / ${STATS_DAYS}</b><span>jours actifs</span></div></div>
         <div class="st-heat" style="--weeks:${STATS_HEAT_WEEKS}" role="img" aria-label="Essais par jour sur ${STATS_HEAT_WEEKS} semaines">${heat}</div>
         <div class="st-heat-leg">Peu <i></i><i class="h1"></i><i class="h2"></i><i class="h3"></i> Beaucoup</div></div>
         <div class="st-reg-b">${chart}
-        ${bySide ? `<div class="st-cmps"><span class="st-sub">Maîtrise par couleur · ${escapeHtml(currentRepertoire)}</span>${bySide}</div>` : ''}</div>`;
+        ${bySide ? `<div class="st-cmps"><span class="st-sub">Positions sues par couleur · ${escapeHtml(currentRepertoire)}</span>${bySide}</div>` : ''}</div>`;
 }
 
 // ─── COURBE DE MAÎTRISE (atelier « Ouvertures et Progrès », lot 4) ─────────────
@@ -235,14 +243,16 @@ function _masterySeries(now) {
 }
 
 // Part maîtrisée d'un relevé (À confirmer compris dans le total, comme le grand chiffre).
-const _masteredPct = c => { const n = c.reduce((a, b) => a + b, 0); return n ? 100 * c[MasteryLog.ORDER.indexOf('mastered')] / n : 0; };
+const _knownPctOf = c => knownPct(c, MasteryLog.ORDER);
 
 function _masteryCurveHTML(series, now) {
     const W = 520, H = 170, P = { l: 30, r: 6, t: 8, b: 20 };
-    const ORDER = MasteryLog.ORDER, stack = ['mastered', 'solid', 'progress', 'fragile', 'weak'];
+    // Trois couches (lot 3 « Chays épuré ») : Sues en bas, En cours, À apprendre en haut.
+    const ORDER = MasteryLog.ORDER, stack = ['known', 'doing', 'learn'];
+    const at = (p, g) => LEVEL_GROUPS[g].levels.reduce((n, l) => n + p.c[ORDER.indexOf(l)], 0);
     const t0 = _logDay(series[0].day), t1 = _dayStart(now), span = Math.max(1, t1 - t0);
     const pts = series.map(x => ({ t: _logDay(x.day), c: x.counts }));
-    const total = p => stack.reduce((n, l) => n + p.c[ORDER.indexOf(l)], 0);
+    const total = p => stack.reduce((n, g) => n + at(p, g), 0);
     const max = Math.max(1, ...pts.map(total));
     const step = max <= 10 ? 5 : max <= 50 ? 10 : max <= 200 ? 50 : max <= 500 ? 100 : 250;
     const top = Math.ceil(max / step) * step;
@@ -250,16 +260,16 @@ function _masteryCurveHTML(series, now) {
     let grid = '';
     for (let v = 0; v <= top; v += top / 2) grid += `<line class="g" x1="${P.l}" x2="${W - P.r}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}"/><text class="ax" x="${P.l - 5}" y="${(Y(v) + 3).toFixed(1)}" text-anchor="end">${Math.round(v)}</text>`;
     const base = pts.map(() => 0);
-    const areas = stack.map(l => {
-        const lo = base.slice(), hi = pts.map((p, k) => lo[k] + p.c[ORDER.indexOf(l)]);
+    const areas = stack.map(g => {
+        const lo = base.slice(), hi = pts.map((p, k) => lo[k] + at(p, g));
         let d = pts.map((p, k) => `${k ? 'L' : 'M'}${X(p.t).toFixed(1)},${Y(hi[k]).toFixed(1)}`).join('');
         for (let k = pts.length - 1; k >= 0; k--) d += `L${X(pts[k].t).toFixed(1)},${Y(lo[k]).toFixed(1)}`;
         hi.forEach((v, k) => { base[k] = v; });
-        return `<path class="lv-${l}" d="${d}Z"/>`;
+        return `<path class="lv-${LEVEL_GROUPS[g].mark}" d="${d}Z"/>`;
     }).join('');
     const fmt = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short' }));
-    const last = pts[pts.length - 1], m = last.c[ORDER.indexOf('mastered')];
-    return `<div class="st-curve"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${I18n.pair(I18n.t('Positions par niveau'), `${fmt(t0)} → ${fmt(last.t)}`)}">
+    const last = pts[pts.length - 1], m = at(last, 'known');
+    return `<div class="st-curve"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${I18n.pair(I18n.t('Positions par état'), `${fmt(t0)} → ${fmt(last.t)}`)}">
         ${grid}${areas}<circle class="end" cx="${X(last.t).toFixed(1)}" cy="${Y(m).toFixed(1)}" r="3.5"/>
         <text class="ax" x="${P.l}" y="${H - 5}">${fmt(t0)}</text><text class="ax" x="${W - P.r}" y="${H - 5}" text-anchor="end">${I18n.t('aujourd\'hui')}</text>
     </svg></div>`;
@@ -329,7 +339,7 @@ function _renderWeakList(body, rows, weakN, relearnN) {
     body.className = 'st-body';
     body.innerHTML = `<div class="st-main"><section class="st-sec st-card st-weak edge-card" id="stats-weak-all">
         <button type="button" class="st-link st-back" data-action="statsWeakBack">${ico('chevron-left')}Progrès</button>
-        <div class="st-h"><h3>Points faibles</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · ${relearnN} dans la file À revoir` : ''}</span></div>
+        <div class="st-h"><h3>À reprendre</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · dont ${relearnN} ratée${relearnN > 1 ? 's' : ''} récemment` : ''}</span></div>
         <div class="st-wlist">${shown.map(_weakRowHTML).join('')}</div>
         ${rest ? `<button type="button" class="st-more" data-action="statsWeakMore">Afficher les ${rest} autres positions</button>` : ''}
     </section></div>`;
@@ -367,10 +377,23 @@ function _todoGamesCard() {
     return '';
 }
 
+// Ce que le répertoire rapporte (atelier « L'envie de revenir », lot 4 ; quitté Aujourd'hui au lot 1 « Chays épuré ») :
+// seulement quand le suivre fait gagner au moins 1 % face à l'attendu (OpeningReport.payoff), jamais de reproche.
+function _todoPayoffCard() {
+    if (typeof OpeningReport === 'undefined' || typeof StatsGames === 'undefined') return '';
+    const rows = StatsGames.analysed();
+    if (!rows || !rows.length) return '';
+    const p = OpeningReport.payoff(rows, Date.now()), gain = p.gain === null ? 0 : Math.round(p.gain);
+    if (gain < 1) return '';
+    return _todoCard('Répertoire · Ce qu\'il rapporte', `Le suivre vous fait marquer <em>+${gain} %</em>`,
+        `<small class="st-todo-note">Score face à l’attendu, suivi contre quitté · ${p.n} parties relues sur un an</small>`,
+        'games|repertoire', 'Voir le répertoire');
+}
+
 function _paintTodo() {
     const box = document.getElementById('stats-todo');
     if (!box) return;
-    const cards = [_todoOpeningCard(), _todoGamesCard()].filter(Boolean);
+    const cards = [_todoOpeningCard(), _todoGamesCard(), _todoPayoffCard()].filter(Boolean);
     box.className = `st-todo n-${cards.length}`;
     box.innerHTML = cards.join('');
 }
@@ -473,6 +496,27 @@ function _tabCounts(rows) {
     return { medals: `${medals.filter(m => m.at).length}/${medals.length}`, overview: rows.length, openings: StatsOpenings.count(), games: games && games.length ? games.length : '', regularity: `${_activeDays()}/${STATS_DAYS}` };
 }
 
+// ─── BANDE : SÉRIE ET MÉDAILLES (bilan « Chays épuré », lot 4) ─────────────────
+// Régularité et Médailles ne sont plus des onglets : une bande en tête de Progrès les résume et les ouvre ; la vue
+// ouverte a un retour « ‹ Progrès » à la place des onglets.
+const STATS_BAND_PANES = ['regularity', 'medals'];
+function _bandHTML(hasAct, now) {
+    const items = [];
+    if (hasAct && typeof Habits !== 'undefined') {
+        const st = Habits.streak(readActivity(), now);
+        items.push(`<button type="button" class="st-band-i" data-action="statsPane" data-arg="regularity">
+            <span class="st-band-ic">${ico('flame')}</span><span class="st-band-t">${st.n ? `<b>${st.n} jour${st.n > 1 ? 's' : ''} d’affilée</b><small>Régularité</small>`
+                : `<b>${_activeDays()} / ${STATS_DAYS}</b><small>jours actifs</small>`}</span>${ico('chevron-right')}</button>`);
+    }
+    if (typeof Medals !== 'undefined') {
+        const list = Medals.list({}, now), got = list.filter(m => m.at).length, nx = Medals.next(list);
+        items.push(`<button type="button" class="st-band-i" data-action="statsPane" data-arg="medals">
+            <span class="st-band-ic is-brass">${nx ? _medalCoinSVG(nx.medal, 28) : ico('shield-check')}</span>
+            <span class="st-band-t"><b>${got > 1 ? `${got} médailles sur ${list.length}` : `${got} médaille sur ${list.length}`}</b>${nx ? `<small>Prochaine médaille · ${escapeHtml(nx.medal.name)}</small>` : ''}</span>${ico('chevron-right')}</button>`);
+    }
+    return items.length ? `<div class="st-band" role="group" aria-label="Régularité et médailles">${items.join('')}</div>` : '';
+}
+
 // Ce que compte chaque compteur d'onglet, dit en infobulle.
 const STATS_TAB_UNITS = { medals: 'Médailles gagnées', overview: 'Positions du répertoire', openings: 'Ouvertures', games: 'Parties archivées', regularity: 'Jours actifs sur les 30 derniers' };
 function _tabsHTML(tabs, counts) {
@@ -528,7 +572,7 @@ function initStats() {
 
     const now = Date.now();
     const counts = _countLevels(rows);
-    if (statsFilter !== 'all' && !counts[statsFilter]) statsFilter = 'all';     // le filtre actif s'est vidé
+    if (statsFilter !== 'all' && !_filterCount(counts, statsFilter)) statsFilter = 'all';     // le filtre actif s'est vidé
 
     // Programme des révisions (reviewPlan), pour la prévision. La carte du jour et son action ont rejoint
     // « Aujourd’hui » (refonte « Chays sans détour », lot 2) : Progrès observe, sans bouton « réviser ».
@@ -552,29 +596,32 @@ function initStats() {
 
     // ── Maîtrise ── la barre filtre comme la légende ; la règle de chaque niveau est dans son title.
     const totA = rows.reduce((s, r) => s + r.e.attempts, 0), totF = rows.reduce((s, r) => s + r.e.failures, 0);
-    const mastery = Math.round(100 * counts.mastered / rows.length);
+    const mastery = knownPct(counts), gcount = groupCounts(counts);
     // Courbe (lot 4) : dès deux jours de relevés ; elle remplace alors la barre, la légende garde le filtre et dit
     // l'évolution de chaque niveau depuis le premier relevé (--data-up-ink quand elle va dans le bon sens).
     const series = _masterySeries(now), first = series && series[0].counts;
-    const gain = series ? Math.round(mastery - _masteredPct(first)) : 0;
-    const lvDelta = l => {
+    const gain = series ? Math.round(mastery - _knownPctOf(first)) : 0;
+    const firstG = series ? groupCounts(Object.fromEntries(MasteryLog.ORDER.map((l, i) => [l, first[i]]))) : null;
+    const lvDelta = g => {
         if (!series) return '';
-        const d = counts[l] - first[MasteryLog.ORDER.indexOf(l)], good = l === 'weak' || l === 'fragile' ? d < 0 : d > 0;
+        const d = gcount[g] - firstG[g], good = g === 'learn' ? d < 0 : d > 0;
         return d ? `<small class="st-lg-d${good ? ' up' : ''}">${d > 0 ? '+' : '−'}${Math.abs(d)}</small>` : '';
     };
-    const lg = (l, cls) => `<button type="button" class="st-lg ${cls || ''} ${statsFilter === l ? 'active' : ''}" aria-pressed="${statsFilter === l}" data-action="statsLegend" data-arg="${l}" title="${I18n.pair(I18n.t(STATS_LEVELS[l].one), I18n.t(STATS_LEVELS[l].rule))}" ${counts[l] ? '' : 'disabled'}>
-            ${_lvMark(l)}<span>${STATS_LEVELS[l].label}</span><b>${counts[l]}</b>${l === STATS_STATE ? '' : lvDelta(l)}</button>`;
-    const legend = STATS_MASTERY_LEVELS.map(l => lg(l)).join('');
+    // Légende en trois états (lot 3 « Chays épuré ») ; « À confirmer » à part. Chacun filtre la liste.
+    const lg = (g, cls) => { const info = levelInfo(g), n = gcount[g];
+        return `<button type="button" class="st-lg ${cls || ''} ${statsFilter === g ? 'active' : ''}" aria-pressed="${statsFilter === g}" data-action="statsLegend" data-arg="${g}" title="${I18n.pair(I18n.t(info.one), I18n.t(info.rule))}" ${n ? '' : 'disabled'}>
+            ${_lvgMark(g)}<span>${info.label}</span><b>${n}</b>${g === STATS_STATE ? '' : lvDelta(g)}</button>`; };
+    const legend = LEVEL_GROUP_ORDER.map(g => lg(g)).join('');
     const masteryCard = `
         <div class="vel-card vel-light st-mastery edge-card">
             <span class="st-eyebrow">Maîtrise · ${_plural(rows.length, 'position')}</span>
-            <div class="st-big"><b>${mastery} %</b><span>maîtrisées</span>${series ? `<em class="st-gain${gain > 0 ? ' up' : gain < 0 ? ' down' : ''}">${I18n.mark(`${gain > 0 ? '+' : gain < 0 ? '−' : '±'}${Math.abs(gain)} %`)}</em><small class="st-since">depuis le ${I18n.mark(new Date(_logDay(series[0].day)).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'long' }))}</small>` : ''}</div>
+            <div class="st-big"><b>${mastery} %</b><span>sues</span>${series ? `<em class="st-gain${gain > 0 ? ' up' : gain < 0 ? ' down' : ''}">${I18n.mark(`${gain > 0 ? '+' : gain < 0 ? '−' : '±'}${Math.abs(gain)} %`)}</em><small class="st-since">depuis le ${I18n.mark(new Date(_logDay(series[0].day)).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'long' }))}</small>` : ''}</div>
             ${series ? _masteryCurveHTML(series, now) : `${levelBarHTML(counts, 'st-mbar', { buttons: true, active: statsFilter })}
             <span class="st-curve-note">La courbe commence avec ce relevé : un point par jour d'utilisation.</span>`}
             <div class="st-legend" role="group" aria-label="Filtrer la liste par niveau">${legend}</div>
             <div class="st-state">${lg(STATS_STATE, 'st-lg-state')}</div>
-            <details class="st-rules"><summary>Comment chaque niveau est décidé</summary>
-                <dl>${STATS_MASTERY_LEVELS.concat(STATS_STATE).map(l => `<div>${_lvMark(l)}<dt>${STATS_LEVELS[l].one}</dt><dd>${STATS_LEVELS[l].rule}</dd></div>`).join('')}</dl></details>
+            <details class="st-rules"><summary>Comment chaque état est décidé</summary>
+                <dl>${LEVEL_GROUP_ORDER.concat(STATS_STATE).map(g => `<div>${_lvgMark(g)}<dt>${levelInfo(g).one}</dt><dd>${levelInfo(g).rule}</dd></div>`).join('')}</dl></details>
             <span class="st-foot">Réussite : ${Math.round(100 * (totA - totF) / totA)} % sur ${_plural(totA, 'essai')}</span>
         </div>`;
 
@@ -588,20 +635,24 @@ function initStats() {
     }
     const weakHTML = !weakest.length ? '' : `
         <section class="st-sec st-card st-weak edge-card">
-            <div class="st-h"><h3>Points faibles</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · ${relearnN} dans la file À revoir` : ''}</span>${weakN > weakest.length ? `<button type="button" class="st-link" data-action="statsWeakAll">Tout voir</button>` : ''}</div>
+            <div class="st-h"><h3>À reprendre</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · dont ${relearnN} ratée${relearnN > 1 ? 's' : ''} récemment` : ''}</span>${weakN > weakest.length ? `<button type="button" class="st-link" data-action="statsWeakAll">Tout voir</button>` : ''}</div>
             <div class="st-wcards">${weakest.map(_weakCardHTML).join('')}</div>
         </section>`;
 
     // ── Par ouverture ── la fiche vit dans l'onglet Ouvertures (lot 3) ; ici, seulement de quoi nourrir le constat « À faire ».
     StatsOpenings.prime({ rows, counts, rp });
 
-    const tabs = [['overview', 'Maîtrise'], ['games', 'Parties'], ['regularity', 'Régularité'], ['medals', 'Médailles']].filter(([p]) => p !== 'regularity' || reg);
-    if (!tabs.some(([p]) => p === statsPane)) statsPane = 'overview';
+    // Deux onglets (lot 4 « Chays épuré ») : Répertoire et Parties ; Régularité et Médailles s'ouvrent par la bande.
+    const tabs = [['overview', 'Répertoire'], ['games', 'Parties']];
+    if (!tabs.some(([p]) => p === statsPane) && !(STATS_BAND_PANES.includes(statsPane) && (statsPane !== 'regularity' || reg))) statsPane = 'overview';
+    const inBand = STATS_BAND_PANES.includes(statsPane);
+    const head = inBand ? `<div class="st-tabs st-tabs-back"><button type="button" class="st-link st-back" data-action="statsPane" data-arg="overview">${ico('chevron-left')}Progrès</button></div>`
+        : `${_bandHTML(hasAct, now)}${_tabsHTML(tabs, _tabCounts(rows))}`;
     _renderStatsScope();
 
     body.className = 'st-body pane-' + statsPane;
     body.innerHTML = `
-        ${_tabsHTML(tabs, _tabCounts(rows))}
+        ${head}
         <div class="st-main">
             <section class="st-now" data-pane="overview">${masteryCard}<div class="st-side">${forecastCard}
                 <section class="st-todo" id="stats-todo" aria-label="À faire"></section></div></section>
@@ -703,7 +754,7 @@ function openStatsPreview(side, key, origin) {
         parseFEN(key);
         renderBoard();
     }
-    setStatus(`Aperçu · ${_moveLabel(e, true)}`, 'info', `${STATS_LEVELS[_level(e)].one} · maîtrise ${Math.round(masteryOf(e))} / 100 (${e.failures} err. / ${e.attempts})`);
+    setStatus(`Aperçu · ${_moveLabel(e, true)}`, 'info', `${levelInfo(_level(e)).one} · maîtrise ${Math.round(masteryOf(e))} / 100 (${e.failures} err. / ${e.attempts})`);
 }
 
 // Trois faits sous la barre d'état (niveau, erreurs, prochaine révision), dans le panneau latéral : montrés
@@ -723,9 +774,9 @@ function _renderPreviewFacts(e) {
         bar.after(box);
     }
     const lv = _level(e), d = isDue(e, Date.now());
-    box.innerHTML = `<div class="lv-${lv}"><span>Niveau</span><b>${_lvMark(lv)}${STATS_LEVELS[lv].one}</b></div>
+    box.innerHTML = `<div class="lv-${levelMark(lv)}"><span>État</span><b>${_lvMark(lv)}${levelInfo(lv).one}</b></div>
         <div title="${e.failures} err. / ${e.attempts}"><span>Maîtrise</span><b class="st-n">${Math.round(masteryOf(e))} / 100</b></div>
-        ${Number.isInteger(e.relearn) ? `<div><span>À revoir</span><b class="st-n">${e.relearn} / ${RELEARN_DAYS.length}</b></div>` : ''}
+        ${Number.isInteger(e.relearn) ? `<div><span>À reprendre</span><b class="st-n">${e.relearn} / ${RELEARN_DAYS.length}</b></div>` : ''}
         <div><span>Révision</span><b${d ? ' class="on"' : ''}>${d ? 'Aujourd’hui' : dueInLabel(dueOf(e))}</b></div>`;
 }
 
@@ -734,11 +785,11 @@ function _renderPreviewFacts(e) {
 function _renderStatsBack(lv, origin) {
     const btn = document.getElementById('stats-back'), cat = document.getElementById('stats-cat');
     if (!btn || !cat) return;
-    const where = origin === 'weak' ? 'Points faibles' : origin || '';
+    const where = origin === 'weak' ? 'À reprendre' : origin || '';
     const label = `Retour à Progrès${where ? ' · ' + where : ''}`;
     btn.title = label;
     btn.setAttribute('aria-label', label);
-    cat.innerHTML = `<span class="lv-chip lv-${lv}">${_lvMark(lv)}${STATS_LEVELS[lv].one}</span>${where ? `<span class="tp-origin">· ${escapeHtml(where)}</span>` : ''}`;
+    cat.innerHTML = `<span class="lv-chip lv-${levelMark(lv)}">${_lvMark(lv)}${levelInfo(lv).one}</span>${where ? `<span class="tp-origin">· ${escapeHtml(where)}</span>` : ''}`;
 }
 
 // Une ligne de partie à travailler : ouverte dans Jouer, où la réponse s'enregistre.

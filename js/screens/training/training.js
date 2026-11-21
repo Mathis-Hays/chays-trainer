@@ -1010,11 +1010,11 @@ function _scores() {
 // Ce que le passage a changé : file « À revoir », sinon la série de réussites et son niveau (échelle E3 : le score sur 100
 // ne s'affiche plus, il ne sert qu'au tri de la file du jour).
 function _answerDetail(entry, inFile) {
-    if (inFile && !Number.isInteger(entry.relearn)) return 'Acquise : elle sort de la file À revoir.';
+    if (inFile && !Number.isInteger(entry.relearn)) return 'Acquise : elle sort des positions à reprendre.';
     if (Number.isInteger(entry.relearn)) return entry.relearn === inFile.step ? `À revoir : ${entry.relearn} / ${RELEARN_DAYS.length} · trop tôt pour avancer`
         : `À revoir : ${entry.relearn} / ${RELEARN_DAYS.length} · ${dueInLabel(entry.due)}`;
     const run = runOf(entry);
-    return `${run} réussite${run > 1 ? 's' : ''} d’affilée · ${STATS_LEVELS[_level(entry)].one}`;
+    return `${run} réussite${run > 1 ? 's' : ''} d’affilée · ${levelInfo(_level(entry)).one}`;
 }
 
 // Appelé par executePlayerMove() en mode entraînement (le coup n'est pas encore appliqué).
@@ -1079,7 +1079,7 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
         }
         const told = !first ? '' : S && S.kind === 'timed' ? '−10 s. '
             : S && S.kind === 'survival' ? (S.lives > 0 ? `Plus que ${S.lives} vie${S.lives > 1 ? 's' : ''}. ` : 'Troisième erreur : la survie s’arrête après cette position. ')
-            : scored ? 'Elle passe dans la file À revoir. ' : '';
+            : scored ? 'Elle passe dans « À reprendre ». ' : '';
         _rejectMove(to, '✗ Pas le bon coup', `${told}Réessayez, ou appuyez sur Indice.`, from);
         noteMistake(key);
     } else {

@@ -94,7 +94,7 @@ const Palette = (function () {
             a('training', 'flame', 'Entraînement', 'Exercices', 'points faibles contre-la-montre mode libre ligne complète séance', () => goHome('training'), { leave: true }),
             a('daily', 'flame', 'Révision du jour', due ? `${due} à réviser aujourd’hui` : 'Rien à réviser aujourd’hui', 'réviser répétition espacée séance',
                 fromHome(() => startDailyReview()), { leave: true, keys: ['L'], suggest: due > 0, off: !due }),
-            a('weak', 'flame', 'Points faibles', 'Exercice d’Entraînement', 'erreurs fragiles', () => { if (gameOpen()) goHome(); openTrainingFrom({ focus: 'weak' }); }, { leave: true }),
+            a('weak', 'rotate-ccw', 'À reprendre', 'Exercice d’Entraînement', 'points faibles erreurs fragiles à revoir', () => { if (gameOpen()) goHome(); openTrainingFrom({ focus: 'weak' }); }, { leave: true }),
             a('white', 'swords', 'Jouer les Blancs', 'Ajouter ou revoir une ligne', 'nouvelle ligne', fromHome(() => startGame('w')), { leave: true, suggest: !due }),
             a('black', 'swords', 'Jouer les Noirs', 'Ajouter ou revoir une ligne', 'nouvelle ligne', fromHome(() => startGame('b')), { leave: true, suggest: !due }),
             a('analysis', 'cpu', 'Échiquier libre', 'Analyse, moteur et brouillon', 'analyse stockfish moteur évaluation', () => UI_ACTIONS.helpAnalysis(), { leave: true, suggest: true }),

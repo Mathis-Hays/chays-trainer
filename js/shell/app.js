@@ -59,7 +59,7 @@ function switchHomeTab(tab) {
     // En partie (onglets compacts de la barre du haut, menu « Plus » sur téléphone) : retour à l'accueil sur cet onglet.
     const gs = document.getElementById('game-screen');
     if (gs && !gs.classList.contains('hidden')) { goHome(tab); return; }
-    closeRepMenu();
+    closeRepMenu(); closeAddMenu();
     if (tab !== 'stats') closeStatsWeak();
     const shown = document.querySelector('.home-tab:not(.hidden)');
     HOME_TABS.forEach(t => {
@@ -68,19 +68,24 @@ function switchHomeTab(tab) {
         if (tabEl) tabEl.classList.toggle('hidden', t !== tab);
         if (navEl) navEl.classList.toggle('active', t === tab);
     });
-    _enterHomeTab(document.getElementById('home-tab-' + tab), shown);
+    // Lot 7 « Chays épuré » : un autre onglet s'ouvre en haut (la page est une seule colonne qui défile : sans cela,
+    // Ouvertures ou Finales s'ouvraient au milieu de leur liste). Un retour qui garde sa place (aperçu → Progrès)
+    // la remet lui-même ensuite.
+    if (shown && shown.id !== 'home-tab-' + tab) window.scrollTo(0, 0);
     if (tab === 'stats')    initStats();
     if (tab === 'openings') OpeningsTab.init();
     if (tab === 'training') initTraining();
     if (tab === 'endgame')  initEndgame();
+    _enterHomeTab(document.getElementById('home-tab-' + tab), shown);       // après le rendu : jamais de page vide
     if (typeof Dock !== 'undefined') Dock.refresh();     // centre du dock : l'action de la page (téléphone)
 }
 
 // Changement d'onglet (identité « Noyer gravé ») : seul le contenu arrive, fondu et montée de 8 px en --dur-2 ;
-// les barres ne bougent pas. Rien au premier affichage, sur le même onglet ou en animations réduites.
+// les barres ne bougent pas. Rien au premier affichage, sur le même onglet ou en animations réduites. Lot 7
+// « Chays épuré » : lancé une fois le contenu dessiné, et depuis une opacité de 0,4 : la page n'est jamais vide.
 function _enterHomeTab(el, previous) {
     if (!el || !previous || previous === el || typeof el.animate !== 'function' || prefersReducedMotion()) return;
-    el.animate([{ opacity: 0, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
+    el.animate([{ opacity: 0.4, transform: 'translateY(8px)' }, { opacity: 1, transform: 'none' }],
                { duration: 220, easing: 'cubic-bezier(.16, 1, .3, 1)' });
 }
 
@@ -91,11 +96,10 @@ const HP_QUICK_MAX = 6;          // pastilles d'autres répertoires dans la barr
 function renderRepertoireList() {
     const html = RepPicker.html('selectRepertoire');      // puce et liste avec recherche (repPicker.js)
     document.querySelectorAll('.repertoire-list').forEach(c => { c.innerHTML = html; });
-    // Barre de Jouer : les autres répertoires en pastilles d'initiales (un clic le choisit), puis « + ».
+    // Barre de Jouer : les autres répertoires en pastilles d'initiales (un clic le choisit) ; « Nouveau répertoire » est dans « + Ajouter ».
     const quick = document.getElementById('hp-quick');
     if (quick) quick.innerHTML = loadRepertoireList().filter(n => n !== currentRepertoire).slice(0, HP_QUICK_MAX).map(n =>
-        `<button type="button" class="hp-q" data-action="selectRepertoire" data-arg="${escapeHtml(n)}" title="${escapeHtml(n)}" aria-label="Répertoire ${escapeHtml(n)}">${escapeHtml((n.trim()[0] || '?').toUpperCase())}</button>`).join('')
-        + `<button type="button" class="hp-q is-new" data-action="createRepertoire" title="Nouveau répertoire" aria-label="Nouveau répertoire">${ico('plus')}</button>`;
+        `<button type="button" class="hp-q" data-action="selectRepertoire" data-arg="${escapeHtml(n)}" title="${escapeHtml(n)}" aria-label="Répertoire ${escapeHtml(n)}">${escapeHtml((n.trim()[0] || '?').toUpperCase())}</button>`).join('');
     renderResumeCard();
     renderHomeSummary();
 }
@@ -150,10 +154,12 @@ function _homePaceHTML(goal) {
             + `<b>${label}</b><small>${n} · ${m} min</small></button>`;
     }).join('')}</div>`;
 }
-registerActions({ homePace: n => { if (typeof setPref === 'function') setPref('dailyGoal', Number(n)); } });
+let _homePaceOpen = false;                        // rythme du jour replié : la durée l'ouvre
+registerActions({
+    homePace: n => { if (typeof setPref === 'function') setPref('dailyGoal', Number(n)); },
+    homePaceShow: () => { _homePaceOpen = !_homePaceOpen; renderHomeSummary(); },
+});
 
-// Fin de ligne menant à une position (sans mon dernier coup : la position telle qu'elle sera posée).
-const _homeLineBefore = path => _lineTail(path.slice(0, -1));
 
 function renderHomeSummary() {
     if (typeof Suite !== 'undefined') Suite.refresh();
@@ -188,7 +194,6 @@ function renderHomeSummary() {
     const act = readActivity(), st = Habits.streak(act, now), today = (act[dayStamp(now)] || { a: 0 }).a, goal = rp.goal;
     const cb = Habits.comeback(act, now);
     const held = rp.held(), cu = held ? rp.catchUp() : null, when = cu ? catchUpLabel(cu, now) : '';
-    const gauge = Ring.backlog({ today: due.length, held, when, asleep: rp.asleep(), cls: 'hp-gauge' });
     const evening = h >= 18 || h < 5, word = cb && cb.first ? 'Bon retour' : evening ? 'Bonsoir' : 'Bonjour';
     const hello = name ? `${word}, ${name}` : word;
     const head = `<p class="hp-over">${escapeHtml(hello)}`
@@ -210,7 +215,7 @@ function renderHomeSummary() {
 
     const link = (!due.length && held ? `<button type="button" class="hp-link" data-action="trainingMore">${ico('plus')}Encore ${Math.min(rp.goal, held)}</button>` : '')
         + `<button type="button" class="hp-link" data-action="homeExercises">Autres exercices ${ico('chevron-right')}</button>`;
-    let title, sub, focus = '', cta, plan = '';
+    let title, sub, cta, plan = '';
     const steps = _homeSteps(due, rp, now, { held, when }), next = steps.find(x => !x.done);
     _homeStepsNow = steps;
     if (!due.length && held) {
@@ -219,25 +224,11 @@ function renderHomeSummary() {
         sub = `${pl(held, 'révision attend', 'révisions attendent')} les jours suivants`;
         plan = _homeForecastHTML(rp.forecast(null, 7), now);
     } else if (due.length) {
-        // La position la plus en retard, telle qu'elle sera posée (avant mon coup).
-        const nx = due.slice().sort((a, b) => dueOf(a.e) - dueOf(b.e))[0];
-        const path = nx.e.path && nx.e.path.length ? nx.e.path : null, op = path ? openingNameOf(path) : null;
-        const d0 = dueOf(nx.e), late = d0 ? Math.floor((now - d0) / DAY_MS) : 0, colors = new Set(due.map(r => r.color));
+        // Un nombre, une durée (qui ouvre le rythme du jour), puis les ouvertures concernées.
         const minutes = Math.max(1, Math.round(due.length * TRAIN_SECONDS_PER_POSITION / 60));
-        const fresh = due.filter(r => !r.e.attempts).length;
-        if (held) {
-            // Plafond atteint : l'objectif du jour, les plus importantes d'abord ; le retard en jauge, avec sa date.
-            title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>${cb && cb.first ? 'pour reprendre la main' : 'pour aujourd’hui'}`;
-            sub = `<b>Environ ${minutes} min</b> · les plus importantes d’abord`;
-        } else {
-            title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>à réviser`;
-            sub = `<b>Environ ${minutes} min</b> · ${colors.size > 1 ? 'Blancs et Noirs' : colors.has('w') ? 'Blancs' : 'Noirs'}`
-                + (fresh ? ` · dont ${pl(fresh, 'nouvelle', 'nouvelles')}` : '');
-        }
-        focus = `<div class="hp-focus">${_miniBoardHTML({ side: nx.color, path, k: nx.key }, false, { cls: 'hp-focus-board', label: 'Position la plus en retard, avant votre coup' })}
-            <span class="hp-focus-txt"><span class="hp-focus-over">La plus en retard${late >= 1 ? ` · ${late} j` : ''}</span>
-            <b>${op ? escapeHtml(op.name) : 'Position de départ'}</b><span class="hp-focus-line">${path ? _homeLineBefore(path) : ''}</span>
-            <small>${nx.color === 'w' ? 'Blancs' : 'Noirs'}</small></span></div>`;
+        const names = _homePlan(due).slice(0, 3).map(g => `<span>${g.html}</span>`).join(', ');
+        title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>${held && cb && cb.first ? 'pour reprendre la main' : held ? 'pour aujourd’hui' : 'à réviser'}`;
+        sub = `<button type="button" class="hp-pace-btn" data-action="homePaceShow" aria-expanded="${_homePaceOpen}">Environ ${minutes} min${ico('chevron-down')}</button>${names ? ` · ${names}` : ''}`;
     } else {
         const nextAt = rp.next();
         title = `Révisions <em>à jour</em>.`;
@@ -252,11 +243,14 @@ function renderHomeSummary() {
         const c = side('w').length <= side('b').length ? 'w' : 'b';
         cta = `<button type="button" class="btn btn-primary hp-cta" data-action="homeAddLine" data-arg="${c}">${ico('plus')}Ajouter une ligne aux ${c === 'w' ? 'Blancs' : 'Noirs'}</button>${link}`;
     }
+    // Lot 1 « Chays épuré » : un seul nombre (le titre) ; l'anneau n'apparaît qu'une fois la journée entamée, le rythme
+    // sur demande, le retard reste dans Progrès. Sous l'action : ce qui s'ajoute aux révisions (défi, erreurs, parties, finale).
+    const pace = (due.length || held) && _homePaceOpen ? _homePaceHTML(goal) : '';
     // Bloc réécrit seulement si son HTML change (patchHTML) : un redessin à l'identique (parties relues, synchro,
     // pseudo du compte) ne détruit plus la ligne survolée.
     patchHTML(host, `<div class="hp-day edge-card${next ? '' : ' is-done'}">${head}
-        <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div>${_homeGoalHTML(today, goal)}</div>
-        ${gauge}${due.length || held ? _homePaceHTML(goal) : ''}${focus}${_homeDailyHTML(rows, now)}${_homeStepsHTML(steps)}<div class="hp-ctas">${cta}</div>${plan}${_homeGainHTML(now)}</div>`);
+        <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div>${today > 0 ? _homeGoalHTML(today, goal) : ''}</div>
+        ${pace}<div class="hp-ctas">${cta}</div>${_homeStepsHTML(steps.filter(x => x.id !== 'due'), _homeDailyHTML(rows, now))}${plan}</div>`);
     HomePanels.render();                         // À traiter : nouveautés des parties, dernières parties
     if (typeof Dock !== 'undefined') Dock.refresh();   // le centre du dock reprend « Commencer », maintenant dessiné
 }
@@ -295,22 +289,6 @@ function _homeSteps(due, rp, now, late = {}) {
     return out;
 }
 
-// ─── CE QUE LE RÉPERTOIRE RAPPORTE (atelier « L'envie de revenir », lot 4) ────
-// Une phrase, seulement quand les parties relues montrent un gain (OpeningReport.payoff) : jamais de reproche.
-let _homePriming = false;
-function _homeGainHTML(now) {
-    if (typeof StatsGames === 'undefined' || typeof OpeningReport === 'undefined') return '';
-    const rows = StatsGames.analysed();
-    if (!rows.length) {                                      // archive relue après l'intro (Bus.afterIntro), une demande à la fois
-        if (!_homePriming) { _homePriming = true; Bus.afterIntro(() => { _homePriming = false; StatsGames.prime(); }, 600); }
-        return '';
-    }
-    const p = OpeningReport.payoff(rows, now), gain = p.gain === null ? 0 : Math.round(p.gain);
-    if (gain < 1) return '';
-    return `<p class="hp-gain">${ico('book')}<span><span>Quand vous suivez votre répertoire, vous marquez <b>+${gain} %</b> de plus que quand vous le quittez.</span>
-        <small>Score face à l’attendu d’après l’Elo · ${p.n} parties relues sur un an</small></span></p>`;
-}
-
 // ─── DÉFI DU JOUR (atelier « L'envie de revenir », lot 3, Daily) ───────────────
 // Une position du répertoire, la même toute la journée, avant le plan du jour. Faite : son résultat, plus d'action.
 function _homeDailyHTML(rows, now) {
@@ -320,17 +298,19 @@ function _homeDailyHTML(rows, now) {
     if (!r) return '';
     const path = r.e.path && r.e.path.length ? r.e.path : null, op = path ? openingNameOf(path) : null;
     const who = r.color === 'w' ? 'Blancs' : 'Noirs';
-    const over = `Défi du jour${streak ? ` · <span class="hp-daily-streak">${streak} jour${streak > 1 ? 's' : ''} d’affilée</span>` : ''}`;
-    const st = !done ? `<span class="hp-daily-go">${ico('play')}<span>Relever</span></span>`
-        : done.r ? `<span class="hp-daily-st is-ok">${ico('check')}Réussi</span>` : `<span class="hp-daily-st is-ko">${ico('x')}Un nouveau demain</span>`;
-    return `<button type="button" class="hp-daily${done ? ' is-done' : ''}" data-action="homeDaily" data-arg="${escapeHtml(r.color + ':' + r.key)}"${done ? ' aria-disabled="true"' : ''}>
-        ${_miniBoardHTML({ side: r.color, path, k: r.key }, false, { cls: 'hp-daily-board', label: 'Position du défi du jour, avant votre coup' })}
-        <span class="hp-daily-txt"><span class="hp-daily-over">${over}</span><b>Trouver le coup des ${who}</b><small>${op ? escapeHtml(op.name) : 'Position du répertoire'}</small></span>
-        ${st}</button>`;
+    const info = `Trouver le coup des ${who} · ${op ? escapeHtml(op.name) : 'position du répertoire'}`
+        + (streak ? ` · <span class="hp-daily-streak">${streak} jour${streak > 1 ? 's' : ''} d’affilée</span>` : '');
+    const st = !done ? `<span class="hp-daily-go">Relever</span>`
+        : done.r ? `<span class="hp-daily-st is-ok">Réussi</span>` : `<span class="hp-daily-st is-ko">Un nouveau demain</span>`;
+    return `<li><button type="button" class="hp-step hp-daily${done ? ' is-done' : ''}" data-action="homeDaily" data-arg="${escapeHtml(r.color + ':' + r.key)}"${done ? ' aria-disabled="true"' : ''}>
+        <span class="hp-step-ico is-brass">${ico(done && done.r ? 'check' : 'lightbulb')}</span>
+        <span class="hp-step-txt"><b>Défi du jour</b><small>${info}</small></span>${st}</button></li>`;
 }
 
-function _homeStepsHTML(steps) {
-    return `<ol class="hp-steps" aria-label="Plan du jour">${steps.map(x => `<li><button type="button" class="hp-step${x.done ? ' is-done' : ''}" data-action="homeStep" data-arg="${x.id}"${x.done ? ' aria-disabled="true"' : ''}>
+// Lignes sous « Commencer » : le défi du jour (daily, déjà en <li>) puis les étapes autres que les révisions.
+function _homeStepsHTML(steps, daily = '') {
+    if (!steps.length && !daily) return '';
+    return `<ol class="hp-steps" aria-label="Aussi aujourd’hui">${daily}${steps.map(x => `<li><button type="button" class="hp-step${x.done ? ' is-done' : ''}" data-action="homeStep" data-arg="${x.id}"${x.done ? ' aria-disabled="true"' : ''}>
         <span class="hp-step-ico${x.tone ? ' is-' + x.tone : ''}">${ico(x.done ? 'check' : x.icon)}</span>
         <span class="hp-step-txt"><b>${x.title}</b><small>${x.html ? x.sub : escapeHtml(x.sub)}</small></span>
         ${x.done ? '' : `<span class="hp-step-n">${x.n}</span>`}</button></li>`).join('')}</ol>`;
@@ -411,6 +391,7 @@ function closeRepMenu() {
 function toggleRepMenu() {
     const m = document.getElementById('rep-menu'), b = document.getElementById('rep-menu-btn');
     if (!m.classList.contains('hidden')) { closeRepMenu(); return; }
+    closeAddMenu();
     renderRepMenu();
     m.classList.remove('hidden');
     b.setAttribute('aria-expanded', 'true');
@@ -426,11 +407,35 @@ function repMenuAction(action) {
     else if (action === 'data')   showData();
 }
 
+// « + Ajouter » (bilan « Chays épuré », lot 2) : ce qui fait entrer des coups ou un répertoire, à la place des
+// icônes muettes de la barre (flamme, flèche, puce) ; le ⋮ ne garde que ce qui touche le répertoire affiché.
+function closeAddMenu() {
+    const m = document.getElementById('add-menu'), b = document.getElementById('add-menu-btn');
+    if (m) m.classList.add('hidden');
+    if (b) b.setAttribute('aria-expanded', 'false');
+}
+
+function toggleAddMenu() {
+    const m = document.getElementById('add-menu'), b = document.getElementById('add-menu-btn');
+    if (!m.classList.contains('hidden')) { closeAddMenu(); return; }
+    closeRepMenu();
+    m.classList.remove('hidden');
+    b.setAttribute('aria-expanded', 'true');
+}
+
+function addMenuAction(action) {
+    closeAddMenu();
+    if (action === 'games')    UI_ACTIONS.homeGames();
+    else if (action === 'pgn') UI_ACTIONS.homeImportPgn();
+    else if (action === 'new') createRepertoirePrompt();
+}
+
 (function initRepMenuDismiss() {
     document.addEventListener('pointerdown', e => {
         if (!e.target.closest('#rep-menu, #rep-menu-btn')) closeRepMenu();
+        if (!e.target.closest('#add-menu, #add-menu-btn')) closeAddMenu();
     });
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeRepMenu(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeRepMenu(); closeAddMenu(); } });
 })();
 
 function selectRepertoire(name) {
@@ -606,6 +611,7 @@ function _gameTabs(inGame) {
 
 function goHome(tab) {
     closeRepMenu();
+    closeAddMenu();
     if (typeof stopTraining === 'function') stopTraining();
     if (typeof abandonSession === 'function') abandonSession();
     if (typeof stopEndgame === 'function') stopEndgame();

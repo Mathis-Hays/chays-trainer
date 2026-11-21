@@ -19,12 +19,17 @@ const OpeningsTab = (function () {
             onChange: c => { statsColor = c; statsFilter = 'all'; StatsOpenings.reset(); statsRerender(); } });
         const rep = document.getElementById('op-rep');
         if (rep) rep.innerHTML = statsRepHTML();
+        // Lot 5 « Chays épuré » : un seul bouton « Filtrer » (pastille = filtres écartés du défaut) ; son volet porte
+        // Liste / Carte et, s'il y a des parties, période, site et cadence. La barre de niveaux reste dans l'index.
         const box = document.getElementById('op-filters'), games = StatsGames.games();
         if (!box) return;
-        const show = !!(games && games.length);
-        box.innerHTML = show ? StatsInsights.filtersHTML(games) : '';
-        box.hidden = !show;
+        const hasGames = !!(games && games.length);
+        const n = (hasGames ? StatsInsights.active() : 0) + (StatsOpenings.view() === 'map' ? 1 : 0);
+        box.innerHTML = `<button type="button" class="so-filter-btn" data-action="opFilters" aria-expanded="${filtersOpen}" aria-controls="op-filter-panel"><span>Filtrer</span>${n ? `<b>${n}</b>` : ''}${ico('chevron-down')}</button>
+            <div class="so-filter-panel" id="op-filter-panel"${filtersOpen ? '' : ' hidden'}>${StatsOpenings.viewSegHTML()}${hasGames ? StatsInsights.filtersHTML(games) : ''}</div>`;
+        box.hidden = false;
     }
+    let filtersOpen = false;
 
     function init() {
         const body = document.getElementById('op-body');
@@ -44,7 +49,7 @@ const OpeningsTab = (function () {
         }
         _assignOpenings(rows);
         const counts = _countLevels(rows);
-        if (statsFilter !== 'all' && !counts[statsFilter]) statsFilter = 'all';
+        if (statsFilter !== 'all' && !_filterCount(counts, statsFilter)) statsFilter = 'all';
         body.innerHTML = StatsOpenings.sectionHTML({ rows, counts, rp: reviewPlan(currentRepertoire, Date.now()) });
         Bus.emit('ui:refresh');
     }
@@ -52,7 +57,7 @@ const OpeningsTab = (function () {
     // Redessine seulement si l'onglet est affiché (sinon, il le sera à la prochaine ouverture).
     function refresh() { if (visible()) init(); }
 
-    registerActions({ opAll: () => UI_ACTIONS.statsOpOpen() });
+    registerActions({ opAll: () => UI_ACTIONS.statsOpOpen(), opFilters: () => { filtersOpen = !filtersOpen; scope(); } });
 
     return { init, refresh, visible };
 })();

@@ -61,11 +61,21 @@ t('regroupement : une position rejoint l\'unique ouverture plus précise de ses 
     assert.strictEqual(t2.gName, 'Sicilienne ouverte');                               // tronc commun : son propre nom
 });
 
-t('« À confirmer » : un état à part, absent des barres de niveaux', () => {
+t('« À confirmer » : un état à part, absent des barres ; trois états à l\'écran (Chays épuré, lot 3)', () => {
     assert(!ctx.STATS_MASTERY_LEVELS.includes('unsure'));
-    assert.strictEqual(ctx.STATS_MASTERY_LEVELS.length, 5);
-    const html = ctx.levelBarHTML({ weak: 1, fragile: 0, progress: 0, solid: 2, unsure: 7, mastered: 3 });
-    assert(!html.includes('lv-unsure') && html.includes('lv-solid') && html.includes('lv-mastered'), html);
+    assert.strictEqual(ctx.STATS_MASTERY_LEVELS.length, 5, 'six cases dans le moteur');
+    const html = ctx.levelBarHTML({ weak: 1, fragile: 2, progress: 0, solid: 2, unsure: 7, mastered: 3 });
+    assert(!html.includes('lv-unsure') && !html.includes('lv-solid') && !html.includes('lv-fragile'), html);
+    assert(/À apprendre : 3/.test(html) && /Sues : 5/.test(html), 'Fragiles avec À retravailler, Solides avec Maîtrisées');
+    assert.strictEqual(ctx.levelGroup('fragile'), 'learn');
+    assert.strictEqual(ctx.levelGroup('unsure'), 'unsure');
+    assert(ctx.levelMatches('solid', 'known') && !ctx.levelMatches('progress', 'known') && ctx.levelMatches('weak', 'all'));
+});
+
+t('un seul calcul de la maîtrise affichée : part des positions sues (Solides + Maîtrisées) parmi les essayées', () => {
+    assert.strictEqual(ctx.knownPct({ weak: 1, fragile: 1, progress: 1, solid: 3, mastered: 2, unsure: 2 }), 50);
+    assert.strictEqual(ctx.knownPct([1, 1, 1, 3, 2, 2], ['weak', 'fragile', 'progress', 'solid', 'mastered', 'unsure']), 50, 'tableau de MasteryLog');
+    assert.strictEqual(ctx.knownPct({}), 0);
 });
 
 t('Statistiques → Entraînement : couleur, ouverture et exercice transmis, aucune séance lancée', () => {
@@ -105,9 +115,10 @@ t('aperçu : la barre du haut montre la catégorie de la position et la liste qu
     const getById = ctx.document.getElementById;
     ctx.document.getElementById = id => id === 'stats-back' ? btn : id === 'stats-cat' ? cat : null;
     ctx._renderStatsBack('fragile', 'weak');
-    assert(cat.innerHTML.includes('lv-chip lv-fragile') && cat.innerHTML.includes('lv-mark lv-fragile') && cat.innerHTML.includes('Fragile</span>'), cat.innerHTML);
-    assert(cat.innerHTML.includes('· Points faibles'));
-    assert.strictEqual(btn.attrs['aria-label'], 'Retour à Progrès · Points faibles');
+    // Trois états à l'écran (Chays épuré, lot 3) : une position Fragile se lit « À apprendre », couleur de son état.
+    assert(cat.innerHTML.includes('lv-chip lv-weak') && cat.innerHTML.includes('lv-mark lv-weak') && cat.innerHTML.includes('À apprendre</span>'), cat.innerHTML);
+    assert(cat.innerHTML.includes('· À reprendre'));
+    assert.strictEqual(btn.attrs['aria-label'], 'Retour à Progrès · À reprendre');
     ctx._renderStatsBack('mastered', 'Partie espagnole');
     assert(cat.innerHTML.includes('lv-chip lv-mastered') && cat.innerHTML.includes('· Partie espagnole'));
     ctx._renderStatsBack('weak', undefined);

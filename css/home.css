@@ -199,28 +199,26 @@
 .hp-quick:not(:empty)::before { content: ''; width: 1px; height: 24px; margin-right: 4px; background: var(--border); }
 .hp-q { display: grid; place-items: center; width: 32px; height: 32px; flex: none; padding: 0; border-radius: 50%; border: 1.5px solid var(--border);
         background: var(--surface); color: var(--text-muted); font-family: var(--font-display); font-weight: 600; font-size: 13.5px; cursor: pointer; }
-.hp-q.is-new { border-style: dashed; color: var(--board-accent); }
 .hp-q .ico { width: 15px; height: 15px; fill: none; }
 @media (hover: hover) { .hp-q:hover { color: var(--text); border-color: var(--board-accent); } }
 .hp-q:focus-visible { outline: 2px solid var(--board-accent); outline-offset: 2px; }
-.hp-tools { display: flex; align-items: center; gap: 2px; margin-left: auto; }
-.hp-tool { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 11px; border: 1px solid transparent; border-radius: 10px; background: none;
-           color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: color var(--dur-1), background-color var(--dur-1), border-color var(--dur-1); }
-.hp-tool .ico { width: 16px; height: 16px; fill: none; }
-@media (hover: hover) { .hp-tool:hover { color: var(--text); background: var(--surface); border-color: var(--border); } }
-.hp-tool:focus-visible { outline: 2px solid var(--board-accent); outline-offset: 2px; }
+.hp-add { margin-left: auto; }
+/* « + Ajouter » (bilan « Chays épuré », lot 2) : un bouton légendé à toutes les largeurs, à la place des icônes muettes. */
+.hp-add-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+    transition: background-color var(--dur-1), border-color var(--dur-1); }
+.hp-add-btn .ico { width: 16px; height: 16px; fill: none; }
+@media (hover: hover) { .hp-add-btn:hover { border-color: var(--accent); } }
+.hp-add-btn[aria-expanded="true"] { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 10%, var(--surface)); }
+.hp-add-btn:focus-visible { outline: 2px solid var(--board-accent); outline-offset: 2px; }
 @media (max-width: 599px) {
     .hp-quick { display: none; }                  /* téléphone : la puce seule, comme les autres onglets */
     /* Une seule ligne : la puce cède de la place, outils et ⋮ gardent leurs 44 px */
     .st-scope.hp-scope { flex-wrap: nowrap; }
     .hp-scope .st-rep { flex: 0 1 auto; }
-    .hp-scope .hp-tools, .hp-scope .hp-menu { flex: none; }
+    .hp-scope .hp-add, .hp-scope .hp-menu { flex: none; }
     .hp-scope .rp-chip { gap: 8px; padding-right: 8px; }
     .hp-scope .rp-txt small { overflow: hidden; text-overflow: ellipsis; }
-}
-@media (max-width: 599px) {
-    .hp-tool span { display: none; }
-    .hp-tool { width: 36px; padding: 0; justify-content: center; }
 }
 
 /* Titres de bloc */
@@ -246,9 +244,13 @@
 .hp-title em { font-style: normal; color: var(--accent); }
 .hp-sub { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-muted); }
 .hp-sub b { color: var(--text); font-weight: 600; }
-/* Révision du jour (chantier du 18 novembre 2026) : jauge du retard (Ring.backlog) et rythme du jour Léger, Normal,
-   Soutenu (_homePaceHTML, préférence dailyGoal) sous le titre. */
-.hp-gauge { margin-top: 14px; }
+/* Rythme du jour Léger, Normal, Soutenu (_homePaceHTML, préférence dailyGoal) : replié, la durée du sous-titre l'ouvre
+   (lot 1 « Chays épuré »). */
+.hp-pace-btn { display: inline-flex; align-items: center; gap: 3px; padding: 0; border: 0; background: none; font: inherit; font-weight: 600;
+    color: var(--text); cursor: pointer; text-decoration: underline dotted color-mix(in srgb, var(--text) 40%, transparent); text-underline-offset: 3px; }
+.hp-pace-btn .ico { width: 14px; height: 14px; fill: none; transition: transform var(--dur-2) var(--ease-out); }
+.hp-pace-btn[aria-expanded="true"] .ico { transform: rotate(180deg); }
+.hp-pace-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .hp-pace { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
 .hp-pace-opt { display: grid; gap: 1px; justify-items: center; min-height: var(--tap, 44px); padding: 6px 4px;
     border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
@@ -281,34 +283,14 @@
 .hp-step-n { min-width: 28px; padding: 2px 8px; border-radius: 999px; text-align: center; font-size: 12.5px; font-weight: 700;
              font-variant-numeric: tabular-nums; color: var(--text-muted); background: var(--bg-inset); }
 @media (prefers-reduced-motion: reduce) { .hp-step { transition: none; } }
-/* Défi du jour (atelier « L'envie de revenir », lot 3, _homeDailyHTML) : une position du répertoire, la même toute la journée,
-   juste avant le plan du jour ; liseré laiton. Fait : son résultat, plus d'action. */
-.hp-daily { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; margin-top: 16px;
-    padding: 8px 12px 8px 8px; border: 1px solid color-mix(in srgb, var(--brand-brass) 45%, var(--border)); border-radius: 14px;
-    background: color-mix(in srgb, var(--brand-brass) 7%, var(--surface)); color: inherit; font: inherit; text-align: left; cursor: pointer;
-    transition: background var(--dur-2) var(--ease-out), border-color var(--dur-2) var(--ease-out); }
-.hp-daily .st-mini { width: 56px; border-radius: 6px; }
-@media (hover: hover) { .hp-daily:not(.is-done):hover { background: color-mix(in srgb, var(--brand-brass) 13%, var(--surface)); } }
-.hp-daily:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.hp-daily.is-done { cursor: default; }
-.hp-daily-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.hp-daily-over { font-family: var(--font-note); font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--brand-brass-deep); }
-[data-theme="dark"] .hp-daily-over { color: var(--brand-brass); }
-.hp-daily-streak { text-transform: none; letter-spacing: 0; }
-.hp-daily-txt b { font-size: 14px; font-weight: 600; color: var(--text); }
-.hp-daily-txt small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; color: var(--text-muted); }
-.hp-daily-go, .hp-daily-st { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.hp-daily-go { padding: 6px 10px; border-radius: 999px; color: var(--accent-text); background: var(--accent); }
-.hp-daily-go .ico, .hp-daily-st .ico { width: 14px; height: 14px; }
+/* Défi du jour (atelier « L'envie de revenir », lot 3, _homeDailyHTML) : première ligne sous « Commencer », pastille
+   « Relever » ; fait : son résultat, plus d'action. */
+.hp-daily-streak { color: var(--brand-brass-deep); }
+[data-theme="dark"] .hp-daily-streak { color: var(--brand-brass); }
+.hp-daily-go, .hp-daily-st { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
+.hp-daily-go { padding: 5px 12px; border-radius: 999px; color: var(--accent-text); background: var(--accent); }
 .hp-daily-st.is-ok { color: var(--ok); }
 .hp-daily-st.is-ko { color: var(--text-muted); }
-@media (prefers-reduced-motion: reduce) { .hp-daily { transition: none; } }
-/* Ce que le répertoire rapporte (atelier « L'envie de revenir », lot 4) : une phrase, sous le plan. */
-.hp-gain { display: flex; gap: 10px; align-items: flex-start; margin: 16px 0 0; padding-top: 12px; border-top: 1px dashed var(--border); font-size: 13.5px; line-height: 1.45; }
-.hp-gain > .ico { flex: none; width: 16px; height: 16px; margin-top: 2px; fill: none; color: var(--data-up-ink); }
-.hp-gain > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.hp-gain b { color: var(--data-up-ink); font-variant-numeric: tabular-nums; }
-.hp-gain small { color: var(--text-dim); font-size: 11.5px; }
 .hp-ctas { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin-top: 16px; }
 .hp-cta {
     display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 22px;
@@ -439,7 +421,7 @@
 
 /* Barre de contexte : cibles de 44 px */
 .hp-scope .rp-chip { min-height: var(--tap); }
-.hp-scope .hp-tool { height: var(--tap); min-width: var(--tap); justify-content: center; border-radius: 12px; }
+.hp-scope .hp-add-btn { height: var(--tap); border-radius: 12px; }
 .hp-scope .menu-btn { width: var(--tap); height: var(--tap); border-radius: 12px; }
 .hp-scope .hp-q { width: 36px; height: 36px; }
 .hp-scope .menu-btn:focus-visible, .hp-scope .rp-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -464,14 +446,6 @@
 .hp-goal .ring-txt b { font-family: var(--font-note); font-weight: 600; font-size: 13px; }
 .hp-goal .ring-txt small { font-size: 9.5px; }
 
-/* Position la plus en retard */
-.hp-focus { display: grid; grid-template-columns: 108px minmax(0, 1fr); gap: 14px; align-items: center; margin-top: 16px; }
-.hp-focus .st-mini { width: 100%; border-radius: 6px; box-shadow: 0 0 0 1px var(--board-ring, var(--border-strong)); }
-.hp-focus-txt { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.hp-focus-over { font: 500 10.5px/1.2 var(--font-note); letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); }
-.hp-focus-txt b { font-size: 14px; font-weight: 700; color: var(--text); }
-.hp-focus-line { font: 500 12px/1.5 var(--font-note); color: var(--text-muted); overflow-wrap: anywhere; }
-.hp-focus-txt small { font-size: 12px; color: var(--text-dim); }
 
 /* L'unique action pleine, puis un lien centré sans cadre */
 .hp-ctas { display: grid; gap: 2px; margin-top: 18px; }
@@ -520,6 +494,8 @@
 #home-tab-play .resume-card { margin-top: 2px; min-height: 56px; border: 1.5px dashed var(--border-strong); border-radius: 14px; }
 @media (hover: hover) { #home-tab-play .resume-card:hover { background: var(--accent-soft); border-color: var(--accent-line); } }
 #home-tab-play .resume-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Échiquier libre (lot 2 « Chays épuré ») : quitte la barre du haut pour « Jouer », sous « Reprendre ». */
+#home-tab-play .hp-free { margin-top: 6px; }
 
 /* À traiter : onglets sur 40 px, lignes de 64 px, badge et « Répondre » */
 .hp-inbox .hp-h { flex-wrap: wrap; }
@@ -560,7 +536,7 @@
         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
     .hp-day, .hp-start { padding-top: 18px; padding-bottom: 20px; background: var(--surface); }
     .hp-play, .hp-inbox { padding-top: 16px; padding-bottom: 12px; }
-    .hp-focus .st-mini, .hp-thumb .st-mini, .hp-side-art .st-mini { box-shadow: none; }
+    .hp-thumb .st-mini, .hp-side-art .st-mini { box-shadow: none; }
     .hp-side, .hp-pick { box-shadow: none; }
     .hp-side:nth-child(2), .hp-pick.is-b { box-shadow: inset 0 0 0 1px var(--card-b-line); }
     .hp-list { margin-left: -8px; margin-right: -8px; }
@@ -587,8 +563,6 @@
     .hp-day .hp-title { font-size: 38px; }
     .hp-goal.ring { width: 76px; height: 76px; }
     .hp-goal .ring-txt b { font-size: 15px; }
-    .hp-focus { grid-template-columns: 236px minmax(0, 1fr); gap: 22px; margin-top: 22px; }
-    .hp-focus-txt b { font-size: 16px; }
     .hp-sides { grid-template-columns: 1fr 1fr; }
     .hp-side { grid-template-columns: 56px minmax(0, 1fr); }
     .hp-side .hp-go { display: none; }

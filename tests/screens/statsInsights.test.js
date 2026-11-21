@@ -50,6 +50,18 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
         w.eval(`switchHomeTab('stats'); UI_ACTIONS.statsPane('games')`);
     });
 
+    await t('Parties s\'ouvre sur le Résumé (Chays épuré, lot 4) : chiffres, trois constats qui ouvrent leur vue, « Toutes les analyses »', () => {
+        assert(!$('#stats-games .si-views'), 'pas de segments sur le Résumé');
+        assert.strictEqual($$('#stats-games .so-kpi').length, 4);
+        const facts = $$('#stats-games .si-fact');
+        assert(facts.length >= 2 && facts.length <= 3, 'trois constats au plus');
+        assert(facts.every(b => b.dataset.action === 'statsInView'));
+        assert(/Comment finissent vos parties/.test(facts[0].textContent), 'défaites au temps : le temps passe devant');
+        assert(!$('#stats-games .si-rec') && !$('#stats-games .si-heat'), 'les cartes détaillées attendent « Toutes les analyses »');
+        $('#stats-games .si-all').click();
+        assert($('#stats-games .si-views') && $('#stats-games .si-views [data-arg="resume"]'), 'les vues, et le retour au Résumé');
+    });
+
     await t('Bilan : chiffres, records et cartes attendues', () => {
         assert.strictEqual($$('#stats-games .so-kpi').length, 4);
         assert.strictEqual($('#stats-games .so-kpi b').textContent, '50 %');

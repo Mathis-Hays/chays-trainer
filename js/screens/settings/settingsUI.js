@@ -1,8 +1,8 @@
 /**
  * screens/settings/settingsUI.js
  * ──────────────────────────────────────────────────────────────────────────
- * Fenêtre « Paramètres » : six rubriques et une recherche (socle : panelKit.js).
- *   Apparence · Jeu et entraînement · Sons et vibrations · Accessibilité · Données et sauvegarde · Raccourcis
+ * Fenêtre « Paramètres » : « Essentiel » (lot 6 « Chays épuré »), puis toutes les rubriques et une recherche (socle : panelKit.js).
+ *   Essentiel · Apparence · Jeu et entraînement · Moteur · Sons et vibrations · Accessibilité · Données et sauvegarde · Raccourcis
  * Les valeurs vivent dans appSettings (settings.js) ; setPref() enregistre et applique l'effet.
  * Les options du mode libre de l'Entraînement (départ, profondeur, coups enchaînés) sont réglées ici seulement.
  */
@@ -22,8 +22,12 @@ const KEYBOARD_SHORTCUTS = [
     ['Fenêtres', [['Paramètres', [',']], ['Aide', ['?']], ['Chercher dans la fenêtre', ['/']], ['Fermer', ['Échap']]]]
 ];
 
+// Essentiel (lot 6 « Chays épuré ») : la page ouverte par défaut, huit réglages repris des rubriques ; les autres
+// rubriques suivent sous l'intertitre « Tous les réglages ». La recherche ignore Essentiel (pas de doublons).
+const SETTINGS_ESSENTIAL = 'essentiel';
 const SETTINGS_SECTIONS = [
-    { id: 'apparence', icon: 'palette',  label: 'Apparence',             desc: 'Mode, échiquier, pièces, flèches' },
+    { id: SETTINGS_ESSENTIAL, icon: 'settings', label: 'Essentiel',     desc: 'Mode, échiquier, pièces, objectif, sons' },
+    { id: 'apparence', icon: 'palette',  label: 'Apparence',             desc: 'Mode, échiquier, pièces, flèches', sep: 'Tous les réglages' },
     { id: 'jeu',       icon: 'flame',   label: 'Jeu et entraînement',   desc: 'Partie, révisions, mode libre, notation' },
     { id: 'moteur',    icon: 'cpu',      label: 'Moteur d’analyse',      desc: 'Réseau, lignes, profondeur' },
     { id: 'sons',      icon: 'volume',   label: 'Sons et vibrations',    desc: 'Effets sonores, volume, vibrations' },
@@ -49,7 +53,7 @@ const _isLocalPref = key => !!key && Object.prototype.hasOwnProperty.call(LOCAL_
 function _settingRows() {
     const s = appSettings, k = typeof trainingSettings !== 'undefined' ? trainingSettings : {};
     const voice = typeof Voice !== 'undefined' && Voice.available();
-    return {
+    const all = {
         apparence: [
             { group: null, kind: 'custom', html: _previewHTML, search: 'aperçu échiquier', preview: true },
             { group: 'Interface', kind: 'seg', key: 'theme', label: 'Mode', tip: '« Système » suit le réglage clair / sombre de l’appareil.',
@@ -156,6 +160,19 @@ function _settingRows() {
             { group: null, kind: 'custom', html: _keysHTML, search: KEYBOARD_SHORTCUTS.map(g => g[0] + ' ' + g[1].map(x => x[0] + ' ' + x[1].join(' ')).join(' ')).join(' '), col: true, bare: true }
         ]
     };
+    // Essentiel : les mêmes rangées (mêmes contrôles, mêmes effets), regroupées ; la sauvegarde et le Compte en dernier.
+    const pick = (sec, pref, group) => { const r = all[sec].find(x => _rowPref(x) === pref && x.kind !== 'toggle' || x.key === pref);
+        return r ? Object.assign({}, r, { group }) : null; };
+    all[SETTINGS_ESSENTIAL] = [
+        pick('apparence', 'theme', 'Apparence'), pick('apparence', 'boardTheme', 'Apparence'), pick('apparence', 'pieceSet', 'Apparence'),
+        pick('jeu', 'dailyGoal', 'Révisions et sons'), pick('sons', 'sound', 'Révisions et sons'),
+        pick('apparence', 'lang', 'Langue'),
+        { group: 'Sauvegarde et compte', kind: 'custom', label: 'Sauvegarde', html: () => `<div class="pn-actions">${PanelKit.button('Données et sauvegarde', 'goSection', { icon: 'database', attrs: ' data-v="donnees"' })}</div>` },
+        { group: 'Sauvegarde et compte', kind: 'custom', label: 'Compte', html: () => `<div class="pn-actions">${PanelKit.button('Ouvrir le Compte', 'openAccount', { icon: 'user' })}</div>` },
+        // Téléphone : la liste des rubriques est derrière « ‹ » ; ce lien la nomme (caché à côté de la liste, css/panels.css).
+        { group: null, kind: 'custom', bare: true, html: () => `<button type="button" class="pn-all" data-pn="back">Tous les réglages ${ico('chevron-right')}</button>` }
+    ].filter(Boolean);
+    return all;
 }
 
 // Clé de préférence d'une rangée (repère local, data-pref) : la clé du contrôle, sinon celle de la grille.
@@ -379,7 +396,7 @@ function _groupsHTML(rows) {
 // Recherche : chaque résultat porte son contrôle, réglable sur place ; le terme est surligné.
 function _searchHTML(all, q) {
     const hits = [];
-    SETTINGS_SECTIONS.forEach(sec => all[sec.id].forEach(r => {
+    SETTINGS_SECTIONS.forEach(sec => sec.id !== SETTINGS_ESSENTIAL && all[sec.id].forEach(r => {
         if (r.preview) return;
         // Texte visible seulement (libellé, options, mots-clés) : un résultat trouvé par son infobulle ne montrerait pas le terme.
         const txt = _plain([r.label, r.search, (r.opts || []).map(o => o[1]).join(' ')].filter(Boolean).join(' '));
@@ -395,7 +412,7 @@ function _searchHTML(all, q) {
 // Réglages pour la palette de recherche (palette.js) : le même texte que la recherche de la fenêtre.
 function settingsSearchIndex() {
     const all = _settingRows(), out = [];
-    SETTINGS_SECTIONS.forEach(sec => all[sec.id].forEach(r => {
+    SETTINGS_SECTIONS.forEach(sec => sec.id !== SETTINGS_ESSENTIAL && all[sec.id].forEach(r => {
         if (r.preview || !r.label) return;
         const pref = _rowPref(r);
         out.push({ id: `set:${sec.id}|${r.label}`, group: 'Réglages', icon: sec.icon, title: _plain(r.label), small: sec.label,
@@ -486,6 +503,8 @@ const SettingsPanel = PanelKit.create({
         if (kind === 'act') {
             if (key === 'openData')  { SettingsPanel.close(); showData(); }
             if (key === 'openTrash') { SettingsPanel.close(); showTrash(); }
+            if (key === 'goSection') { showSettings(value); return; }
+            if (key === 'openAccount') { if (typeof AccountUI !== 'undefined') AccountUI.open(); return; }
             if (key === 'langGet') _langGet(value);
             if (key === 'langUse' && value !== I18n.lang()) _useLanguage(value);
             if (key === 'langRemove') I18n.removePack(value).then(() => { _langDl.have[value] = false; SettingsPanel.refresh(); });
@@ -551,7 +570,7 @@ function _backupAlert() {
 // showSettings('moteur') ouvre directement la rubrique Moteur (depuis l'Analyse) ; un bloc précis de la rubrique
 // (data-pref, ex. 'engineNet') peut être amené à l'écran.
 function showSettings(section, pref) {
-    SettingsPanel.open(section);
+    SettingsPanel.open(section || SETTINGS_ESSENTIAL);         // lot 6 « Chays épuré » : Essentiel d'abord, à toutes les largeurs
     const el = pref && SettingsPanel.el.querySelector(`.pn-content [data-pref="${pref}"]`);
     if (el && el.scrollIntoView) el.scrollIntoView({ block: 'start' });
 }

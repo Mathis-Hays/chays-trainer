@@ -6,11 +6,11 @@
  *     retirable du filtre d'ouverture posé par les Statistiques (openTrainingFrom).
  *   - Trois blocs : bilan de la dernière séance (anneau du premier coup, puces, « avant → après » repliable),
  *     « Révision du jour » (carte Velours : nombre dû, durée estimée, 7 prochains jours), puis la liste des
- *     exercices (Points faibles, Ligne complète, À confirmer, Contre-la-montre, Mode libre et ses réglages)
+ *     exercices (À reprendre, Ligne complète, À confirmer, Contre-la-montre, Mode libre et ses réglages)
  *     et la maîtrise par couleur.
  *   - Un seul bouton plein, choisi par _trPrimary : erreurs de la séance qui vient de finir (« Ensuite » du bilan), sinon positions
  *     à réviser aujourd'hui (reviewPlan),
- *     sinon l'exercice mis en avant (_trFocus), sinon Points faibles. Les autres actions sont tonales.
+ *     sinon l'exercice mis en avant (_trFocus), sinon À reprendre. Les autres actions sont tonales.
  *   - Filtre d'ouverture : les exercices ne portent que sur les positions de cette ouverture, jusqu'à ce
  *     qu'il soit retiré.
  *   - « Plateau » (920 px et plus) : un grand échiquier d'aperçu à gauche montre la position par laquelle
@@ -168,7 +168,7 @@ function _trSummaryHTML(s, primary, next) {
     if (!s) return '';
     const side = r => r.color === 'w' ? 'Blancs' : 'Noirs';
     const where = r => { const op = r.e.path ? openingNameOf(r.e.path) : null; return side(r) + (op ? ' · ' + escapeHtml(op.name) : ''); };
-    const chip = l => `<span class="lv-chip lv-${l}">${STATS_LEVELS[l].one}</span>`;
+    const chip = l => `<span class="lv-chip lv-${levelMark(l)}">${levelInfo(l).one}</span>`;
     const rank = l => STATS_LEVEL_ORDER.indexOf(l);
     const missed = s.rows.filter(r => !r.ok);
     const up = s.rows.filter(r => rank(r.lvAfter) > rank(r.lvBefore)).length;
@@ -198,14 +198,14 @@ function _trSummaryHTML(s, primary, next) {
     // qui ont bougé ; sous chaque cadre le coup et le niveau avant → après. Toucher un cadre rejoue la position.
     const rows = s.rows.slice().sort((a, b) => (a.ok - b.ok) || (Math.abs(rank(b.lvAfter) - rank(b.lvBefore)) - Math.abs(rank(a.lvAfter) - rank(a.lvBefore))));
     const film = s.kind === 'timed' ? '' : rows.slice(0, TRAIN_FILM_MAX).map(r => {
-        const moved = r.lvAfter !== r.lvBefore, mv = _moveLabel(r.e, false, true);
+        const moved = levelGroup(r.lvAfter) !== levelGroup(r.lvBefore), mv = _moveLabel(r.e, false, true);
         const board = typeof _miniBoardHTML === 'function' ? _miniBoardHTML({ side: r.color, path: r.e.path && r.e.path.length ? r.e.path : null, k: r.key }, false, { cls: 'trr-frame-b' }) : '';
         return `<li><button type="button" class="trr-frame ${r.ok ? 'is-ok' : 'is-ko'}" data-action="trainingFrame" data-arg="${escapeHtml(r.color + ':' + r.key)}"
-                aria-label="${r.ok ? 'Réussie' : 'Ratée'} · ${escapeHtml(_moveLabel(r.e))} · ${escapeHtml(STATS_LEVELS[r.lvAfter].one)} · rejouer la position">
+                aria-label="${r.ok ? 'Réussie' : 'Ratée'} · ${escapeHtml(_moveLabel(r.e))} · ${escapeHtml(levelInfo(r.lvAfter).one)} · rejouer la position">
             ${board}
             <span class="trr-frame-cap">${ico(r.ok ? 'check' : 'x', r.ok ? 'is-ok' : 'is-err')}<span class="trr-move-san">${mv}</span></span>
             ${r.replay === undefined ? '' : `<span class="trr-frame-re ${r.replay ? 'is-ok' : 'is-err'}">${r.replay ? 'Rejouée' : 'Encore ratée'}</span>`}
-            <span class="trr-frame-lv">${moved ? `<i class="lv-mark lv-${r.lvBefore}" title="${STATS_LEVELS[r.lvBefore].one}"></i><span class="trr-arr" aria-hidden="true">→</span>` : ''}${typeof _lvEngrave === 'function' ? _lvEngrave(r.e) : ''}${chip(r.lvAfter)}</span>
+            <span class="trr-frame-lv">${moved ? `<i class="lv-mark lv-${levelMark(r.lvBefore)}" title="${levelInfo(r.lvBefore).one}"></i><span class="trr-arr" aria-hidden="true">→</span>` : ''}${typeof _lvEngrave === 'function' ? _lvEngrave(r.e) : ''}${chip(r.lvAfter)}</span>
         </button></li>`;
     }).join('');
     return `
@@ -350,7 +350,7 @@ function initTraining() {
             ${gauge}
             ${forecast}
             ${due.length ? _trBtn(primary === 'due', 'trainingEx', 'due', 'Commencer', 'play') : held ? _trBtn(false, 'trainingMore', null, `Encore ${Math.min(goal, held)}`, 'plus') : ''}
-            <span class="trr-foot"><span>${streak} jour${streak > 1 ? 's' : ''} d'affilée</span><span>${Math.min(today, goal)} / ${goal} aujourd'hui</span></span>
+            <span class="trr-foot">${streak ? `<span>${streak} jour${streak > 1 ? 's' : ''} d'affilée</span>` : '<span></span>'}<span>${Math.min(today, goal)} / ${goal} aujourd'hui</span></span>
         </section>`;
 
     // ── Exercices ──
@@ -392,15 +392,15 @@ function initTraining() {
             ${stepper('seqLen', 'Coups à enchaîner')}
             ${_trBtn(primary === 'free', 'trainingEx', 'free', 'Lancer le mode libre', 'play')}
         </div>` : '';
-    const label = { weak: 'Points faibles', unsure: 'À confirmer', timed: 'Contre-la-montre' }[primary];
+    const label = { weak: 'À reprendre', unsure: 'À confirmer', timed: 'Contre-la-montre' }[primary];
     const count = { weak: Math.min(weak, TRAIN_WEAK_MAX), unsure: Math.min(unsure, TRAIN_WEAK_MAX) }[primary];
     const cta = label ? `<div class="trr-cta">${_trBtn(true, 'trainingEx', primary, label + (count ? ` · ${count} position${count > 1 ? 's' : ''}` : ''), 'play')}</div>` : '';
     const exercises = `
         <section class="trr-ex" aria-labelledby="trr-ex-h">
             <div class="trr-h"><h3 id="trr-ex-h">Exercices</h3></div>
             <div class="trr-list edge-card">
-                ${inFile.length ? row('relearn', 'rotate-ccw', 'fragile', 'À revoir', ready.length, `${inFile.length} dans la file · ${RELEARN_DAYS.length} réussites espacées pour en sortir`, { empty: `Prochaine ${dueInLabel(fileNext, true)}` }) : ''}
-                ${row('weak', 'flame', 'weak', 'Points faibles', Math.min(weak, TRAIN_WEAK_MAX), '', { empty: 'Aucune position fragile ni à retravailler' })}
+                ${ready.length ? row('relearn', 'rotate-ccw', 'weak', 'À reprendre', ready.length, `Ratées récemment, d’abord · ${inFile.length} à revoir à intervalles`)
+                    : row('weak', 'rotate-ccw', 'weak', 'À reprendre', Math.min(weak, TRAIN_WEAK_MAX), inFile.length ? `Prochaine ratée à revoir ${dueInLabel(fileNext, true)}` : '', { empty: 'Rien à reprendre pour l’instant' })}
                 ${row('line', 'git-branch', '', 'Ligne complète', openings.length, '', { empty: 'Aucune ouverture reconnue', expanded: _trLineOpen })}
                 ${lineList}
                 ${row('unsure', 'check', 'unsure', 'À confirmer', Math.min(unsure, TRAIN_WEAK_MAX), '', { empty: 'Aucune position à confirmer' })}
@@ -417,8 +417,8 @@ function initTraining() {
     const mastery = _trSides().filter(has).map(c => {
         const list = rows.filter(r => r.color === c), counts = {};
         if (!list.length) return '';
-        STATS_LEVEL_ORDER.forEach(l => { counts[l] = list.filter(r => r.lv === l).length; });
-        return `<div class="trr-m"><span>${c === 'w' ? 'Blancs' : 'Noirs'}</span>${levelBarHTML(counts, 'tr-bar')}<b>${Math.round(100 * counts.mastered / list.length)} %</b></div>`;
+        STATS_LEVEL_ORDER.forEach(l => { counts[l] = list.filter(r => r.e.attempts > 0 && r.lv === l).length; });
+        return `<div class="trr-m"><span>${c === 'w' ? 'Blancs' : 'Noirs'}</span>${levelBarHTML(counts, 'tr-bar')}<b>${knownPct(counts)} %</b></div>`;
     }).join('');
     const mast = `
         <section class="trr-mast" aria-labelledby="trr-mast-h">
@@ -434,7 +434,7 @@ function initTraining() {
     _trPreviews = {
         due:    _trPreviewOf(sorted(due, (a, b) => dueOf(a.e) - dueOf(b.e))[0], 'La plus en retard'),
         retry:  missed ? _trPreviewOf(missed, 'Ratée') : null,
-        relearn: _trPreviewOf(sorted(ready)[0], 'À revoir'),
+        relearn: _trPreviewOf(sorted(ready)[0], 'À reprendre'),
         weak:   _trPreviewOf(sorted(exRows.filter(r => r.lv === 'weak' || r.lv === 'fragile'))[0], 'Point faible'),
         unsure: _trPreviewOf(sorted(exRows.filter(r => r.lv === 'unsure'), (a, b) => a.e.attempts - b.e.attempts)[0], 'À confirmer'),
         line:   firstLine ? { r: { side: firstLine.color, path: firstLine.path, k: null }, after: true, title: 'Ligne complète · ' + firstLine.name,
@@ -479,7 +479,7 @@ function startTrainingExercise(kind, more) {
         weak:   () => _trSeen(rows).filter(r => r.lv === 'weak' || r.lv === 'fragile').sort(_trOrder).slice(0, TRAIN_WEAK_MAX),
         unsure: () => _trSeen(rows).filter(r => r.lv === 'unsure').sort((a, b) => a.e.attempts - b.e.attempts).slice(0, TRAIN_WEAK_MAX)
     }[kind];
-    const label = { relearn: 'À revoir', due: 'Révision du jour', weak: 'Points faibles', unsure: 'À confirmer' };
+    const label = { relearn: 'À reprendre', due: 'Révision du jour', weak: 'À reprendre', unsure: 'À confirmer' };
     if (kind === 'due') {
         // File du jour du programme (reviewPlan) : plafonnée à l'objectif, déjà triée par importance ; portée affichée.
         const plan = reviewPlan(currentRepertoire, now, more > 0 ? { left: more } : undefined), inScope = new Set(rows.map(r => r.color + '|' + r.key));

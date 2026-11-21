@@ -17,7 +17,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert.strictEqual(calls.length, 1, 'une seule animation');
         assert.strictEqual(calls[0].id, 'home-tab-stats');
         assert.strictEqual(calls[0].opt.duration, 220);
-        assert.strictEqual(JSON.stringify(calls[0].kf[0]), JSON.stringify({ opacity: 0, transform: 'translateY(8px)' }));
+        assert.strictEqual(JSON.stringify(calls[0].kf[0]), JSON.stringify({ opacity: 0.4, transform: 'translateY(8px)' }));
     });
 
     await t('même onglet ou animations réduites : rien', () => {
@@ -27,6 +27,20 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         w.eval(`appSettings.motion = 'reduced'; switchHomeTab('training')`);
         assert.strictEqual(calls.length, 0, 'animations réduites');
         w.eval(`appSettings.motion = 'system'; switchHomeTab('play')`);
+    });
+
+    await t('Chays épuré, lot 7 : un autre onglet s\'ouvre en haut, le même garde sa place ; le fondu part du contenu dessiné', () => {
+        const at = []; w.scrollTo = (x, y) => { at.push(typeof x === 'object' ? x.top : y); };
+        w.eval(`switchHomeTab('openings')`);
+        assert.deepStrictEqual(at, [0], 'remis en haut');
+        at.length = 0;
+        w.eval(`switchHomeTab('openings')`);
+        assert.deepStrictEqual(at, [], 'même onglet : rien');
+        calls.length = 0;
+        w.eval(`switchHomeTab('stats')`);
+        assert(w.document.querySelector('#home-tab-stats #stats-body').children.length, 'contenu déjà rendu quand le fondu commence');
+        assert.strictEqual(calls.length, 1);
+        w.eval(`switchHomeTab('play')`);
     });
 
     assert.deepStrictEqual(errors, []);

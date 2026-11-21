@@ -236,9 +236,10 @@ function _computeMastery(rows) {
 }
 
 function _masteryBar(mix) {
-    const n = STATS_LEVEL_ORDER.reduce((s, l) => s + mix[l], 0), pct = Math.round(100 * mix.mastered / n);
-    const segs = STATS_LEVEL_ORDER.filter(l => mix[l]).map(l => `<i class="lv-${l}" style="flex:${mix[l]}"></i>`).join('');
-    return `<span class="tree-mbar" title="Cette variante : ${pct} % de coups maîtrisés (${n} coups${mix.weak ? `, ${mix.weak} à retravailler` : ''})">${segs}</span>`;
+    // Trois états (bilan « Chays épuré », lot 3) et la même part de coups sus que partout (knownPct, levels.js).
+    const n = STATS_LEVEL_ORDER.reduce((s, l) => s + mix[l], 0), pct = knownPct(mix), gc = groupCounts(mix);
+    const segs = LEVEL_GROUP_ORDER.filter(g => gc[g]).map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}"></i>`).join('');
+    return `<span class="tree-mbar" title="Cette variante : ${pct} % de coups sus (${n} coups${gc.learn ? `, ${gc.learn} à apprendre` : ''})">${segs}</span>`;
 }
 
 // html : figurines dessinées (arbre) ; sinon texte simple (barre d'état, confirmations).

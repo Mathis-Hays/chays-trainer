@@ -73,7 +73,7 @@ const seedGames = async (w, games) => {
         assert(gap && digits(gap.textContent) === String(1500 - perf) && /sous votre Elo/.test(gap.textContent), gap && gap.textContent);
         assert(/7 parties · 7 % des points/.test(card.textContent), card.textContent);
         assert(card.querySelector('.so-lv-scale'), 'la règle « ici » / « vous »');
-        assert(/Vous y jouez comme un .+ sous votre Elo/.test($('#stats-lines .so-head .so-say').textContent), "la phrase de l'en-tête le dit aussi");
+        assert(!/Vous y jouez comme un/.test($('#stats-lines .so-head .so-say').textContent), "Chays épuré, lot 5 : l'en-tête ne le répète plus, un seul verdict");
         const titles = $$('#stats-lines .so-fiche h5').map(h => h.textContent);
         assert(!titles.some(x => /Score face|Niveau joué/.test(x)), titles.join(' | '));
         const tile = $$('#stats-lines .so-mr').find(r => /italienne/i.test(r.textContent));
@@ -86,7 +86,10 @@ const seedGames = async (w, games) => {
         assert.deepStrictEqual(tabs.map(b => b.dataset.arg), ['line', 'games', 'moves']);
         assert.strictEqual($('#stats-lines .so-tabs [aria-selected="true"]').dataset.arg, 'line', 'Ligne par défaut');
         const pane = id => $(`#stats-lines .so-pane[data-tab="${id}"]`), h5 = id => [...pane(id).querySelectorAll('.so-card h5')].map(h => h.textContent);
-        assert.deepStrictEqual(h5('line'), ['Vos oublis en partie', 'Explorateur'], 'les oublis juste après l\'en-tête');
+        assert.deepStrictEqual(h5('line'), ['Explorateur', 'Vos oublis en partie'], 'Chays épuré, lot 5 : l\'explorateur, cœur de la fiche, juste après l\'en-tête');
+        assert.strictEqual(tabs[0].textContent.trim(), 'Explorer', 'onglet renommé');
+        assert($('#stats-lines .so-head .so-more:not([open]) .so-chips'), 'les autres façons de réviser, repliées');
+        assert(!$('#stats-lines .so-head .so-rank') && !$('#stats-lines .so-head .so-idea, #stats-lines .so-head .so-idea-add'), 'rang et idée hors de l\'en-tête');
         assert.deepStrictEqual(h5('games'), ['Votre niveau dans cette ouverture', 'Jusqu’où va votre préparation']);
         assert.deepStrictEqual(h5('moves'), ['Mes coups, du plus fragile au plus sûr']);
         assert(pane('games').hidden && pane('moves').hidden && !pane('line').hidden);
@@ -276,10 +279,19 @@ const seedGames = async (w, games) => {
         $('#stats-lines .so-fbar-leg [data-arg="all"]').click();
         assert.strictEqual(w.eval('statsFilter'), 'all');
         assert(!$('#stats-lines .stats-chip'), 'plus de puces de niveau');
-        $('#stats-lines [data-action="statsOpView"][data-arg="map"]').click();
+        // Chays épuré, lot 5 : Liste / Carte dans le volet « Filtrer » de la barre de contexte, compté dans sa pastille.
+        assert(!$('#stats-lines [data-action="statsOpView"]'), 'plus de segment dans l\'index');
+        const btn = $('#op-filters .so-filter-btn');
+        assert(btn && $('#op-filter-panel').hidden, '« Filtrer » replié');
+        btn.click();
+        assert(!$('#op-filter-panel').hidden && $('#op-filters .so-filter-btn').getAttribute('aria-expanded') === 'true');
+        $('#op-filter-panel [data-action="statsOpView"][data-arg="map"]').click();
         assert($('#stats-lines .so-ix-map .so-map') && !$('#stats-lines .so-mirror'));
-        $('#stats-lines [data-action="statsOpView"][data-arg="list"]').click();
+        assert.strictEqual($('#op-filters .so-filter-btn b').textContent, '1', 'la Carte compte comme un filtre');
+        $('#op-filter-panel [data-action="statsOpView"][data-arg="list"]').click();
         assert($('#stats-lines .so-mirror'));
+        $('#op-filters .so-filter-btn').click();
+        assert($('#op-filter-panel').hidden);
     });
 
     await t('« À faire » : l\'ouverture qui coûte le plus mène à sa fiche, onglet Ouvertures', () => {
@@ -295,8 +307,8 @@ const seedGames = async (w, games) => {
 
     await t('filtre de niveau : seules les ouvertures qui en ont restent, ouverture concernée ouverte', () => {
         w.eval(`statsFilter = 'all'; switchHomeTab('stats'); initStats()`);
-        $('.st-legend .st-lg[data-arg="mastered"]').click();
-        assert.strictEqual(w.eval('statsFilter'), 'mastered');
+        $('.st-legend .st-lg[data-arg="known"]').click();
+        assert.strictEqual(w.eval('statsFilter'), 'known');
         assert(/sicilienne/i.test($('#so-trigger b').textContent), $('#so-trigger b').textContent);
         w.eval(`statsFilter = 'all'; initStats()`);
     });

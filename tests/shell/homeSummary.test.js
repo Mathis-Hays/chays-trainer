@@ -48,7 +48,7 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert($('#hp-today .hp-start').classList.contains('edge-card'));
     });
 
-    await t('révisions dues : chiffre, anneau, position la plus en retard, une seule action « Commencer » → startDailyReview', () => {
+    await t('révisions dues : un seul chiffre, une seule action « Commencer » → startDailyReview ; ni retard, ni position, ni anneau avant le premier essai', () => {
         seed(w, -3, -1);
         assert(!$('#hp-grid').classList.contains('is-empty'));
         assert.strictEqual(primaries().length, 1);
@@ -58,26 +58,27 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert.strictEqual(cta.textContent.trim(), 'Commencer');
         assert(/^2\s+positions/.test($('#hp-today .hp-title').textContent.trim()));
         assert($('#hp-today .hp-over'), 'surtitre');
-        assert($('#hp-today .ring.hp-goal[role="img"]'), 'anneau commun');
-        assert($('#hp-today .hp-focus .st-mini'), 'mini-échiquier de la position la plus en retard');
-        assert(/3 j/.test($('#hp-today .hp-focus-over').textContent), 'retard affiché');
-        assert($('#hp-today .hp-focus-line').innerHTML.includes('Position de départ'), 'fin de ligne avant mon coup');
+        assert(!$('#hp-today .hp-focus') && !$('#hp-today .rv-gauge'), 'Chays épuré : ni position la plus en retard, ni jauge du retard');
+        assert(!$('#hp-today .hp-step[data-arg="due"]'), 'les révisions sont le titre, pas une ligne de plus');
+        assert(!$('#hp-today .ring.hp-goal'), 'pas d\'anneau tant que la journée n\'est pas entamée');
+        w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 1, f: 0 } }); renderHomeSummary()`);
+        assert($('#hp-today .ring.hp-goal[role="img"]'), 'anneau commun dès le premier essai');
+        w.eval(`dataStore.setJSON('chessTrainer_activity', {}); renderHomeSummary()`);
         assert(!$('#hp-today .hp-fc'), 'pas de prévision quand des positions sont dues');
         assert($('#hp-today .hp-link[data-action="homeExercises"]'), '« Autres exercices » en lien');
         w.__rev = 0; w.eval('startDailyReview = () => { window.__rev++; }');
-        cta.click();
+        primaries()[0].click();
         assert.strictEqual(w.__rev, 1);
     });
 
     await t('plan du jour : erreurs, révisions, réponses après les parties, une finale ; « Commencer » prend la première qui reste', () => {
         seed(w, -3, -1);
-        const ids = () => $$('#hp-today .hp-step').map(b => b.dataset.arg + (b.classList.contains('is-done') ? '✓' : ''));
-        assert.deepStrictEqual(ids(), ['due', 'endgame'], 'sans bilan ni nouveauté');
-        const due = $('#hp-today .hp-step[data-arg="due"]');
-        assert.strictEqual(due.querySelector('.hp-step-n').textContent, '2');
+        const ids = () => $$('#hp-today .hp-step:not(.hp-daily)').map(b => b.dataset.arg + (b.classList.contains('is-done') ? '✓' : ''));
+        assert.deepStrictEqual(ids(), ['endgame'], 'sans bilan ni nouveauté : les révisions sont le titre');
+        assert.strictEqual(primaries()[0].dataset.arg, 'due', '« Commencer » prend les révisions');
         // Erreurs du dernier bilan : en tête, et « Commencer » les prend d'abord.
         w.eval(`trainingState.lastSummary = { kind: 'due', rows: [{ ok: false, color: 'w', key: 'k1' }, { ok: true }] }; renderHomeSummary()`);
-        assert.deepStrictEqual(ids(), ['retry', 'due', 'endgame']);
+        assert.deepStrictEqual(ids(), ['retry', 'endgame']);
         assert.strictEqual(primaries()[0].dataset.arg, 'retry');
         w.__retry = 0; w.eval(`const __r = UI_ACTIONS.trainingRetry; UI_ACTIONS.trainingRetry = () => { window.__retry++; }`);
         primaries()[0].click();
@@ -85,8 +86,8 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval(`trainingState.lastSummary = null`);
         // À jour : révisions cochées, « Commencer » passe à la finale à suivre.
         seed(w, 2, 4);
-        assert.deepStrictEqual(ids(), ['due✓', 'endgame']);
-        assert(/À jour/.test($('#hp-today .hp-step[data-arg="due"] small').textContent));
+        assert.deepStrictEqual(ids(), ['endgame']);
+        assert(/à jour/.test($('#hp-today .hp-title').textContent));
         assert.strictEqual(primaries()[0].dataset.action, 'homeGo');
         assert.strictEqual(primaries()[0].dataset.arg, 'endgame');
         w.__eg = null; w.eval(`startEndgame = id => { window.__eg = id; }`);
@@ -95,7 +96,7 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         // Finale réussie aujourd'hui : tout est fait, l'action redevient « Ajouter une ligne ».
         w.eval(`(() => { const p = {}; p[_egNext({}).id] = { tries: 1, wins: 1, perfect: true, best: 0, last: Date.now() };
             dataStore.setJSON(ENDGAME_PROGRESS_KEY, p); renderHomeSummary(); })()`);
-        assert.deepStrictEqual(ids(), ['due✓', 'endgame✓']);
+        assert.deepStrictEqual(ids(), ['endgame✓']);
         assert.strictEqual(primaries()[0].dataset.action, 'homeAddLine');
         w.eval(`dataStore.setJSON(ENDGAME_PROGRESS_KEY, {}); renderHomeSummary()`);
     });
@@ -248,11 +249,12 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         })()`);
         assert(/^Bon retour/.test($('#hp-today .hp-over').textContent.trim()), $('#hp-today .hp-over').textContent);
         assert(/^5\s+positions\s*pour reprendre la main/.test($('#hp-today .hp-title').textContent.trim()), $('#hp-today .hp-title').textContent);
-        assert(/les plus importantes d’abord/.test($('#hp-today .hp-sub').textContent));
-        assert(/Retard : 6 en attente/.test($('#hp-today .rv-gauge').textContent), 'jauge : 11 dues, 5 places');
-        assert(/à jour vers/.test($('#hp-today .rv-gauge').textContent));
-        assert.strictEqual($('#hp-today .hp-step[data-arg="due"] .hp-step-n').textContent, '5');
-        assert(/6 en attente/.test($('#hp-today .hp-step[data-arg="due"]').textContent), 'le plan du jour dit le retard');
+        assert($('#hp-today .hp-pace-btn'), 'durée en tête du sous-titre');
+        assert(!/en attente/.test($('#hp-today').textContent), 'Chays épuré : le retard reste dans Progrès');
+        assert(/Environ \d+ min/.test($('#hp-today .hp-pace-btn').textContent), 'la durée ouvre le rythme');
+        assert.strictEqual($$('#hp-today .hp-pace-opt').length, 0, 'rythme replié');
+        $('#hp-today .hp-pace-btn').click();
+        assert.strictEqual($('#hp-today .hp-pace-btn').getAttribute('aria-expanded'), 'true');
         assert.strictEqual($$('#hp-today .hp-pace-opt').length, 3, 'rythme du jour : Léger, Normal, Soutenu');
         assert.strictEqual($('#hp-today .hp-pace-opt.is-on').dataset.arg, '15');
         w.eval(`startTrainingExercise('due')`);
@@ -260,7 +262,6 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval('quitTraining()');
         w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 15, f: 0 } }); renderHomeSummary()`);
         assert(/Objectif du jour\s*atteint/.test($('#hp-today .hp-title').textContent), 'objectif atteint');
-        assert($('#hp-today .hp-step[data-arg="due"]').classList.contains('is-done'));
         assert($('#hp-today .hp-link[data-action="trainingMore"]'), '« Encore » proposé, jamais imposé');
         w.eval('window.__spy = startDailyReview; startDailyReview = n => { window.__more = n; }; UI_ACTIONS.trainingMore(); startDailyReview = window.__spy');
         assert.strictEqual(w.eval('window.__more'), 15, '« Encore 15 » : l\'objectif une fois de plus');
@@ -269,7 +270,8 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval('quitTraining()');
         w.eval(`UI_ACTIONS.homePace('60')`);
         assert.strictEqual(w.eval('appSettings.dailyGoal'), 60, 'Soutenu choisi sur place');
-        w.eval(`appSettings.dailyGoal = 30; dataStore.setJSON('chessTrainer_activity', {}); renderHomeSummary()`);
+        w.eval(`appSettings.dailyGoal = 30; dataStore.setJSON('chessTrainer_activity', {}); UI_ACTIONS.homePaceShow()`);
+        assert.strictEqual($$('#hp-today .hp-pace-opt').length, 0, 'replié de nouveau');
     });
 
     await t('série avec joker : pastille laiton dans le surtitre, libre ou utilisée', () => {
@@ -279,12 +281,12 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert($('#hp-today .hp-joker'), 'pastille du joker');
     });
 
-    await t('défi du jour : une position du répertoire avant le plan, la même toute la journée ; faite, son résultat sans action', () => {
+    await t('défi du jour : première ligne sous « Commencer », la même toute la journée ; fait, son résultat sans action', () => {
         seed(w, 3, 3);
         w.eval(`dataStore.remove('chessTrainer_daily'); renderHomeSummary()`);
         const card = $('#hp-today .hp-daily');
-        assert(card && card.nextElementSibling.classList.contains('hp-steps'), 'juste avant le plan du jour');
-        assert(card.querySelector('.st-mini'), 'mini-échiquier');
+        assert(card && card.closest('li') === $('#hp-today .hp-steps > li'), 'première ligne sous « Commencer »');
+        assert(/Relever/.test(card.textContent));
         const arg = card.dataset.arg;
         w.eval('renderHomeSummary()');
         assert.strictEqual($('#hp-today .hp-daily').dataset.arg, arg, 'même position au second rendu');
@@ -301,6 +303,26 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert.strictEqual(started, null, 'un seul essai compté par jour');
         assert(/1 jour d’affilée/.test(done.textContent), done.textContent);
         w.eval(`dataStore.remove('chessTrainer_daily')`);
+    });
+
+    await t('barre du haut (Chays épuré, lot 2) : « + Ajouter » légendé à la place des icônes muettes, Échiquier libre dans Jouer', () => {
+        assert(!$('.hp-scope .hp-tool'), 'plus d\'icônes muettes dans la barre');
+        const btn = $('.hp-scope #add-menu-btn');
+        assert(btn && /Ajouter/.test(btn.textContent), 'bouton légendé');
+        assert(!$('#rep-menu [onclick*="\'new\'"]'), 'le ⋮ ne garde que le répertoire affiché');
+        btn.click();
+        assert(!$('#add-menu').classList.contains('hidden'));
+        assert.strictEqual(btn.getAttribute('aria-expanded'), 'true');
+        const items = $$('#add-menu .menu-item').map(b => b.textContent.trim());
+        assert.deepStrictEqual(items, ['Analyser mes parties', 'Importer un PGN', 'Nouveau répertoire']);
+        w.__pgn = 0; w.eval('showPgnImport = () => { window.__pgn++; }');
+        $$('#add-menu .menu-item')[1].click();
+        assert.strictEqual(w.__pgn, 1, 'Importer un PGN');
+        assert($('#add-menu').classList.contains('hidden'), 'le menu se referme');
+        btn.click(); $('#rep-menu-btn').click();
+        assert($('#add-menu').classList.contains('hidden') && !$('#rep-menu').classList.contains('hidden'), 'un seul menu ouvert à la fois');
+        w.eval('closeRepMenu()');
+        assert($('#hp-play .hp-free[data-action="helpAnalysis"]'), 'Échiquier libre sous « Jouer »');
     });
 
     await t('aucune erreur JS', () => { assert.deepStrictEqual(errors, []); });

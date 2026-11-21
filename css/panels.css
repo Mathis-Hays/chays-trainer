@@ -39,6 +39,11 @@
 .pn[data-single="1"] .pn-nav { display: none; }
 
 .pn-nav { display: flex; flex-direction: column; gap: 2px; padding: 12px 10px; border-right: 1px solid var(--border); overflow-y: auto; }
+.pn-all { display: none; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: var(--tap, 44px); margin-top: 12px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.pn-all .ico { width: 15px; height: 15px; fill: none; }
+@media (max-width: 640px) { .pn-all { display: inline-flex; } }
+.pn-nav-sep { display: block; margin: 12px 12px 4px; font: 600 11px/1.2 var(--font-note); letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); }
 .pn-nav button {
     position: relative; display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 10px;
     border: 0; border-radius: 10px; background: none; color: var(--text-muted); font: inherit; font-size: 13.5px; font-weight: 500; text-align: left; cursor: pointer;
@@ -194,7 +199,12 @@ html[data-board="cherry"] .pn-board { background: url("../assets/boards/cherry.w
     .pn-title { font-size: 19px; }
     .pn-body { grid-template-columns: minmax(0, 1fr); }
     .pn-nav { border-right: 0; padding: 12px; gap: 6px; }
-    .pn-nav button { padding: 13px 12px; border: 1px solid var(--border); background: var(--surface); }
+    .pn-all { display: none; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: var(--tap, 44px); margin-top: 12px;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.pn-all .ico { width: 15px; height: 15px; fill: none; }
+@media (max-width: 640px) { .pn-all { display: inline-flex; } }
+.pn-nav-sep { display: block; margin: 12px 12px 4px; font: 600 11px/1.2 var(--font-note); letter-spacing: .06em; text-transform: uppercase; color: var(--text-dim); }
+.pn-nav button { padding: 13px 12px; border: 1px solid var(--border); background: var(--surface); }
     .pn-nav button.is-on { box-shadow: none; background: var(--surface); font-weight: 500; }
     .pn-nav button small { display: block; }
     .pn-nav .pn-chev { display: block; width: 16px; height: 16px; color: var(--text-dim); }
