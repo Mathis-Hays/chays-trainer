@@ -9,30 +9,36 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
     const { dom, errors } = await bootApp();
     const w = dom.window, ev = s => w.eval(s), J = s => JSON.parse(ev(`JSON.stringify(${s})`));
     const marks = () => JSON.parse(ev(`dataStore.get(OpeningMarks.KEY) || '{}'`));
-    const S = (n, mastery, weak = 0, unsure = 0) => JSON.stringify({ n, mastery, weak, unsure });
+    const S = (n, known, weak = 0, unsure = 0) => JSON.stringify({ n, known, weak, unsure });
 
-    await t('rang : Apprenti, Compagnon (maîtrise 60, peu de fragiles), Maître (85, aucune fragile ni à confirmer)', () => {
-        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(1, 95)})`), 2, 'une seule position suffit (troncs communs)');
-        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(3, 59)})`), 0);
+    await t('rang sur la part sue (knownPct) : Apprenti, Compagnon (30 % sues, peu à apprendre), Maître (80 %, rien à apprendre ni à confirmer)', () => {
+        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(1, 100)})`), 2, 'une seule position suffit (troncs communs)');
+        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(3, 29)})`), 0);
         assert.strictEqual(ev(`OpeningMarks.rankOf(${S(4, 70, 1)})`), 1);
-        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(4, 70, 2)})`), 0, 'la moitié fragile');
+        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(4, 70, 2)})`), 0, 'la moitié à apprendre');
         assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 90)})`), 2);
         assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 90, 0, 1)})`), 1, 'une position à confirmer retient');
+        const rows = ['solid', 'mastered', 'unsure', 'weak'].map(lv => ({ lv }));
+        assert.deepStrictEqual(J(`OpeningMarks.statsOf(${JSON.stringify(rows)})`), { n: 4, known: 50, weak: 1, unsure: 1 }, 'À confirmer compte dans les essayées');
     });
 
-    await t('un Maître qui oublie redescend en douceur : seuil plus bas, un rang à la fois', () => {
-        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 80, 1)}, 2)`), 2, 'au-dessus du seuil de maintien');
+    await t('un Maître qui oublie redescend en douceur : seuil plus bas, un rang à la fois ; Compagnon tient tant que peu reste à apprendre', () => {
+        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 75, 1)}, 2)`), 2, 'au-dessus du seuil de maintien');
         assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 30, 4)}, 2)`), 1, 'jamais deux rangs d\'un coup');
-        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 55)}, 1)`), 1);
-        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 45)}, 1)`), 0);
+        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 10, 2)}, 1)`), 1, 'peu sues mais moins de 40 % à apprendre');
+        assert.strictEqual(ev(`OpeningMarks.rankOf(${S(6, 45, 3)}, 1)`), 0, 'la moitié à apprendre');
     });
 
-    await t('vers le rang suivant : pourcentage et conditions manquantes ; rien au rang Maître', () => {
-        const p = J(`OpeningMarks.progress(${S(2, 30)}, 0)`);
+    await t('vers le rang suivant : chaque condition avec sa valeur ; rien au rang Maître', () => {
+        const p = J(`OpeningMarks.progress(${S(2, 15)}, 0)`);
         assert.strictEqual(p.to, 1);
         assert.strictEqual(p.pct, 50);
-        assert.deepStrictEqual(p.need, ['maîtrise 60 (30 pour l’instant)']);
-        assert.deepStrictEqual(J(`OpeningMarks.progress(${S(6, 90, 0, 1)}, 1)`).need, ['toutes les positions confirmées']);
+        assert.deepStrictEqual(p.need, ['Au moins 30 % sues']);
+        assert.deepStrictEqual(p.conds.map(c => [c.id, c.now, c.ok]), [['known', '15 %', false], ['weak', '0 à apprendre', true]]);
+        const m = J(`OpeningMarks.progress(${S(83, 31, 18, 26)}, 1)`);
+        assert.deepStrictEqual(m.need, ['Au moins 80 % sues', 'Aucune position à apprendre', 'Toutes les positions confirmées'], 'la Partie écossaise : rien n\'est acquis');
+        assert.deepStrictEqual(m.conds.map(c => c.now), ['31 %', '18 à apprendre', '26 à confirmer']);
+        assert.strictEqual(m.pct, 39);
         assert.strictEqual(J(`OpeningMarks.progress(${S(6, 90)}, 2)`), null);
     });
 

@@ -7,9 +7,9 @@
  * Une ouverture = un groupe de _assignOpenings (openingNames.js), clé « couleur|nom » (gKey).
  * Clé synchronisée chessTrainer_openings : { [répertoire]: { [couleur|nom]: { r?: 0 | 1 | 2, ra?: date, i?: idée, ia?: date } } }.
  * Entre deux appareils, champ par champ : le rang le plus récent (ra), l'idée la plus récente (ia) (syncModel, 'openings').
- *   statsOf(lignes)            { n, mastery, weak, unsure } d'un groupe (lignes de _statsRows : e, lv).
+ *   statsOf(lignes)            { n, known (% sues, knownPct), weak (à apprendre), unsure } d'un groupe (lignes de _statsRows : e, lv).
  *   rankOf(stats, avant)       0 | 1 | 2 ; une ouverture ne redescend que d'un rang à la fois, sous un seuil plus bas.
- *   progress(stats, rang)      vers le rang suivant : { to, pct, need: [conditions manquantes] }, null au rang Maître.
+ *   progress(stats, rang)      vers le rang suivant : { to, pct, need: [manquantes], conds: [{ id, label, now, ok }] }, null au rang Maître.
  *   update(rép, lignes, now)   recalcule et range les rangs ; renvoie les promotions [{ key, side, name, from, to }].
  *   rank(rép, clé)             rang rangé, ou null.
  *   idea(rép, côté, nom)       { text, own, from } : l'idée du joueur (celle de l'ouverture ou de sa famille), sinon une suggestion.
@@ -24,25 +24,29 @@ const OpeningMarks = (function () {
     const RANKS = ['Apprenti', 'Compagnon', 'Maître'];
     // Promotion : il faut tout ; maintien (déjà au rang) : des seuils plus bas, pour qu'un oubli ne fasse pas tout redescendre.
     // Pas de nombre minimal de positions : les troncs communs forment souvent de petits groupes (une ou deux positions).
-    const UP = { 1: { n: 1, mastery: 60, weak: .25 }, 2: { n: 1, mastery: 85, weak: 0, unsure: 0 } };
-    const HOLD = { 1: { mastery: 52, weak: .4 }, 2: { mastery: 78, weak: .1 } };
+    // Audit « Ouvertures en images » (O16, 24 novembre 2026) : le rang suit la part des positions sues (knownPct, levels.js,
+    // « À confirmer » compris), plus le score caché. Compagnon se garde tant que les positions à apprendre restent sous 40 %.
+    const UP = { 1: { n: 1, known: 30, weak: .25 }, 2: { n: 1, known: 80, weak: 0, unsure: 0 } };
+    const HOLD = { 1: { known: 0, weak: .4 }, 2: { known: 70, weak: .1 } };
 
     const read = () => { const o = dataStore.getJSON(KEY, {}); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; };
     const save = all => dataStore.setJSON(KEY, all);
     const repOf = (all, rep) => (all[rep] && typeof all[rep] === 'object' ? all[rep] : null);
 
     // ─── RANGS ───────────────────────────────────────────────────────────────
+    // known : part des positions sues (Solides et Maîtrisées) parmi les positions essayées, « À confirmer » compris (knownPct).
+    // weak : positions à apprendre (À retravailler et Fragiles).
     function statsOf(rows) {
         const n = rows.length;
         return {
-            n, mastery: n ? Math.round(rows.reduce((s, r) => s + masteryOf(r.e), 0) / n) : 0,
+            n, known: n ? Math.round(100 * rows.filter(r => r.lv === 'solid' || r.lv === 'mastered').length / n) : 0,
             weak: rows.filter(r => r.lv === 'weak' || r.lv === 'fragile').length,
             unsure: rows.filter(r => r.lv === 'unsure').length
         };
     }
 
-    const meets = (s, r) => { const u = UP[r]; return s.n >= u.n && s.mastery >= u.mastery && s.weak <= u.weak * s.n && (u.unsure === undefined || s.unsure <= u.unsure); };
-    const holds = (s, r) => s.mastery >= HOLD[r].mastery && s.weak <= Math.max(r === 2 ? 1 : 0, HOLD[r].weak * s.n);
+    const meets = (s, r) => { const u = UP[r]; return s.n >= u.n && s.known >= u.known && s.weak <= u.weak * s.n && (u.unsure === undefined || s.unsure <= u.unsure); };
+    const holds = (s, r) => s.known >= HOLD[r].known && s.weak <= Math.max(r === 2 ? 1 : 0, HOLD[r].weak * s.n);
 
     function rankOf(s, prev = 0) {
         let r = meets(s, 2) ? 2 : meets(s, 1) ? 1 : 0;
@@ -50,15 +54,17 @@ const OpeningMarks = (function () {
         return r;
     }
 
+    // Vers le rang suivant : chaque condition avec sa valeur du moment (liste à coches de la fiche, audit O16) ;
+    // need garde les seules manquantes. pct : la part sue rapportée au seuil, plafonnée à 99 tant qu'il manque quelque chose.
     function progress(s, rank) {
         if (rank >= 2) return null;
-        const u = UP[rank + 1], need = [];
-        const most = Math.floor(u.weak * s.n);
-        if (s.mastery < u.mastery) need.push(`maîtrise ${u.mastery} (${s.mastery} pour l’instant)`);
-        if (s.weak > u.weak * s.n) need.push(most > 1 ? `au plus ${most} positions fragiles` : most ? 'au plus une position fragile' : 'aucune position fragile');
-        if (u.unsure !== undefined && s.unsure > u.unsure) need.push('toutes les positions confirmées');
-        const pct = Math.round(100 * Math.min(1, s.mastery / u.mastery));
-        return { to: rank + 1, pct: need.length ? Math.min(99, pct) : 100, need };
+        const u = UP[rank + 1], most = Math.floor(u.weak * s.n), conds = [];
+        conds.push({ id: 'known', label: `Au moins ${u.known} % sues`, now: `${s.known} %`, ok: s.known >= u.known });
+        conds.push({ id: 'weak', label: most > 1 ? `Au plus ${most} positions à apprendre` : most ? 'Au plus une position à apprendre' : 'Aucune position à apprendre',
+                     now: `${s.weak} à apprendre`, ok: s.weak <= u.weak * s.n });
+        if (u.unsure !== undefined) conds.push({ id: 'unsure', label: 'Toutes les positions confirmées', now: `${s.unsure} à confirmer`, ok: s.unsure <= u.unsure });
+        const need = conds.filter(c => !c.ok).map(c => c.label), pct = Math.round(100 * Math.min(1, s.known / u.known));
+        return { to: rank + 1, pct: need.length ? Math.min(99, pct) : 100, need, conds };
     }
 
     // lignes : celles de _statsRows (les deux couleurs ou une), groupées par _assignOpenings (gKey, gName, side).

@@ -96,8 +96,11 @@ const seedGames = async (w, games) => {
         const all = $$('#stats-lines .so-fiche h5').map(h => h.textContent).join(' | ');
         assert(!/Score par mois|Où le répertoire s'arrête|Réponses adverses|Coups joués à la place|Vos coups à connaître|Votre préparation$/.test(all), all);
         assert(!$('#stats-lines .so-tr'), 'la carte « Réponses adverses » est supprimée : l\'explorateur la couvre');
-        assert(/Mois par mois/.test($('#stats-lines .so-lv .so-months-h').textContent), '« Mois par mois » dans la carte Elo');
-        assert($$('#stats-lines .so-lv .so-months i').length === 12, 'douze mois');
+        // Audit « Ouvertures en images » (O17) : sous 12 parties, une case par partie ; les mois dès 3 mois jugés.
+        assert.strictEqual($$('#stats-lines .so-lv .so-pips .so-pip').length, 7, 'une case par partie');
+        assert.strictEqual($$('#stats-lines .so-lv .so-pip.is-l').length, 6, 'six défaites, lettre P');
+        assert(/1 nulle, 6 pertes/.test($('#stats-lines .so-lv .so-lv-sub').textContent), 'résultats en mots');
+        assert(!$('#stats-lines .so-lv .so-months'), 'pas de bande de mois vide : un seul mois joué');
         const prep = $('#stats-lines .so-prep');
         assert(prep.querySelector('.so-ruler i.me'), 'règle de coups : un point par oubli');
         assert(/Répertoire suivi/.test(prep.textContent) && /Réponses couvertes/.test(prep.textContent) && /Sortie moyenne : coup \d+/.test(prep.textContent), '« Votre préparation » absorbée');
@@ -135,7 +138,7 @@ const seedGames = async (w, games) => {
     await t('Réviser : une seule action pleine qui lance la séance de l\'ouverture, trois variantes en puces', () => {
         assert.strictEqual($$('#home-tab-openings .btn-primary').length, 1);
         const go = $('#stats-lines .so-review .so-go');
-        assert(go && /Réviser · \d+/.test(go.textContent), 'positions dues : Réviser · N');
+        assert(go && /^Réviser\s*\d+ à réviser$/.test(go.textContent.trim()) && go.querySelector('.count'), 'positions dues : le bouton dit ce qu\'il compte');
         assert.deepStrictEqual($$('#stats-lines .so-chip[data-action="opReview"]').map(b => b.dataset.arg.split(':')[0]), ['weak', 'line', 'unsure']);
         assert($('#stats-lines .so-chip[data-action="opFree"]'), 'Échiquier libre');
         w.eval(`window.__or = []; window.__sor = startOpeningReview; startOpeningReview = o => window.__or.push(o.color + ' ' + o.kind + ' ' + o.opening.name + ' ' + o.path.length)`);
@@ -183,6 +186,34 @@ const seedGames = async (w, games) => {
         crumbs[4].click();
         assert.strictEqual($('#stats-lines .so-x-mv[aria-current]').dataset.arg, 'e2e4 e7e5 g1f3 b8c6 f1c4', 'le fil ramène en arrière');
         w.eval(`openAnalysis = window.__oa`);
+    });
+
+    await t('audit « Ouvertures en images » : coups sur l\'échiquier, nom une fois, barre légendée, rang à coches, index chiffré', () => {
+        // Explorateur : chaque coup adverse de la liste est aussi une flèche (code commun), le trou en ambre pointillé.
+        w.eval(`UI_ACTIONS.opExplore('e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3')`);
+        const svg = $('#stats-lines .so-x .so-x-board .so-ar-svg');
+        assert(svg, 'calque de flèches sur l\'échiquier de l\'explorateur');
+        assert.strictEqual(svg.querySelectorAll('g').length, $$('#stats-lines .so-x .so-x-row').length, 'une flèche par coup de la liste');
+        assert(svg.querySelector('g.is-hole') && $('#stats-lines .so-x-key .is-hole'), 'Cf6 sans réponse : flèche ambre et sa clé');
+        assert($('#stats-lines .so-x .so-x-row .so-x-san.san .mv-n'), 'notation en Mono, numéro à part');
+        w.eval(`UI_ACTIONS.opExplore('e2e4 e7e5 g1f3 b8c6 f1c4 f8c5')`);
+        assert($('#stats-lines .so-x .so-ar-svg g.is-me'), 'à mon trait : ma réponse en noyer');
+        // En-tête : le nom une seule fois (le sélecteur est le titre), la barre légendée dit ce que compte « Mes coups ».
+        const head = $('#stats-lines .so-head');
+        assert.strictEqual(head.querySelectorAll('.so-name').length, 1);
+        assert(head.querySelector('#so-trigger .so-name') && !$('#stats-lines .so-bar #so-trigger'), 'le titre est le sélecteur');
+        const legend = head.querySelector('.lv-plate .lv-legend');
+        assert(legend, 'barre légendée en tête');
+        const sum = [...legend.children].reduce((n, x) => n + Number(/^(\d+)/.exec(x.textContent.trim())[1]), 0);
+        assert.strictEqual(sum, Number($('#so-t-moves .count').textContent), 'la légende compte les mêmes positions que « Mes coups »');
+        // Rang : chaque condition avec sa valeur, dans « Mes coups ».
+        const rank = $('#stats-lines .so-pos .so-rank');
+        if (rank && !rank.classList.contains('is-top')) assert(rank.querySelector('.so-checks li small'), 'conditions avec leur valeur');
+        // Index : une puce de compte et la part sue, légende qui filtre, plus de phrase « coups à revoir ».
+        assert(!/coups? à revoir/.test($('#stats-lines .so-index').textContent));
+        assert($('#stats-lines .so-mr .so-mr-k') && /\d+ % sues/.test($('#stats-lines .so-mr .so-mr-k').textContent));
+        assert($$('#stats-lines .so-fbar-legend .so-leg-b[data-action="statsFilter"]').length >= 1, 'chaque légende filtre');
+        assert(/sues/.test($('#stats-lines .so-mr').getAttribute('aria-label')), 'les comptes sont dans le nom accessible');
     });
 
     await t('Mes coups, allégée : miniature (aperçu), coup, niveau, un bouton ; parties et maîtrise passent dans l\'aperçu', () => {
@@ -326,8 +357,10 @@ const seedGames = async (w, games) => {
         key($('#so-picker .so-p-search'), 'Enter');
         const rows = () => $$('#stats-lines .so-pos .so-my'), more =() => $('#stats-lines .so-pos .st-more');
         assert.strictEqual(rows().length, 5);
-        const total = Number(/^(\d+) coups/.exec($('#stats-lines .so-pos .st-sub').textContent)[1]);
+        const total = 5 + Number(/^Afficher les (\d+) autres coups$/.exec(more().textContent)[1]);
         assert(total > 5);
+        // Audit « Ouvertures en images » : rangés sous le titre de leur état, avec la barre légendée en tête de carte.
+        assert($('#stats-lines .so-pos .so-grp') && $('#stats-lines .so-pos .lv-plate .lv-legend'), 'groupes et légende');
         assert.strictEqual(more().textContent, `Afficher les ${total - 5} autres coups`);
         assert(rows().some(r => /^Après … \d+/.test(r.querySelector('.so-after').textContent)), 'quatre demi-coups au plus, marqués coupés');
         more().click();
@@ -346,14 +379,13 @@ const seedGames = async (w, games) => {
         key($('#so-picker .so-p-search'), 'Escape');
     });
 
-    await t('rang visible quand la fiche est à côté : lignes non tassées, sceau sur la miniature, index collant, « Maître » lisible en sombre', () => {
+    await t('rang visible dans la liste : lignes non tassées, sceau sur la miniature dès Compagnon, index collant, « Maître » lisible en sombre', () => {
         const css = fs.readFileSync(path.join(ROOT, 'css/screens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-        const wide = css.slice(css.indexOf('@container stats (min-width: 980px)'));
-        const block = wide.slice(0, wide.indexOf('\n}'));
-        const mr = /\n\s*\.so-mr \{([^}]*)\}/.exec(block);
+        // Audit « Ouvertures en images » (direction B) : la ligne de 60 px vaut à toutes les largeurs, plus seulement fiche à côté.
+        const mr = /\n\.so-mr \{([^}]*display:\s*grid[^}]*)\}/.exec(css), cv = /\n\.so-mr \{([^}]*content-visibility[^}]*)\}/.exec(css);
         assert(mr && /flex-shrink:\s*0/.test(mr[1]), 'la colonne qui défile ne tasse plus les lignes');
         assert(/min-height:\s*60px/.test(mr[1]));
-        const cis = /contain-intrinsic-size:\s*auto\s+(\d+)px/.exec(mr[1]);
+        const cis = /contain-intrinsic-size:\s*auto\s+(\d+)px/.exec(cv && cv[1]);
         assert(cis && Number(cis[1]) >= 60, 'taille réservée au moins celle de la ligne');
         assert(/\.st-body \.st-card-flush \{[^}]*overflow:\s*clip/.test(css), 'overflow: clip, sinon position: sticky ne colle pas');
         assert(!/\.st-body \.st-card-flush \{[^}]*overflow:\s*hidden/.test(css));
@@ -366,8 +398,11 @@ const seedGames = async (w, games) => {
         assert(ratio(v('brand-brass'), v('brand-walnut')) >= 4.5, 'laiton clair sur noyer : 4,5:1');
         assert(ratio(v('brand-brass-deep'), v('brand-walnut')) < 4.5, 'le laiton foncé ne passait pas');
         // Le rang est dans la carte de l'index sans dépendre de sa hauteur : un sceau posé sur la miniature.
-        const seal = $('#stats-lines .so-mr .so-mr-b .op-rank.so-seal');
-        assert(seal, 'sceau sur la miniature');
+        // Le sceau ne paraît qu'à partir de Compagnon : sur 28 ouvertures, il redevient une distinction.
+        $$('#stats-lines .so-mr').forEach(r => {
+            const seal = r.querySelector('.so-mr-b .op-rank.so-seal'), label = r.getAttribute('aria-label');
+            assert.strictEqual(!!seal, / · (Compagnon|Maître) · /.test(label), label);
+        });
         assert(/\.so-mr-b \.op-rank\.so-seal \{[^}]*position:\s*absolute/.test(css));
     });
 

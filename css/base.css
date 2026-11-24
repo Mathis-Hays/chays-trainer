@@ -25,6 +25,7 @@
     --fs-4: 16px;                          /* texte courant */
     --fs-5: 19px;                          /* titre de bloc (Fraunces) */
     --fs-6: 34px;                          /* chiffre héros */
+    --focus-ring: var(--accent);           /* anneau de focus (audit « Ouvertures en images », O7) ; .vel-dark le redéfinit */
 
     /* Couleurs de marque (identité « Noyer gravé ») : fixes, jamais tirées de l'échiquier. Logo, lancement,
        moments de maîtrise. Les commandes (boutons, liens) gardent l'accent dérivé de l'échiquier (HARMONISATION). */

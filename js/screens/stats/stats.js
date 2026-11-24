@@ -97,7 +97,9 @@ function _moveLabel(e, masked, html) {
     const fmt = html ? formatSan : formatSanText;
     if (!e.ply) return masked ? '?' : fmt(e.san);
     const n = Math.ceil(e.ply / 2), w = e.ply % 2 === 1, san = masked ? '?' : fmt(e.san, w ? 'w' : 'b');
-    return w ? `${n}. ${san}` : `${n}… ${san}`;
+    // HTML : le numéro en gris (.mv-n, audit « Ouvertures en images », O4 : notation en Mono avec .san).
+    const num = html ? `<span class="mv-n">${n}${w ? '.' : '…'}</span>` : `${n}${w ? '.' : '…'}`;
+    return `${num} ${san}`;
 }
 
 // ─── POSITIONS ET OUVERTURES ──────────────────────────────────────────────────

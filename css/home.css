@@ -613,9 +613,7 @@
 .hp-span .hp-wk > b { min-height: 12px; font: 600 var(--fs-1)/1 var(--font-note); color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* Défi du jour : la couleur en pastille ; À traiter : le coup nouveau surligné (pas la couleur seule). */
-.hp-dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -.5px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
-.hp-dot.is-w { background: #fffdf8; }
-.hp-dot.is-b { background: var(--brand-walnut); }
+.hp-dot { width: 9px; height: 9px; margin-right: 5px; vertical-align: -.5px; }   /* dessin commun : .side-dot (components.css) */
 mark.hp-move-new { padding: 0 2px; border-radius: 3px; color: inherit; background: color-mix(in oklab, var(--brand-brass) 22%, transparent); box-shadow: inset 0 -2px 0 var(--brand-brass-deep); }
 [data-theme="dark"] mark.hp-move-new { box-shadow: inset 0 -2px 0 var(--brand-brass); }
 

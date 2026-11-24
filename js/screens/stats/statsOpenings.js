@@ -22,7 +22,10 @@
 
 const StatsOpenings = (function () {
     const ROWS = 5, AFTER_PLIES = 4, PRIORITY = 3, MIN_OUT = 2, MIN_MAP = 3, SWAPS = 3, MIN_DIAG = 5;
-    const LOSING = -3, SURE = 80, EVEN_ELO = 15;                  // « Perd des points » dès −3 pt ; « Sue » dès 80 / 100 ; ±15 Elo : à mon niveau
+    const LOSING = -3, SURE = 80, EVEN_ELO = 15;                  // « Perd des points » dès −3 pt ; « Sue » dès 80 % sues ; ±15 Elo : à mon niveau
+    // Audit « Ouvertures en images » (24 novembre 2026) : sous PIPS parties, une case par partie plutôt qu'un pourcentage ;
+    // les mois dès MIN_MONTHS mois jugés ; « À reprendre d'abord » quand l'index a au moins PRIORITY_MIN ouvertures.
+    const PIPS = 12, MIN_MONTHS = 3, PRIORITY_MIN = 6, PIP_SLIPS = 5;
     const OTHER = 'Autres positions';
     const st = { ctx: null, scope: '', cur: null, picked: false, open: false, view: 'list', mode: 'list', tab: 'line', q: '', active: -1, all: new Set(), cursor: new Map(), list: [], reached: new Map() };
 
@@ -36,11 +39,11 @@ const StatsOpenings = (function () {
     const fairDelta = t => t.n >= MIN_MAP ? t.delta : null;                      // sur une ou deux parties, l'écart ne veut rien dire
 
     const DIAG = {
-        learn: ['À apprendre', (m, lost) => `Maîtrise de ${m} sur 100, et ${lost} points de moins que prévu. Apprendre ses positions fragiles est le gain le plus direct.`],
-        replace: ['À remplacer ?', (m, lost, ev) => `Vous la connaissez (${m} sur 100), mais vous sortez de l'ouverture à ${ev} et perdez ${lost} points. La ligne elle-même mérite un examen.`],
+        learn: ['À apprendre', (m, lost) => `${m} % sues, et ${lost} points de moins que prévu. Apprendre ses positions fragiles est le gain le plus direct.`],
+        replace: ['À remplacer ?', (m, lost, ev) => `Vous la connaissez (${m} % sues), mais vous sortez de l'ouverture à ${ev} et perdez ${lost} points. La ligne elle-même mérite un examen.`],
         through: ['À jouer en entier', (m, lost, ev) => `L'ouverture se passe bien (${ev} à la sortie), puis ${lost} points partent. Le travail est dans le milieu de partie typique.`],
-        losing: ['Sue mais perdante', (m, lost) => `Vous la connaissez (${m} sur 100), mais elle rapporte ${lost} points de moins que prévu. Regardez où les parties tournent après l'ouverture.`],
-        consolidate: ['À consolider', m => `Elle rapporte plus que prévu sans être bien sue (${m} sur 100). Ces points restent fragiles face à de meilleurs joueurs.`],
+        losing: ['Sue mais perdante', (m, lost) => `Vous la connaissez (${m} % sues), mais elle rapporte ${lost} points de moins que prévu. Regardez où les parties tournent après l'ouverture.`],
+        consolidate: ['À consolider', m => `Elle rapporte plus que prévu sans être bien sue (${m} % sues). Ces points restent fragiles face à de meilleurs joueurs.`],
         keep: ['À garder', () => 'Bien sue et rentable. Une révision régulière suffit.']
     };
 
@@ -87,15 +90,28 @@ const StatsOpenings = (function () {
     const current = () => st.list.find(g => g.key === st.cur) || null;
 
     // ─── PETITS ÉLÉMENTS ─────────────────────────────────────────────────────
-    const wdlBar = t => t.n ? `<span class="so-wdl" role="img" aria-label="${I18n.mark(`${t.w} / ${t.d} / ${t.l}`)}">${[['w', t.w], ['d', t.d], ['l', t.l]].filter(([, n]) => n).map(([k, n]) => `<i class="sg-${k}" style="flex:${n}"></i>`).join('')}</span>` : '';
-    const sideDot = s => `<span class="so-dot ${s}" aria-hidden="true"></span>`;
-    const metaOf = g => g.all.length ? `${_plural(g.stats.n, 'partie')} · maîtrise ${g.mastery} / 100` : `${_plural(g.stats.n, 'partie')} · hors répertoire`;
+    // Résultats lus en mots (audit O10) : « 1 gain, 0 nulle, 1 perte ».
+    const wdlWords = t => `${_plural(t.w, 'gain')}, ${_plural(t.d, 'nulle')}, ${_plural(t.l, 'perte')}`;
+    const wdlBar = t => t.n ? `<span class="so-wdl" role="img" aria-label="${wdlWords(t)}">${[['w', t.w], ['d', t.d], ['l', t.l]].filter(([, n]) => n).map(([k, n]) => `<i class="sg-${k}" style="flex:${n}"></i>`).join('')}</span>` : '';
+    // Une case par partie, de la plus ancienne à la plus récente : G, N, P (forme et lettre, pas seulement la couleur).
+    const PIP = { w: 'G', d: 'N', l: 'P' };
+    const pipsHTML = (games, cls = '') => `<span class="so-pips ${cls}" aria-hidden="true">${games.slice().sort((a, b) => a.at - b.at).map(g => `<i class="so-pip is-${g.result}">${PIP[g.result] || ''}</i>`).join('')}</span>`;
+    // Pastille de camp commune (audit O6) : jetons de marque, la même que sur l'accueil.
+    const sideDot = s => `<span class="side-dot is-${s}" aria-hidden="true"></span>`;
+    const pctKnown = g => knownPct(g.counts);
+    const metaOf = g => g.all.length ? `${_plural(g.stats.n, 'partie')} · ${pctKnown(g)} % sues` : `${_plural(g.stats.n, 'partie')} · hors répertoire`;
+    // Barre légendée sur plaque (audit O9, O10, O14) : les trois états, puis « À confirmer », qui reste hors de la barre.
+    function plateHTML(counts, cls = '') {
+        const u = counts[STATS_STATE] || 0, h = levelBarHTML(counts, cls, { legend: true });
+        return u ? h.replace(/<\/span><\/span>$/, `<span>${_lvMark(STATS_STATE)}${u} à confirmer</span></span></span>`) : h;
+    }
 
     // Score face à l'attendu, dit en Elo (chantier « Ouvertures repensées », point 3) : le niveau joué dans l'ouverture
     // et son écart à mon Elo moyen des mêmes parties (OpeningReport.summarize : perf, me, gap ; 3 parties classées au moins).
     const elo = v => I18n.mark(Math.round(v).toLocaleString(I18n.locale()));
     const eloSigned = v => I18n.mark(`${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v)).toLocaleString(I18n.locale())} Elo`);
-    const eloTag = t => t.gap === null ? '' : `<small class="so-elo ${t.gap >= 0 ? 'up' : 'down'}">${eloSigned(t.gap)}</small>`;
+    // Écart en Elo de l'index et du sélecteur : seulement à partir de MIN_DIAG parties (audit O17).
+    const eloTag = t => t.gap === null || t.n < MIN_DIAG ? '' : `<small class="so-elo ${t.gap >= 0 ? 'up' : 'down'}">${eloSigned(t.gap)}</small>`;
     function eloSentence(t) {
         if (t.perf === null) return '';
         const n = Math.abs(t.gap);
@@ -104,61 +120,70 @@ const StatsOpenings = (function () {
             : `Vous y jouez comme un ${elo(t.perf)}, ${elo(n)} au-dessus de votre Elo.`;
     }
 
-    // Une phrase d'état par ouverture (index « Vitrine ») : à la place du verdict, de la maîtrise et de l'écart.
+    // L'état d'une ouverture dans l'index (audit « Ouvertures en images ») : une puce de compte, dans l'ordre de priorité.
+    // L'état porte le nom de son niveau (« À apprendre », O13) ; [classe, texte].
     function stateOf(g) {
-        if (!g.all.length) return ['dim', 'Hors répertoire'];
-        const d = fairDelta(g.stats), weak = g.counts.weak + g.counts.fragile;
+        if (!g.all.length) return ['out', 'Hors répertoire'];
+        const d = fairDelta(g.stats), learn = g.counts.weak + g.counts.fragile;
         if (d !== null && d <= LOSING) return ['loss', 'Perd des points'];
-        if (weak) return ['weak', _plural(weak, 'coup à revoir', 'coups à revoir')];
-        if (g.due) return ['dim', `${g.due} à réviser`];
-        if (g.mastery >= SURE) return ['sure', 'Sue · à jour'];
-        return ['dim', 'À jour'];
+        if (learn) return ['learn', `${learn} à apprendre`];
+        if (g.due) return ['muted', `${g.due} à réviser`];
+        if (pctKnown(g) >= SURE) return ['brass', 'Sue'];
+        return ['muted', 'À jour'];
     }
 
-    // Petit échiquier avec flèches (oublis) : l'échiquier de _miniBoardHTML, un calque SVG de 8 × 8 cases par-dessus.
-    function arrowsBoard(side, path, arrows, label) {
+    // Calque de flèches sur un mini-échiquier (oublis, explorateur) : 8 × 8 cases. arrows : [uci, classe, épaisseur ?].
+    // Code des flèches (audit « Ouvertures en images ») : is-me noyer (votre coup), is-rep laiton (répertoire, prévu),
+    // is-seen gris (repéré ou joué contre vous), is-hole ambre pointillé (sans réponse), is-played vermillon (joué à la place).
+    function arrowSVG(side, arrows) {
         const at = sq => { const f = sq.charCodeAt(0) - 97, r = Number(sq[1]) - 1; return side === 'w' ? [f + .5, 7.5 - r] : [7.5 - f, r + .5]; };
-        const svg = arrows.filter(([u]) => /^[a-h][1-8][a-h][1-8]/.test(u || '')).map(([u, cls]) => {
+        const svg = arrows.filter(([u]) => /^[a-h][1-8][a-h][1-8]/.test(u || '')).map(([u, cls, w = .26]) => {
             const [x1, y1] = at(u.slice(0, 2)), [x2, y2] = at(u.slice(2, 4)), dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, ux = dx / L, uy = dy / L;
-            const ex = x2 - ux * .5, ey = y2 - uy * .5, px = -uy * .36, py = ux * .36, f = v => v.toFixed(2);
+            const hl = .36 + w, hw = .2 + w * .62, ex = x2 - ux * hl, ey = y2 - uy * hl, px = -uy * hw, py = ux * hw, f = v => v.toFixed(2);
             const shaft = `x1="${f(x1)}" y1="${f(y1)}" x2="${f(ex)}" y2="${f(ey)}"`, head = `points="${f(x2)},${f(y2)} ${f(ex + px)},${f(ey + py)} ${f(ex - px)},${f(ey - py)}"`;
-            return `<g class="${cls}"><line class="halo" ${shaft}/><polygon class="halo" ${head}/><line ${shaft}/><polygon ${head}/></g>`;
+            return `<g class="${cls}" style="--w:${f(w)}"><line class="halo" ${shaft}/><polygon class="halo" ${head}/><line ${shaft}/><polygon ${head}/></g>`;
         }).join('');
-        return `<span class="so-ar">${_miniBoardHTML({ side, path }, true, { label })}<svg class="so-ar-svg" viewBox="0 0 8 8" aria-hidden="true">${svg}</svg></span>`;
+        return `<svg class="so-ar-svg" viewBox="0 0 8 8" aria-hidden="true">${svg}</svg>`;
     }
+    const arrowsBoard = (side, path, arrows, label) => `<span class="so-ar">${_miniBoardHTML({ side, path }, true, { label })}${arrowSVG(side, arrows)}</span>`;
 
     // ─── FICHE : EN-TÊTE ─────────────────────────────────────────────────────
     // Une position, un rang, une phrase et une seule action pleine (direction « Vitrine »).
     function headHTML(g) {
         const s = g.stats, exit = s.n ? OpeningReport.detail(g.recent, g.path.length).exitEval : null, id = OpeningReport.diagnose(s.n, s.delta, g.mastery, exit), d = id && DIAG[id];
         const text = !g.all.length ? 'Hors de votre répertoire : aucune position travaillée pour cette ouverture.'
-            : !s.n ? 'Aucune de vos parties récentes ne passe par cette ouverture.'
-            : !d ? `Trop peu de parties pour juger (${s.n}).` : d[1](g.mastery, num1(s.lost), exit === null ? '' : evalText(exit));
+            : d ? d[1](pctKnown(g), num1(s.lost), exit === null ? '' : evalText(exit)) : '';
+        // Sans verdict, une puce discrète plutôt qu'une phrase en tête (audit « Ouvertures en images »).
+        const none = g.all.length && !d ? `<span class="so-diag is-none">${!s.n ? 'Aucune partie récente' : `${_plural(s.n, 'partie')} : trop peu pour juger`}</span>` : '';
         // Lot 5 « Chays épuré » : un seul verdict ; le niveau en Elo est dans « En partie », le rang dans « Mes coups »,
-        // l'idée de la ligne en tête d'« Explorer ».
+        // l'idée de la ligne en tête d'« Explorer ». Audit O15 : le titre est le sélecteur (#so-trigger), le nom ne paraît qu'une fois ;
+        // O14 : la barre légendée dit ce que comptent la tuile, l'onglet « Mes coups » et le bouton.
+        const meta = `${g.side === 'w' ? 'Blancs' : 'Noirs'} · ${_plural(s.n, 'partie')}`;
         return `<div class="so-head vel-card vel-dark${g.all.length ? ' has-rep' : ''}">
             <div class="so-head-top">
                 ${g.path.length ? `<div class="so-board">${_miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name })}</div>` : ''}
                 <div class="so-head-id">
-                    <span class="st-eyebrow">${g.side === 'w' ? 'Blancs' : 'Noirs'}${g.all.length ? ` · ${_plural(g.all.length, 'position')}` : ''}</span>
-                    <h4 class="so-name">${g.html}</h4>
-                    ${g.path.length && g.name !== _movesLabel(g.path) ? `<small class="so-moves">${_movesLabel(g.path, true)}</small>` : ''}
-                    ${d || g.rank !== null ? `<div class="so-tags">${g.rank !== null ? _opRankHTML(g.rank) : ''}${d ? `<span class="so-diag">${d[0]}</span>` : ''}</div>` : ''}
+                    <span class="st-eyebrow">${sideDot(g.side)}${g.side === 'w' ? 'Blancs' : 'Noirs'}</span>
+                    <button type="button" class="so-trigger" id="so-trigger" data-action="statsOpOpen" aria-haspopup="dialog" aria-expanded="false" aria-label="${escapeHtml(`${g.name} · ${meta} · choisir une autre ouverture`)}"><b class="so-name">${g.html}</b>${ico('chevron-down')}</button>
+                    ${g.path.length && g.name !== _movesLabel(g.path) ? `<small class="so-moves san">${_movesLabel(g.path, true)}</small>` : ''}
+                    ${d || g.rank !== null || none ? `<div class="so-tags">${g.rank !== null ? _opRankHTML(g.rank) : ''}${d ? `<span class="so-diag">${d[0]}</span>` : none}</div>` : ''}
                 </div>
             </div>
-            <p class="so-say">${text}</p>
+            ${g.all.length ? plateHTML(g.counts, 'so-head-bar') : ''}
+            ${text ? `<p class="so-say">${text}</p>` : ''}
             ${reviewHTML(g)}
         </div>`;
     }
 
-    // Rang (atelier « L'envie de revenir », lot 4) : ce qui manque pour le suivant, et une barre.
+    // Rang (atelier « L'envie de revenir », lot 4) : vers le rang suivant, chaque condition cochée ou non avec sa valeur
+    // du moment (audit O16) ; le rang suit la part des positions sues (OpeningMarks, knownPct).
     function rankHTML(g) {
         if (g.rank === null) return '';
         const p = OpeningMarks.progress(OpeningMarks.statsOf(g.all), g.rank), name = OpeningMarks.RANKS;
         if (!p) return `<div class="so-rank is-top"><span>Maître de cette ouverture : elle le reste tant qu’elle est révisée.</span></div>`;
-        return `<div class="so-rank"><div class="so-rank-h"><span>Vers ${name[p.to]}</span><b>${p.pct} %</b></div>
-            <span class="so-rank-track" role="img" aria-label="${p.pct} %"><i style="width:${p.pct}%"></i></span>
-            ${p.need.length ? `<small>${p.need.map(escapeHtml).join(' · ')}</small>` : ''}</div>`;
+        const left = p.conds.filter(c => !c.ok).length;
+        return `<div class="so-rank"><div class="so-rank-h"><span>${_opRankHTML(g.rank)} → ${name[p.to]}</span><small>${left ? _plural(left, 'condition à remplir', 'conditions à remplir') : 'Rang suivant à la prochaine séance'}</small></div>
+            <ul class="so-checks">${p.conds.map(c => `<li class="${c.ok ? 'is-ok' : ''}">${ico(c.ok ? 'check' : 'x')}<span>${escapeHtml(c.label)}</span><small class="san">${escapeHtml(c.now)}</small><span class="sr-only">${c.ok ? 'acquis' : 'à remplir'}</span></li>`).join('')}</ul></div>`;
     }
 
     // L'idée de la ligne (lot 4) : la phrase du joueur, celle de la famille, sinon une suggestion à garder ou réécrire.
@@ -179,11 +204,13 @@ const StatsOpenings = (function () {
         if (!g.all.length) return g.path.length ? `<div class="so-acts"><button type="button" class="hp-link so-free" data-action="opFree" data-arg="${escapeHtml(g.key)}">${ico('cpu')}Échiquier libre</button></div>` : '';
         const weak = g.counts.weak + g.counts.fragile, unsure = g.counts[STATS_STATE];
         const main = g.due ? 'due' : weak ? 'weak' : g.path.length ? 'line' : 'unsure';
-        const chip = (kind, label, n) => kind === main ? '' : `<button type="button" class="so-chip" data-action="opReview" data-arg="${escapeHtml(kind + ':' + g.key)}"${n === 0 ? ' disabled' : ''}>${label}${n ? ` <b>${n}</b>` : ''}</button>`;
-        const label = { due: `Réviser · ${g.due}`, weak: 'Réviser les points faibles', line: 'Réviser la ligne entière', unsure: 'Confirmer les nouvelles' }[main];
+        const chip = (kind, label, n) => kind === main ? '' : `<button type="button" class="so-chip" data-action="opReview" data-arg="${escapeHtml(kind + ':' + g.key)}"${n === 0 ? ' disabled' : ''}>${label}${n ? ` <span class="count">${n}</span>` : ''}</button>`;
+        // Audit O14 : le bouton dit ce qu'il compte (« 1 à réviser », « 18 à apprendre »), dans la puce de compte.
+        const label = { due: 'Réviser', weak: 'Reprendre', line: 'Réviser la ligne entière', unsure: 'Confirmer' }[main];
+        const n = { due: [g.due, 'à réviser'], weak: [weak, 'à apprendre'], unsure: [unsure, 'à confirmer'] }[main];
         // Lot 5 « Chays épuré » : une action pleine ; les variantes et l'Échiquier libre sous « Autres façons ».
         return `<div class="so-review">
-            <button type="button" class="btn btn-primary so-go" data-action="opReview" data-arg="${escapeHtml(main + ':' + g.key)}">${ico('play')}<span>${label}</span></button>
+            <button type="button" class="btn btn-primary so-go" data-action="opReview" data-arg="${escapeHtml(main + ':' + g.key)}">${ico('play')}<span>${label}</span>${n ? `<span class="count">${n[0]} ${n[1]}</span>` : ''}</button>
             <details class="so-more"><summary>Autres façons ${ico('chevron-down')}</summary>
             <div class="so-chips">${chip('weak', 'À reprendre', weak)}${g.path.length ? chip('line', 'Ligne entière') : ''}${chip('unsure', 'À confirmer', unsure)}
                 ${g.path.length ? `<button type="button" class="so-chip is-free" data-action="opFree" data-arg="${escapeHtml(g.key)}">${ico('cpu')}Échiquier libre</button>` : ''}</div></details>
@@ -195,10 +222,10 @@ const StatsOpenings = (function () {
     // Les trois panneaux sont rendus ; changer d'onglet ne fait que basculer hidden (opTab), sans repeindre.
     const TABS = [['line', 'Explorer'], ['games', 'En partie'], ['moves', 'Mes coups']];
     function tabsHTML(g) {
-        const count = { line: 0, games: g.stats.n, moves: g.items.length };
+        const count = { line: 0, games: g.stats.n, moves: g.items.length };        // audit O11 : la puce de compte commune
         return `<div class="tr-seg so-tabs" role="tablist" aria-label="Sections de la fiche">${TABS.map(([id, label]) => {
             const on = st.tab === id;
-            return `<button type="button" class="tr-seg-btn${on ? ' active' : ''}" role="tab" id="so-t-${id}" aria-selected="${on}" aria-controls="so-p-${id}" tabindex="${on ? 0 : -1}" data-action="opTab" data-arg="${id}">${label}${count[id] ? ` <b>${count[id]}</b>` : ''}</button>`;
+            return `<button type="button" class="tr-seg-btn${on ? ' active' : ''}" role="tab" id="so-t-${id}" aria-selected="${on}" aria-controls="so-p-${id}" tabindex="${on ? 0 : -1}" data-action="opTab" data-arg="${id}">${label}${count[id] ? ` <span class="count">${count[id]}</span>` : ''}</button>`;
         }).join('')}</div>`;
     }
     const paneHTML = (id, html) => `<div class="so-pane" id="so-p-${id}" role="tabpanel" aria-labelledby="so-t-${id}" data-tab="${id}"${st.tab === id ? '' : ' hidden'}>${html}</div>`;
@@ -223,9 +250,9 @@ const StatsOpenings = (function () {
                 return `<div class="so-swap">
                     <button type="button" class="so-slip-b" data-action="statsPreview" data-arg="${arg}" data-origin="${escapeHtml(g.name)}" title="Voir la position" aria-label="Voir la position">${arrowsBoard(g.side, x.path || [], [[x.playedUci, 'is-played'], [x.expectedUci, 'is-planned']], 'Position de l’oubli')}</button>
                     <div class="so-slip-t">
-                        <span class="so-slip-h">Coup ${Math.ceil(x.ply / 2)} · ${_plural(x.n, 'partie')} · ${pct(x.t.score)}</span>
-                        <span class="so-slip-mv is-played"><i aria-hidden="true"></i><span class="so-mv">${played}</span><small>joué</small></span>
-                        <span class="so-slip-mv is-planned"><i aria-hidden="true"></i><span class="so-mv">${planned}</span><small>prévu</small></span>
+                        <span class="so-slip-h">Coup ${Math.ceil(x.ply / 2)} · ${x.n > PIP_SLIPS ? `${_plural(x.n, 'partie')} · ${pct(x.t.score)}` : `${pipsHTML(x.games, 'is-sm')}<span>${wdlWords(x.t).split(', ').filter(w => !/^0 /.test(w)).join(', ')}</span>`}</span>
+                        <span class="so-slip-mv is-played"><i aria-hidden="true"></i><span class="so-mv san">${played}</span><small>joué</small></span>
+                        <span class="so-slip-mv is-planned"><i aria-hidden="true"></i><span class="so-mv san">${planned}</span><small>prévu</small></span>
                         ${own ? `<button type="button" class="btn btn-soft so-slip-go" data-action="opReviewMove" data-arg="${arg}">${ico('play')}Réviser ce coup</button>` : ''}
                     </div></div>`;
             }).join('')}</div></div>`;
@@ -247,20 +274,22 @@ const StatsOpenings = (function () {
         const arg = p => escapeHtml(p.join(' ')), pct0 = v => `${Math.round(v)} %`;
         const crumbs = sans.map((s, i) => {
             const w = i % 2 === 0, last = i === sans.length - 1;
-            return `${w ? `<span class="so-x-num">${i / 2 + 1}.</span>` : ''}<button type="button" class="so-x-mv${last ? ' on' : ''}" data-action="opExplore" data-arg="${arg(path.slice(0, i + 1))}"${last ? ' aria-current="step"' : ''}>${formatSan(s, w ? 'w' : 'b')}</button>`;
+            return `${w ? `<span class="so-x-num mv-n">${i / 2 + 1}.</span>` : ''}<button type="button" class="so-x-mv${last ? ' on' : ''}" data-action="opExplore" data-arg="${arg(path.slice(0, i + 1))}"${last ? ' aria-current="step"' : ''}>${formatSan(s, w ? 'w' : 'b')}</button>`;
         }).join('');
         const ply = path.length + 1, moved = path.length !== g.path.length || path.some((u, i) => u !== g.path[i]);
         const add = p => `<button type="button" class="so-x-add" data-action="opAdd" data-arg="${arg(p)}">${ico('plus')}Ajouter une réponse</button>`;
-        let body;
+        // Audit « Ouvertures en images » : les coups de la liste sont aussi dessinés sur l'échiquier (code des flèches, arrowSVG).
+        let body, arrows = [], key = '';
         if (nd.turn === 'me') {
             const m = nd.mine;
             if (!m) body = `<div class="so-x-h">Votre coup</div><div class="so-x-row is-hole"><span class="so-x-san">${_moveLabel({ ply, san: '?' }, true, true)}</span><span class="so-x-info">Pas de réponse enregistrée ici</span>${add(path)}</div>`;
             else {
-                const lv = _level(m.entry), score = Math.round(masteryOf(m.entry));
+                const lv = _level(m.entry);
+                arrows = [[m.uci, 'is-me', .3]];
                 body = `<div class="so-x-h">Votre coup</div><div class="so-x-line">
                     <button type="button" class="so-x-row is-mine" data-action="opExplore" data-arg="${arg(path.concat(m.uci))}">
-                        <span class="so-x-san">${_moveLabel({ ply, san: m.san }, false, true)}</span>
-                        <span class="so-x-mid"><span class="so-x-bar lv-${lv}"><i style="width:${Math.max(3, score)}%"></i></span><span class="so-x-info">${_lvEngrave(m.entry)}${score} / 100${m.n ? ` · ${_plural(m.n, 'partie')}` : ''}</span></span>
+                        <span class="so-x-san san">${_moveLabel({ ply, san: m.san }, false, true)}</span>
+                        <span class="so-x-mid"><span class="so-x-info">${_lvEngrave(m.entry)}${m.n ? _plural(m.n, 'partie') : 'Pas encore jouée en partie'}</span></span>
                         <span class="so-x-lv">${_lvMark(lv)}${levelInfo(lv).one}</span></button>
                     <button type="button" class="st-ibtn" data-action="statsPreview" data-arg="${escapeHtml(g.side + ':' + m.key)}" data-origin="${escapeHtml(g.name)}" title="Voir la position" aria-label="Voir la position">${ico('eye')}</button></div>`;
             }
@@ -268,21 +297,29 @@ const StatsOpenings = (function () {
             body = `<div class="so-x-h">Réponses adverses</div><p class="so-x-none">Aucun coup adverse connu ici : ni dans le répertoire, ni dans vos parties.</p>`;
         } else {
             const top = Math.max(1, ...nd.replies.map(r => r.n)), shown = nd.replies.slice(0, X_REPLIES);
+            // Épaisseur : les parties jouées ; laiton : au répertoire ; gris : repéré ou joué ; ambre pointillé : sans réponse.
+            const kind = r => !r.answered ? 'is-hole' : r.n || r.seen ? 'is-seen' : 'is-rep';
+            arrows = shown.map(r => [r.uci, kind(r), r.n ? .14 + .22 * r.n / top : .18]);
+            const used = new Set(shown.map(kind));
+            key = `<div class="so-x-key" aria-hidden="true">${used.has('is-rep') ? '<span><i class="is-rep"></i>au répertoire</span>' : ''}${used.has('is-seen') ? '<span><i class="is-seen"></i>repéré ou joué</span>' : ''}${used.has('is-hole') ? '<span><i class="is-hole"></i>sans réponse</span>' : ''}</div>`;
+            // Source d'un coup en icône du sprite, le mot gardé pour les lecteurs d'écran et au survol.
+            const src = r => r.n ? ['swords', `${_plural(r.n, 'partie')} · ${pct0(r.t.score)}`, `${_plural(r.n, 'partie')} · ${pct0(r.t.score)}`] : r.seen ? ['eye', '', 'Repéré'] : ['book', '', 'Dans le répertoire'];
             body = `<div class="so-x-h">Réponses adverses${nd.games.n ? ` · ${_plural(nd.games.n, 'partie')} ici` : ''}</div>` + shown.map(r => {
-                const label = _moveLabel({ ply, san: r.san }, false, true), info = r.n ? `${_plural(r.n, 'partie')} · ${pct0(r.t.score)}` : r.seen ? 'Repéré' : 'Dans le répertoire';
-                if (!r.answered) return `<div class="so-x-row is-hole"><span class="so-x-san">${label}</span><span class="so-x-info">${r.n ? `Joué ${r.n} fois contre vous` : 'Repéré'} · sans réponse</span>${add(path.concat(r.uci))}</div>`;
+                const label = _moveLabel({ ply, san: r.san }, false, true), [icon, shownText, said] = src(r);
+                const info = `<span class="so-x-src" title="${escapeHtml(said)}">${ico(icon)}</span>${shownText ? `<span>${shownText}</span>` : `<span class="sr-only">${said}</span><span aria-hidden="true">${said.toLowerCase()}</span>`}`;
+                if (!r.answered) return `<div class="so-x-row is-hole"><span class="so-x-san san">${label}</span><span class="so-x-info">${r.n ? `Joué ${r.n} fois contre vous` : 'Repéré'} · sans réponse</span>${add(path.concat(r.uci))}</div>`;
                 const lv = _level(r.answer);
                 return `<button type="button" class="so-x-row" data-action="opExplore" data-arg="${arg(path.concat(r.uci))}">
-                    <span class="so-x-san">${label}</span>
+                    <span class="so-x-san san">${label}</span>
                     <span class="so-x-mid">${r.n ? `<span class="so-x-bar is-share"><i style="width:${Math.max(4, 100 * r.n / top)}%"></i></span>` : ''}<span class="so-x-info">${info}</span></span>
-                    <span class="so-x-lv" title="Votre réponse : ${escapeHtml(formatSanText(r.answer.san, g.side))}">${_lvMark(lv)}${formatSan(r.answer.san, g.side)}</span></button>`;
+                    <span class="so-x-lv san" title="Votre réponse : ${escapeHtml(formatSanText(r.answer.san, g.side))}">${_lvMark(lv)}${formatSan(r.answer.san, g.side)}</span></button>`;
             }).join('') + (nd.replies.length > shown.length ? `<p class="so-x-none">${_plural(nd.replies.length - shown.length, 'autre coup', 'autres coups')}</p>` : '');
         }
         const cov = g.stats.n ? OpeningReport.detail(g.recent, g.path.length).coverage : null;
         return `<div class="so-card so-x">
             <div class="so-x-top"><h5>Explorateur</h5>${cov === null ? '' : `<span class="so-x-cov" title="Part de vos parties où le coup adverse avait une réponse dans le répertoire"><b>${pct0(cov)}</b> couverture</span>`}</div>
             <div class="so-x-grid">
-                <div class="so-x-board">${_miniBoardHTML({ side: g.side, path }, true, { label: 'Position explorée' })}</div>
+                <div class="so-x-board"><span class="so-ar">${_miniBoardHTML({ side: g.side, path }, true, { label: 'Position explorée' })}${arrowSVG(g.side, arrows)}</span>${key}</div>
                 <div class="so-x-side">
                     <div class="so-x-crumbs">${crumbs}${moved ? `<button type="button" class="hp-link so-x-reset" data-action="opExplore" data-arg="${arg(g.path)}">Revenir au début</button>` : ''}</div>
                     <div class="so-x-moves">${body}</div>
@@ -314,9 +351,13 @@ const StatsOpenings = (function () {
                 <circle class="here" cx="${a}" cy="22" r="6"/><rect class="you" x="${b - 3}" y="12" width="6" height="20" rx="2"/>
                 <text x="${a}" y="42" text-anchor="middle">ici ${I18n.mark(String(s.perf))}</text><text x="${b}" y="8" text-anchor="middle">vous ${I18n.mark(String(s.me))}</text>
                 <text class="end" x="10" y="42">${I18n.mark(String(lo))}</text><text class="end" x="${W - 10}" y="42" text-anchor="end">${I18n.mark(String(hi))}</text></svg>`;
-        } else big = `<div class="so-lv-big"><b>${pct(s.score)}</b><span class="so-lv-gap">des points</span></div><p class="st-sub">Le niveau en Elo demande ${MIN_MAP} parties classées.</p>`;
+        } else big = s.n > PIPS ? `<div class="so-lv-big"><b>${pct(s.score)}</b><span class="so-lv-gap">des points</span></div>` : '';
+        // Audit O17 : sous PIPS parties, une case par partie (G, N, P) plutôt qu'un grand pourcentage ; au-delà, la barre
+        // gains / nulles / pertes et ses nombres.
+        const few = s.n <= PIPS, games = g.recent.map(x => x.g);
+        const results = few ? `${pipsHTML(games)}<span>${wdlWords(s)}</span>` : `${wdlBar(s)}<span>${wdlWords(s)}</span>`;
         return `<div class="so-card so-lv"><h5>Votre niveau dans cette ouverture</h5>${big}${scale}
-            <div class="so-lv-sub"><span>${_plural(s.n, 'partie')} · ${pct(s.score)} des points</span>${wdlBar(s)}</div>
+            <div class="so-lv-sub"><span>${_plural(s.n, 'partie')} · ${pct(s.score)} des points</span>${results}${s.perf === null ? `<span>Le niveau en Elo viendra à ${MIN_MAP} parties classées.</span>` : ''}</div>
             ${monthsHTML(g)}</div>`;
     }
 
@@ -330,9 +371,12 @@ const StatsOpenings = (function () {
             const tip = `${name(m.at)} · ${_plural(m.n, 'partie')}${m.perf !== null ? ` · niveau ${m.perf}` : m.n ? ` · ${pct(m.score)}` : ''}`;
             return `<i class="${cls}" title="${escapeHtml(I18n.mark(tip))}"></i>`;
         }).join('');
+        // Audit O17 : la bande ne paraît qu'à partir de MIN_MONTHS mois jugés ; sinon elle ne montrerait que des cases vides.
+        if (judged < MIN_MONTHS) return '';
         const ticks = list.map((m, i) => `<small>${(list.length - 1 - i) % every === 0 ? I18n.mark(name(m.at)) : ''}</small>`).join('');
-        return `<div class="so-months-h"><span>Mois par mois</span>${judged ? `<small>${above} sur ${judged} au-dessus de votre niveau</small>` : ''}</div>
-            <div class="so-months" style="--n:${list.length}" role="img" aria-label="Mois par mois">${cells}${ticks}</div>`;
+        const said = `${above} sur ${judged} au-dessus de votre niveau`;
+        return `<div class="so-months-h"><span>Mois par mois</span><small>${said}</small></div>
+            <div class="so-months" style="--n:${list.length}" role="img" aria-label="Mois par mois : ${said}">${cells}${ticks}</div>`;
     }
 
     // En partie › Jusqu'où va votre préparation (ex « Où le répertoire s'arrête », absorbe « Votre préparation ») :
@@ -358,12 +402,18 @@ const StatsOpenings = (function () {
                 <div class="so-ruler-l" style="--n:${hi - lo + 1}" aria-hidden="true">${labels.join('')}</div>
                 <div class="so-leg"><span><i class="so-dot-me"></i>Vous avez oublié</span><span><i class="so-dot-gap"></i>Coup imprévu</span><span>Sortie moyenne : coup ${r.exitMove}</span></div>`;
         }
+        // Audit « Ouvertures en images » : les faits qui se comparent deviennent des barres par paires, à la même échelle.
+        const bar = (l, v, cls) => `<div class="so-pair-r"><span>${l}</span><span class="so-pair-t">${v === null ? '' : `<i class="${cls}" style="width:${Math.round(v)}%"></i>`}</span><b>${v === null ? '–' : pct(v)}</b></div>`;
         return `<div class="so-card so-prep"><h5>Jusqu’où va votre préparation</h5>${ruler}
+            <div class="so-pairs">
+                <span class="so-pair-h">Score</span>
+                ${bar('En le suivant', r.kept.n ? r.kept.score : null, 'is-up')}
+                ${bar('En le quittant', r.left.n ? r.left.score : null, 'is-down')}
+                <span class="so-pair-h">Répertoire</span>
+                ${bar('Répertoire suivi', r.followed, 'is-me')}
+                ${bar('Réponses couvertes', r.coverage, 'is-me')}
+            </div>
             <div class="so-facts">
-                ${fact('Répertoire suivi', pct(r.followed))}
-                ${fact('Score en le suivant', r.kept.n ? pct(r.kept.score) : '–')}
-                ${fact('Score en le quittant', r.left.n ? pct(r.left.score) : '–')}
-                ${fact('Réponses couvertes', pct(r.coverage))}
                 ${r.exitEval === null ? '' : fact('Évaluation à la sortie', evalText(r.exitEval))}
                 ${r.exitGood.n >= 3 ? fact('Score après une bonne sortie', pct(r.exitGood.score)) : ''}
                 ${r.exitBad.n >= 3 ? fact('Score après une mauvaise sortie', pct(r.exitBad.score)) : ''}
@@ -386,38 +436,49 @@ const StatsOpenings = (function () {
             const sans = _pathToSans(path.slice(0, -1)), from = Math.max(0, sans.length - AFTER_PLIES);
             const line = sans.slice(from).map((s, k) => {
                 const i = from + k, n = Math.floor(i / 2) + 1, w = i % 2 === 0;
-                return `${w ? `${n}. ` : k ? '' : `${n}… `}${formatSan(s, w ? 'w' : 'b')}`;
+                return `${w ? `<span class="mv-n">${n}.</span> ` : k ? '' : `<span class="mv-n">${n}…</span> `}${formatSan(s, w ? 'w' : 'b')}`;
             }).join(' ');
-            return `Après <span class="so-line">${from ? '… ' : ''}${line}</span>`;
+            return `Après <span class="so-line san">${from ? '… ' : ''}${line}</span>`;
         } catch (e) { return ''; }
     }
 
     // Mes coups, du plus fragile au plus sûr (ex « Vos coups à connaître », allégée) : miniature, coup, niveau, un bouton.
-    // Parties, maîtrise et prochaine révision sont dans l'aperçu (toucher la miniature).
+    // Parties, maîtrise et prochaine révision sont dans l'aperçu (toucher la miniature). Audit « Ouvertures en images » :
+    // rangés sous le titre de leur état (À apprendre, En cours, À confirmer, Sues), avec son compte ; notation en Mono.
+    const GROUP_ORDER = ['learn', 'doing', STATS_STATE, 'known'];
     function positionsHTML(g) {
         if (!g.all.length) return '';
-        const items = g.items.slice().sort(_byWorst), shown = st.all.has(g.key) ? items : items.slice(0, ROWS);
+        const gOf = r => levelGroup(r.lv), gi = r => GROUP_ORDER.indexOf(gOf(r));
+        const items = g.items.slice().sort((a, b) => gi(a) - gi(b) || _byWorst(a, b)), shown = st.all.has(g.key) ? items : items.slice(0, ROWS);
+        const gc = groupCounts(g.counts);
+        let last = '';
         const rows = shown.map(r => {
-            const label = escapeHtml(_moveLabel(r.e));
-            return `<div class="st-row so-my lv-${r.lv}">
+            const label = escapeHtml(_moveLabel(r.e)), grp = gOf(r);
+            const head = grp !== last ? `<div class="so-grp">${grp === STATS_STATE ? _lvMark(STATS_STATE) : _lvgMark(grp)}<span>${levelInfo(grp).label}</span><span class="count is-muted">${gc[grp]}</span></div>` : '';
+            last = grp;
+            return `${head}<div class="st-row so-my lv-${r.lv}">
                 <button type="button" class="so-my-b" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="${escapeHtml(g.name)}" aria-label="Voir ${label}">${_miniBoardHTML(r.path ? { side: r.side, path: r.path } : r, false)}</button>
-                <span class="st-move">${_moveLabel(r.e, false, true)}<small class="so-after">${afterHTML(r.e.path)}</small></span>
-                <span class="st-lvl">${_lvMark(r.lv)}${levelInfo(r.lv).one}</span>
+                <span class="st-move"><span class="san">${_moveLabel(r.e, false, true)}</span><small class="so-after">${afterHTML(r.e.path)}</small></span>
+                <span class="st-lvl">${_lvMark(r.lv)}<span class="sr-only">${levelInfo(r.lv).one}</span></span>
                 <button type="button" class="st-ibtn pri" data-action="statsTrain" data-arg="${_statsArg(r)}" title="S'entraîner sur cette position (compte comme un essai)" aria-label="S'entraîner sur ${label}">${ico('play')}</button>
             </div>`;
         }).join('');
         const more = items.length > ROWS ? `<button type="button" class="st-more" data-action="statsOpMore" data-arg="${escapeHtml(g.key)}" aria-expanded="${items.length === shown.length}">${items.length === shown.length ? 'Réduire' : `Afficher les ${items.length - shown.length} autres coups`}</button>` : '';
-        return `<div class="so-card so-pos"><h5>Mes coups, du plus fragile au plus sûr</h5><p class="st-sub">${_plural(items.length, 'coup')}</p>
-            ${levelBarHTML(g.counts)}
+        return `<div class="so-card so-pos"><h5>Mes coups, du plus fragile au plus sûr</h5>
+            ${rankHTML(g)}${plateHTML(g.counts, 'so-pos-bar')}
             <div class="st-rows">${rows}${more}</div></div>`;
     }
 
     // Filtre de niveau (lot 1) : la barre de niveaux elle-même, « À confirmer » à part (hors des barres), une ligne de rappel.
+    // Audit « Ouvertures en images » (O10, O12) : la barre est légendée, chaque légende filtre comme son segment ;
+    // « À confirmer » est un état, en contour plein.
     function filterHTML() {
-        const { counts } = st.ctx, on = statsFilter, u = counts[STATS_STATE];
+        const { counts } = st.ctx, on = statsFilter, u = counts[STATS_STATE], gc = groupCounts(counts), act = on === 'all' ? '' : levelGroup(on);
+        const leg = (k, mark, label, n) => `<button type="button" class="so-leg-b${act === k ? ' on' : ''}" data-action="statsFilter" data-arg="${k}" aria-pressed="${act === k}">${mark}<b>${n}</b> ${escapeHtml(label.toLocaleLowerCase('fr'))}</button>`;
         return `<div class="so-fbar">
-            <div class="so-fbar-row">${levelBarHTML(counts, 'so-fbar-bar', { buttons: true, active: on, action: 'statsFilter' })}
-                ${u ? `<button type="button" class="so-unsure${on === STATS_STATE ? ' on' : ''}" data-action="statsFilter" data-arg="${STATS_STATE}" aria-pressed="${on === STATS_STATE}">${_lvMark(STATS_STATE)}${levelInfo(STATS_STATE).label} <b>${u}</b></button>` : ''}</div>
+            <div class="so-fbar-row">${levelBarHTML(counts, 'so-fbar-bar', { buttons: true, active: on, action: 'statsFilter' })}</div>
+            <div class="so-fbar-legend">${LEVEL_GROUP_ORDER.filter(k => gc[k]).map(k => leg(k, _lvgMark(k), LEVEL_GROUPS[k].label, gc[k])).join('')}
+                ${u ? leg(STATS_STATE, _lvMark(STATS_STATE), levelInfo(STATS_STATE).label, u).replace('so-leg-b', 'so-leg-b so-unsure') : ''}</div>
             ${on === 'all' ? '' : `<div class="so-fbar-leg"><span>${_lvMark(on)}${levelInfo(on).label} · ${_filterCount(counts, on)}</span><button type="button" class="hp-link" data-action="statsFilter" data-arg="all">Tout afficher</button></div>`}
         </div>`;
     }
@@ -441,17 +502,16 @@ const StatsOpenings = (function () {
         return `${headHTML(g)}${tabsHTML(g)}
             ${paneHTML('line', `${ideaHTML(g)}${explorerHTML(g)}${slipsHTML(g)}`)}
             ${paneHTML('games', gamesHTML(g))}
-            ${paneHTML('moves', `${rankHTML(g)}${positionsHTML(g)}`)}`;
+            ${paneHTML('moves', positionsHTML(g))}`;
     }
 
     function inner() {
         const g = current();
         if (!g) return `<div class="so-layout">${indexHTML()}</div>`;
-        const meta = `${g.side === 'w' ? 'Blancs' : 'Noirs'} · ${_plural(g.stats.n, 'partie')}`;
+        // Audit O15 : le sélecteur (#so-trigger) est le titre de l'en-tête ; la barre ne garde que le retour et ◀ ▶.
         return `<div class="so-layout${st.open ? ' is-open' : ''}">${indexHTML()}<div class="so-wrap">
             <div class="so-bar">
                 <button type="button" class="so-back" data-action="opBack">${ico('chevron-left')}<span>Ouvertures</span></button>
-                <button type="button" class="so-trigger" id="so-trigger" data-action="statsOpOpen" aria-haspopup="dialog" aria-expanded="false">${sideDot(g.side)}<span class="so-txt"><b>${g.html}</b><small>${meta}</small></span>${ico('chevron-down')}</button>
                 <button type="button" class="so-step" data-action="statsOpStep" data-arg="-1" title="Précédente à travailler" aria-label="Précédente à travailler">${ico('chevron-left')}</button>
                 <button type="button" class="so-step" data-action="statsOpStep" data-arg="1" title="Suivante à travailler" aria-label="Suivante à travailler">${ico('chevron-right')}</button>
             </div>
@@ -462,21 +522,39 @@ const StatsOpenings = (function () {
     // ─── INDEX « VITRINE » ───────────────────────────────────────────────────
     // Toutes les ouvertures dans l'ordre du classement (points perdus, puis fragilité). Une même carte : en tuile
     // (miniature, sceau du rang, nom, une phrase d'état) quand l'index est seul ; en ligne de 60 px quand la fiche est à côté.
+    // Audit « Ouvertures en images » (direction B) : une ligne de 60 px à toutes les largeurs ; sur une colonne, les
+    // PRIORITY ouvertures qui ont le plus à apprendre d'abord, en cartes à vignette (« À reprendre d'abord »).
+    // Ligne : miniature (sceau dès Compagnon), nom, puce d'état et part sue, barre de 6 px. Sans chemin (« Autres positions ») :
+    // trois de ses positions en éventail ; hors répertoire : la miniature éteinte.
+    function boardOf(g) {
+        if (g.path.length) return _miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name });
+        const some = g.all.filter(r => r.path).slice(0, 3);
+        return some.length ? `<span class="so-fan is-${some.length}" role="img" aria-label="${escapeHtml(g.name)}">${some.map(r => _miniBoardHTML({ side: r.side, path: r.path }, false)).join('')}</span>`
+            : `<span class="so-mr-none">${sideDot(g.side)}</span>`;
+    }
     function mirrorHTML() {
         const row = g => {
-            const [cls, text] = stateOf(g), gap = g.stats.gap;
-            const label = `${g.name}${g.rank !== null ? ` · ${OpeningMarks.RANKS[g.rank]}` : ''} · ${text}${gap === null ? '' : ` · ${eloSigned(gap)}`}`;
-            const board = g.path.length ? _miniBoardHTML({ side: g.side, path: g.path }, true, { label: g.name }) : `<span class="so-mr-none">${sideDot(g.side)}</span>`;
-            return `<button type="button" class="so-mr${g.key === st.cur ? ' on' : ''}" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}" aria-pressed="${g.key === st.cur}" aria-label="${escapeHtml(label)}">
-                <span class="so-mr-b">${board}${g.rank !== null ? _opRankHTML(g.rank, 'so-seal') : ''}</span>
+            const [cls, text] = stateOf(g), k = g.all.length ? pctKnown(g) : null, gc = groupCounts(g.counts), elo = eloTag(g.stats);
+            const said = g.all.length ? ` · ${gc.learn} à apprendre, ${gc.doing} en cours, ${gc.known} sues${gc.unsure ? `, ${gc.unsure} à confirmer` : ''}` : '';
+            const label = `${g.name}${g.rank !== null ? ` · ${OpeningMarks.RANKS[g.rank]}` : ''} · ${text}${k === null ? '' : ` · ${k} % sues`}${said}${elo ? ` · ${eloSigned(g.stats.gap)}` : ''}`;
+            const seal = g.rank !== null && g.rank >= 1 ? _opRankHTML(g.rank, 'so-seal') : '';
+            const chip = cls === 'out' ? `<span class="so-mr-st is-out">${text}</span>` : `<span class="so-mr-st count is-${cls}">${text}</span>`;
+            return `<button type="button" class="so-mr${g.key === st.cur ? ' on' : ''}${g.all.length ? '' : ' is-out'}" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}" aria-pressed="${g.key === st.cur}" aria-label="${escapeHtml(label)}">
+                <span class="so-mr-b">${boardOf(g)}${seal}</span>
                 <span class="so-mr-n"><b class="so-mr-t">${statsColor === 'all' ? sideDot(g.side) : ''}<span>${g.html}</span></b>
-                    <span class="so-mr-s"><span class="so-mr-st is-${cls}">${text}</span>${eloTag(g.stats)}</span>
-                    ${g.all.length ? levelBarHTML(g.counts, 'so-mr-bar') : ''}</span></button>`;
+                    ${g.all.length ? levelBarHTML(g.counts, 'so-mr-bar') : ''}</span>
+                <span class="so-mr-s">${chip}${k === null ? '' : `<span class="so-mr-k">${k} % sues</span>`}${elo}</span></button>`;
         };
         // Lot 5 « Chays épuré » : les ouvertures hors répertoire à la fin, repliées (ouvertes si l'une d'elles est affichée).
         const rep = st.list.filter(g => g.all.length), out = st.list.filter(g => !g.all.length);
         const outOpen = out.some(g => g.key === st.cur && st.open);
-        return `<div class="so-mirror">${rep.map(row).join('')}</div>${out.length ? `<details class="so-out"${outOpen ? ' open' : ''}><summary>Hors répertoire <b>${out.length}</b>${ico('chevron-down')}</summary>
+        const top = statsFilter === 'all' && rep.length >= PRIORITY_MIN
+            ? rep.filter(g => g.counts.weak + g.counts.fragile).sort((a, b) => (b.counts.weak + b.counts.fragile) - (a.counts.weak + a.counts.fragile)).slice(0, PRIORITY) : [];
+        const pri = top.length ? `<section class="so-pri" aria-label="À reprendre d’abord"><h4 class="so-sub"><span>À reprendre d’abord</span></h4><div class="so-pri-l">${top.map(g => {
+            const n = g.counts.weak + g.counts.fragile;
+            return `<button type="button" class="so-pri-c" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}" aria-label="${escapeHtml(`${g.name} · ${n} à apprendre`)}">${boardOf(g)}<b>${g.html}</b><span class="so-pri-n"><span class="count is-learn">${n}</span>à apprendre</span></button>`;
+        }).join('')}</div><h4 class="so-sub"><span>Toutes</span><span class="count is-muted">${rep.length}</span></h4></section>` : '';
+        return `${pri}<div class="so-mirror">${rep.map(row).join('')}</div>${out.length ? `<details class="so-out"${outOpen ? ' open' : ''}><summary>Hors répertoire <span class="count is-muted">${out.length}</span>${ico('chevron-down')}</summary>
             <div class="so-mirror">${out.map(row).join('')}</div></details>` : ''}`;
     }
 
