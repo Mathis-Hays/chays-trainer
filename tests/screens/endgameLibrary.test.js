@@ -45,8 +45,8 @@ async function boot() {
         assert.strictEqual($$('#home-tab-endgame .btn-primary').length, 1);
     });
 
-    await t('puces Ring.chip : réussis / total exacts par catégorie, et saut vers la section', () => {
-        const chips = $$('#endgame-panel .eg-chips .ring-chip');
+    await t('puces de catégorie (.count) : réussis / total exacts par catégorie, et saut vers la section', () => {
+        const chips = $$('#endgame-panel .eg-chips .eg-chip');
         const cats = w.eval('ENDGAME_CATEGORIES.map(c => [c.id, c.label, ENDGAME_EXERCISES.filter(e => e.cat === c.id).length])');
         assert.strictEqual(chips.length, cats.length);
         const won = { mats: 2, pions: 1, tours: 1 };
@@ -54,7 +54,7 @@ async function boot() {
             assert.strictEqual(chips[i].dataset.action, 'egJump');
             assert.strictEqual(chips[i].dataset.arg, id);
             assert.strictEqual(chips[i].getAttribute('aria-label'), `${label} : ${won[id] || 0} sur ${total}`);
-            assert.strictEqual(chips[i].querySelector('.ring-chip-max').textContent, `/ ${total}`);
+            assert.strictEqual(chips[i].querySelector('.count').textContent, `${won[id] || 0} / ${total}`);
         });
         assert.strictEqual(chips[0].getAttribute('aria-current'), 'true', 'catégorie de « À suivre »');
         chips[2].click();
@@ -62,19 +62,39 @@ async function boot() {
         assert.strictEqual(chips[2].getAttribute('aria-current'), 'true');
     });
 
-    await t('état à droite des lignes : sans faute, réussi, essais, difficulté', () => {
+    await t('une place, un sens : étoiles toujours à droite, essais dessous, difficulté en crans sous le titre', () => {
         const end = id => $(`.eg-card[data-arg="${id}"] .eg-card-end`);
-        assert(end('kqk').querySelector('.eg-st.is-perfect .ico'));
-        assert(end('krk').querySelector('.eg-st.is-done .ico'));
-        assert.strictEqual(end('kbnk').querySelector('.eg-st.is-tried').textContent, '3 essais');
-        assert.strictEqual(end('krrk').querySelector('.eg-dots').getAttribute('aria-label'), 'Difficulté 1 sur 5');
-        // Objectif à icône du sprite, camp par le roi du jeu actif (jamais un glyphe Unicode).
+        // Sans étoiles enregistrées (progression d'avant le lot 3), une réussite compte une étoile.
+        assert.strictEqual(end('kqk').querySelector('.eg-stars').getAttribute('aria-label'), '1 étoile sur 3');
+        assert.strictEqual(end('kbnk').querySelector('.eg-stars.is-none').getAttribute('aria-label'), 'Pas encore réussie');
+        assert.strictEqual(end('kbnk').querySelector('.eg-tries').textContent, '3 essais');
+        assert.strictEqual(end('krrk').querySelector('.eg-stars.is-none .on'), null);
+        assert(!end('krrk').querySelector('.eg-crans'), 'la difficulté n\'est jamais à droite');
+        assert.strictEqual($('.eg-card[data-arg="krrk"] .eg-card-mt .eg-crans').getAttribute('aria-label'), 'Difficulté 1 sur 5');
+        // Objectif en notation de résultat, camp par le roi du jeu actif (jamais un glyphe Unicode).
         const row = $('.eg-card[data-arg="kpk-carre-def"]');
-        assert(row.querySelector('.eg-goal-tag use').getAttribute('href') === '#i-shield-check');
+        assert.strictEqual(row.querySelector('.eg-goal').textContent, '½Tenir la nulle');
         assert(row.querySelector('.eg-king[data-glyph="k"]'));
         assert(!/[♔♕♖♗♘♙♚♛♜♝♞♟]/.test($('#endgame-panel').textContent));
-        assert.deepStrictEqual(['kqk', 'kpk-carre', 'tours-tarrasch'].map(id => $(`.eg-card[data-arg="${id}"] .eg-goal-tag use`).getAttribute('href')),
-            ['#i-footsteps', '#i-flame', '#i-flame']);
+        assert.deepStrictEqual(['kqk', 'kpk-carre', 'kpk-noir'].map(id => $(`.eg-card[data-arg="${id}"] .eg-goal-tok`).textContent), ['#', '1-0', '0-1']);
+        assert(!/Annuler/.test($('#endgame-panel').textContent), 'plus de « Annuler » pour la nulle');
+        // Miniatures recadrées sur la zone des pièces dans les lignes, échiquier entier dans l'aperçu.
+        assert($('.eg-card[data-arg="kqk"] .st-mini.is-crop[data-at="b1"]'));
+        assert(!$('#eg-preview .st-mini.is-crop'));
+    });
+
+    await t('règle de cases par catégorie et légende qui filtre', () => {
+        const ruler = $('#eg-sec-mats .eg-ruler');
+        assert.strictEqual(ruler.querySelectorAll('i').length, 5);
+        assert.strictEqual(ruler.getAttribute('aria-label'), '2 réussies sur 5, 0 étoile sur 15');
+        assert.deepStrictEqual([...ruler.querySelectorAll('i')].map(i => i.className.trim()), ['s1', 's1', 'cur', '', 't']);
+        const leg = $$('#endgame-seg .so-leg-b');
+        assert.deepStrictEqual(leg.map(b => b.dataset.arg), ['all', 'todo', 'tried', 'done']);
+        assert.deepStrictEqual(leg.map(b => b.querySelector('b').textContent), ['43', '38', '1', '4']);
+        leg[2].click();
+        assert.deepStrictEqual($$('#endgame-panel .eg-card').map(c => c.dataset.arg), ['kbnk']);
+        $('#endgame-seg .so-leg-b[data-arg="all"]').click();
+        assert($$('#endgame-panel .eg-card').length > 1);
     });
 
     await t('un clic sur une ligne ouvre l\'aperçu sans appeler startEndgame (panneau du bas, puis colonne de droite)', () => {
@@ -102,42 +122,47 @@ async function boot() {
         wide = false;
     });
 
-    const ticks = () => $$('#endgame-card .eg-ticks i');
+    const ticks = () => $$('#tr-progress .eg-ticks i');
     await t('jauge : autant de graduations que hold, keep ou maxMoves', () => {
         for (const id of ['kpk-carre-def', 'tours-tarrasch', 'kqk', 'pions-eloigne', 'rook-philidor']) {
             w.eval(`startEndgame('${id}')`);
             const ex = w.eval(`ENDGAME_BY_ID['${id}']`);
             const want = ex.goal === 'draw' ? ex.hold : ex.keep || ex.maxMoves;
             assert.strictEqual(ticks().length, want, id);
-            assert.strictEqual($('#endgame-card .eg-ticks').getAttribute('aria-valuemax'), String(want));
+            assert.strictEqual($('#tr-progress .eg-ticks').getAttribute('aria-valuemax'), String(want));
+            assert(!$('#tr-progress').hidden, 'jauge dans la marge de l\'échiquier');
         }
     });
 
-    await t('erreur jugée : verdict « Nulle → Perte », coup fautif en rouge, « Annuler ce coup » seule action pleine', () => {
+    await t('erreur jugée : verdict « ½ → 1-0 », coup fautif en vermillon et fléché, « Reprendre ce coup » seule action pleine', () => {
         w.eval(`startEndgame('kpk-carre-def')`);
         w.eval(`executePlayerMove(squareToIdx('h3'), squareToIdx('h2'))`);       // hors du carré : le pion passe
         const card = $('#endgame-card');
         assert(card.classList.contains('is-err'));
-        assert.strictEqual(card.querySelector('.eg-verdict .eg-vpill.is-from').textContent, 'Nulle');
-        assert.strictEqual(card.querySelector('.eg-verdict .eg-vpill.is-to').textContent, 'Perte');
+        assert.strictEqual(card.querySelector('.eg-verdict .eg-vpill.is-from').textContent, '½');
+        assert.strictEqual(card.querySelector('.eg-verdict .eg-vpill.is-to').textContent, '1-0');
+        assert.strictEqual(card.querySelector('.eg-vsay').textContent, 'La nulle devient une perte');
+        assert.strictEqual(w.eval('JSON.stringify(GameModes.current().engineArrows().map(a => a.color))'), '["red"]');
         assert.deepStrictEqual(ticks().map(i => i.className), ['bad', '', '', '', '', '']);
         const primaries = card.querySelectorAll('.btn-primary');
         assert.strictEqual(primaries.length, 1);
         assert.strictEqual(primaries[0].dataset.action, 'undoEndgameMove');
-        assert(/Calcul exact/.test(card.querySelector('.vbadge').textContent));
+        assert(!card.querySelector('.vbadge'), 'calcul exact : aucune pastille d\'origine');
+        assert(!card.querySelector('.eg-rule'), 'le message n\'est que dans la barre d\'état');
         primaries[0].click();
+        assert.strictEqual(w.eval('GameModes.current().engineArrows().length'), 0, 'coup repris : plus de flèches');
         assert(!$('#endgame-card .eg-verdict'), 'coup annulé : plus de verdict');
         assert.deepStrictEqual(ticks().map(i => i.className), ['', '', '', '', '', '']);
     });
 
-    await t('origine du jugement : Syzygy, réponse gardée hors ligne, moteur estimé (tireté)', () => {
+    await t('origine du jugement : silencieuse quand le verdict est exact, annoncée quand il est estimé (tireté)', () => {
         w.eval(`startEndgame('rook-philidor')`);
         const badge = () => $('#endgame-card .eg-src');
         w.eval(`endgameState.source = 'syzygy'; endgameState.exact = true; renderEndgameCard()`);
-        assert.strictEqual(badge().textContent, 'Tables Syzygy · exact');
+        assert.strictEqual(badge(), null);
+        assert(w.eval(`_egSourceBadge('syzygy', true)`).includes('Tables Syzygy · exact'));
         Object.defineProperty(w.navigator, 'onLine', { get: () => false, configurable: true });
-        w.eval('renderEndgameCard()');
-        assert.strictEqual(badge().textContent, 'Réponse gardée · exact');
+        assert(w.eval(`_egSourceBadge('syzygy', true)`).includes('Réponse gardée · exact'));
         Object.defineProperty(w.navigator, 'onLine', { get: () => true, configurable: true });
         w.eval(`endgameState.source = 'engine'; endgameState.exact = false; renderEndgameCard()`);
         assert.strictEqual(badge().textContent, 'Moteur · verdict estimé');
@@ -158,6 +183,25 @@ async function boot() {
         const primaries = $$('#endgame-card .btn-primary');
         assert.deepStrictEqual(primaries.map(b => b.dataset.action), ['nextEndgame']);
         assert(ticks().length === 0 || ticks().every(i => i.className !== 'bad'));
+    });
+
+    await t('fin : vos coups contre le plus court (par), coups de trop en laiton ; flèche laiton de la méthode après une erreur', async () => {
+        w.eval(`startEndgame('kqk'); endgameState.par = 9; endgameState.moves = 11; endgameState.hints = 1; _egFinish('Échec et mat ! Bien joué.')`);
+        const rows = $$('#endgame-card .eg-par-row');
+        assert.strictEqual(rows.length, 2);
+        assert.strictEqual(rows[0].querySelectorAll('.eg-par-bar i.over').length, 2);
+        assert.strictEqual(rows[1].querySelectorAll('.eg-par-bar i.on').length, 9);
+        assert.strictEqual($('#endgame-card .eg-par').getAttribute('aria-label'), 'Vous : 11 coups ; le plus court : 9');
+        assert(!$('#endgame-card .eg-kpis'), 'plus de cases Coups / Erreurs / Indices');
+        assert(!/Échec et mat/.test($('#endgame-card').textContent), 'le message reste dans la barre d\'état');
+        assert($('#endgame-card.is-ok') && $('#tr-progress .eg-ticks i.ok'), 'réussite en laiton');
+        // Coup refusé : la méthode, lue dans les tables sur la position d'avant, en flèche laiton.
+        w.eval(`EndgameJudge.probe = () => Promise.resolve({ wdl: 0, source: 'kpk', exact: true, moves: [{ uci: 'h3g4' }] })`);
+        w.eval(`startEndgame('kpk-carre-def')`);
+        w.eval(`executePlayerMove(squareToIdx('h3'), squareToIdx('h2'))`);
+        await new Promise(r => setTimeout(r, 0));
+        assert.strictEqual(w.eval('JSON.stringify(GameModes.current().engineArrows().map(a => a.color))'), '["red","gold"]');
+        assert($('#endgame-card .eg-arrow-key .is-best'));
     });
 
     await t('endgameSelfTest reste vert (aucune FEN modifiée)', () => {

@@ -57,7 +57,7 @@ const HELP_GUIDES = [
       points: [
         'Mats, pions, tours, Dame, pièces mineures : toucher un exercice ouvre son <strong>aperçu</strong>, et seul « Commencer » lance la séance.',
         'L’adversaire répond tout seul ; <strong>chaque coup est jugé</strong> par les tables de finales, sinon par le moteur (verdict « estimé »).',
-        'Un coup qui laisse échapper le gain ou la nulle est signalé (« Nulle → Perte ») : « Annuler ce coup » le reprend. La théorie se déplie pendant la séance.',
+        'Un coup qui laisse échapper le gain ou la nulle est signalé (« ½ → 1-0 ») et fléché : votre coup en vermillon, la méthode en laiton ; « Reprendre ce coup » le reprend. La théorie se déplie pendant la séance.',
         'Adversaire « Résistance maximale » ou « Humain » : Paramètres › Jeu et entraînement.'] },
     { id: 'games', icon: 'git-merge', title: 'Analyser mes parties', sub: 'Comparer ses parties au répertoire', to: 'games',
       count: { label: 'Erreur comptée une fois par partie', tone: 'is-warn' },

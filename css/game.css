@@ -32,15 +32,11 @@
 
 /* ─── Écran de jeu : carte d'objectif (détail : css/screens.css, « FINALES BIBLIOTHÈQUE (LOT 7) ») ── */
 .endgame-card { order: -1; display: grid; gap: 12px; width: 100%; max-width: 580px; padding: 14px 16px; margin-bottom: 10px; background: var(--surface);
-                border: 1.5px solid var(--border); border-radius: 14px; box-shadow: var(--shadow-sm); transition: border-color var(--dur-2), box-shadow var(--dur-2); }
-.endgame-card.is-ok  { border-color: var(--ok); box-shadow: inset 0 3px 0 var(--ok), var(--shadow-sm); }
-.endgame-card.is-err { border-color: var(--err); box-shadow: inset 0 3px 0 var(--err), var(--shadow-sm); }
-.eg-card-top { display: flex; justify-content: space-between; align-items: center; font-family: var(--font-note); font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); }
-.eg-meter { display: grid; gap: 7px; }
-.eg-meter b { color: var(--text); font-weight: 600; }
-.eg-opp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12px; font-weight: 600; color: var(--text-muted); }
-.eg-opp-seg { flex: 1 1 auto; }
-.eg-opp-seg .seg-btn { flex: 1; min-height: 36px; padding: 6px 10px; font-size: 12px; }
+                border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--shadow-sm); transition: border-color var(--dur-2), box-shadow var(--dur-2); }
+/* Réussite en laiton (finale, étoiles), erreur en vermillon ; plus de vert (audit « Finales en images », C1). */
+.endgame-card.is-ok  { border-color: color-mix(in oklab, var(--brand-brass-deep) 60%, var(--border)); box-shadow: inset 0 3px 0 var(--brand-brass-deep), var(--shadow-sm); }
+[data-theme="dark"] .endgame-card.is-ok { border-color: color-mix(in oklab, var(--brand-brass) 55%, var(--border)); box-shadow: inset 0 3px 0 var(--brand-brass), var(--shadow-sm); }
+.endgame-card.is-err { border-color: color-mix(in oklab, var(--err) 60%, var(--border)); box-shadow: inset 0 3px 0 var(--err), var(--shadow-sm); }
 .eg-theory { margin: 4px 0 6px; font-size: 13px; line-height: 1.6; color: var(--text-muted); }
 .eg-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .eg-actions .btn { flex: 1 1 130px; min-height: var(--tap); }
@@ -791,7 +787,7 @@ html:is([data-board="wood"], [data-board="violet"], [data-board="clubgreen"], [d
     .board-col > .tr-progress { order: -3; }
     /* Petit téléphone : l'échiquier rétrécit pour que la lecture tienne au-dessus (--read-h) sans passer sous la barre */
     #game-screen { --read-h: 128px; --board-min: 240px; }                       /* la lecture réelle : consigne + coups + poignée */
-    #game-screen[data-mode="endgame"] { --read-h: 244px; }                      /* la carte de l'exercice en plus */
+    #game-screen[data-mode="endgame"] { --read-h: 200px; }                      /* la carte de l'exercice en plus (jauge dans la marge) */
     #game-screen[data-mode="analysis"] { --read-h: 236px; }                     /* deux lignes du moteur */
     .board-col > .cap-row, .board-col > .board-wrap {
         width: min(100%, max(var(--board-min), calc(100dvh - var(--topnav-h) - var(--thumb-h) - env(safe-area-inset-bottom, 0px) - 48px - var(--read-h))));
@@ -919,7 +915,7 @@ html:is([data-board="wood"], [data-board="violet"], [data-board="clubgreen"], [d
 /* À partir de 701 px de haut : l'anneau remplace la barre de progression ; dès 800 px, les chiffres s'ajoutent */
 @media (max-width: 599px) and (min-height: 701px) {
     #game-screen { --read-h: 146px; }
-    #game-screen[data-mode="endgame"] { --read-h: 244px; }
+    #game-screen[data-mode="endgame"] { --read-h: 200px; }
     #game-screen[data-mode="analysis"] { --read-h: 236px; }
     .side-panel:not(.open) .gc-ring:not([hidden]) { display: block; order: -1; }
     .gc-ring .ring { --ring-size: 56px !important; }

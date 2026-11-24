@@ -234,6 +234,9 @@
 .st-mini span.hl::before { content: ''; position: absolute; inset: 0; background: rgba(214, 170, 40, .42); }
 .st-mini .piece-svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
 /* Flèche du dernier coup (_miniBoardHTML, opts.arrow) : laiton, au-dessus des pièces. */
+/* Vue rapprochée (opts.crop, audit « Finales en images ») : n × n cases, la case du coin bas gauche écrite en Mono. */
+.st-mini.is-crop { position: relative; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); grid-template-rows: repeat(var(--n), minmax(0, 1fr)); }
+.st-mini.is-crop::after { content: attr(data-at); position: absolute; left: 3px; bottom: 1px; font: 500 9px/1 var(--font-note); color: rgba(40, 26, 16, .78); pointer-events: none; }
 .st-mini:has(> .st-mini-arrow) { position: relative; }
 .st-mini > .st-mini-arrow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .st-mini-arrow line { stroke: var(--brand-brass-deep); stroke-width: .32; stroke-linecap: round; opacity: .92; }
@@ -608,65 +611,95 @@
 .trr-empty-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 6px; }
 
 /* ─── Finales : accueil (endgame.js, initEndgame) ───
-   Barre de contexte (.st-scope) : Toutes / À faire / Réussies, et « Au hasard ». Contenu : section suivante. */
+   Barre de contexte (.st-scope) : légende qui filtre (Toutes, À faire, Commencées, Réussies) et « Au hasard ». */
 .home-content:has(#home-tab-endgame:not(.hidden)) { max-width: 1120px; justify-content: flex-start; text-align: left; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); }
 .setup-screen:has(#home-tab-endgame:not(.hidden)) { padding-top: 0; }
 #home-tab-endgame { gap: 0; align-items: stretch; }
 .egv-body { display: flex; flex-direction: column; gap: 34px; padding-top: 22px; }
+#home-tab-endgame > .st-scope { flex-wrap: nowrap; }
+.eg-legend { display: flex; flex: 1 1 auto; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.eg-legend::-webkit-scrollbar { display: none; }
+.eg-legend .so-leg-b { flex: none; font: inherit; font-size: var(--fs-2); cursor: pointer; }
+.eg-legend .so-leg-b .eg-ruler i { width: 10px; height: 10px; }
 .egv-random {
     margin-left: auto; display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; flex: none;
-    border: 1.5px solid var(--border); border-radius: 20px; background: var(--surface); color: var(--text);
-    font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border); border-radius: 999px; background: var(--surface); color: var(--text);
+    font: inherit; font-size: var(--fs-2); font-weight: 600; cursor: pointer;
 }
 .egv-random .ico { width: 16px; height: 16px; }
 @media (hover: hover) { .egv-random:hover { border-color: var(--border-strong); } }
-.egv-random:focus-visible { outline: 2px solid var(--board-accent); outline-offset: 2px; }
+.egv-random:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
 @media (max-width: 599px) {
     .home-content:has(#home-tab-endgame:not(.hidden)) { padding-left: max(14px, env(safe-area-inset-left, 0px)); padding-right: max(14px, env(safe-area-inset-right, 0px)); }
     .egv-random { width: var(--tap); height: var(--tap); padding: 0; justify-content: center; border-radius: 50%; }
-    .egv-random span, .egv-n { display: none; }
+    .egv-random span { display: none; }
     .egv-body { gap: 26px; padding-top: 16px; }
 }
 
-/* ─── FINALES BIBLIOTHÈQUE (LOT 7) ───
+/* ─── FINALES BIBLIOTHÈQUE (LOT 7, audit « Finales en images ») ───
    Accueil : aperçu Velours (« À suivre » ou l'exercice choisi) en tête sur téléphone, en colonne de droite à partir
-   de 920 px ; puces de catégorie (Ring.chip) ; sections d'exercices en lignes bord à bord sous 720 px, en grille de
-   cartes au-delà. Une ligne ouvre l'aperçu (panneau du bas sous 920 px). --eg-gutter : marge du contenu, que les
-   lignes annulent pour aller bord à bord. Séance : carte d'objectif (.endgame-card) avec verdict, jauge et théorie. */
-#home-tab-endgame { --eg-gutter: 20px; }
+   de 920 px ; puces de catégorie (.eg-chip + .count) ; sections d'exercices en lignes bord à bord sous 720 px, en grille
+   de cartes au-delà. Une ligne ouvre l'aperçu (panneau du bas sous 920 px). --eg-gutter : marge du contenu, que les
+   lignes annulent pour aller bord à bord. Une place, un sens : difficulté en crans sous le titre, étoiles à droite.
+   Couleurs : --accent pour fait et la jauge (comme la règle de cases de l'accueil), laiton pour étoiles et réussite,
+   vermillon pour l'erreur ; jamais --ok ni --board-accent. Séance : carte d'objectif (.endgame-card) et jauge dans la marge. */
+#home-tab-endgame { --eg-gutter: 20px; --eg-brass: var(--brand-brass-deep); }
+[data-theme="dark"] #home-tab-endgame, [data-theme="dark"] #game-screen { --eg-brass: var(--brand-brass); }
+#game-screen { --eg-brass: var(--brand-brass-deep); }
 @media (max-width: 599px) { #home-tab-endgame { --eg-gutter: 14px; } }
 .egl { display: flex; flex-direction: column; gap: 22px; }
 .egl-aside { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .egl-main { display: flex; flex-direction: column; gap: 26px; min-width: 0; }
 
-/* Étiquettes, roi du camp, difficulté */
-.eg-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.eg-tag { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
-          background: var(--bg-inset); border: 1px solid var(--border); color: var(--text-muted); white-space: nowrap; }
-.eg-tag .ico { width: 13px; height: 13px; color: var(--board-accent); }
+/* Objectif (notation de résultat + mot), camp, difficulté */
+.eg-goal { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-2); font-weight: 600; color: var(--text); white-space: nowrap; }
+.eg-goal-tok { display: inline-grid; place-items: center; min-width: 26px; height: 20px; padding: 0 5px; border-radius: 6px;
+               font: 600 var(--fs-1)/1 var(--font-note); letter-spacing: -.02em; background: var(--accent); color: var(--accent-text, var(--bg)); }
+.eg-goal-tok.is-mate { background: var(--eg-brass); color: var(--surface); }
+.eg-goal-tok.is-draw { background: none; color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); font: 700 14px/1 var(--font-sans); }   /* « ½ » : la fraction de Plex Mono est trop petite */
+.eg-side { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-2); }
 .eg-king { width: 16px; height: 16px; vertical-align: middle; }
-.eg-dots { display: inline-flex; align-items: center; gap: 3px; }
-.eg-dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong); }
-.eg-dots i.on { background: var(--board-accent); }
+.eg-crans { display: inline-flex; align-items: center; gap: 2px; }
+.eg-crans i { width: 4px; height: 10px; border-radius: 1.5px; background: var(--border-strong); }
+.eg-crans i.on { background: var(--accent); }
+.eg-tries { font: 500 var(--fs-1) var(--font-note); color: var(--text-muted); white-space: nowrap; }
+
+/* Règle de cases d'une catégorie : vide, cerclée (tentée), teintée par les étoiles ; trait sous l'exercice à suivre */
+.eg-ruler { display: inline-flex; flex-wrap: wrap; gap: 3px; min-width: 0; }
+.eg-ruler i { position: relative; width: 11px; height: 11px; border-radius: 3px; background: var(--bg-inset); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.eg-ruler i.t { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.eg-ruler i.s1 { background: color-mix(in oklab, var(--eg-brass) 35%, var(--surface)); box-shadow: none; }
+.eg-ruler i.s2 { background: color-mix(in oklab, var(--eg-brass) 70%, var(--surface)); box-shadow: none; }
+.eg-ruler i.s3 { background: var(--eg-brass); box-shadow: none; }
+.eg-ruler i.cur::after { content: ''; position: absolute; left: 2px; right: 2px; bottom: -5px; height: 2px; border-radius: 2px; background: var(--text); }
+
+/* Budget de coups : la jauge de la séance, vide */
+.eg-budget { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.eg-budget .eg-ticks i { height: 5px; }
+.eg-budget-l { font: 500 var(--fs-1) var(--font-note); opacity: .86; }
 
 /* Aperçu (carte sombre) */
 .eg-pv { gap: 14px; }
 .eg-pv-row { display: flex; align-items: center; gap: 16px; min-width: 0; }
-.eg-pv .eg-pos { width: 92px; flex: none; border-radius: 10px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-b-ink) 30%, transparent), 0 12px 24px -14px rgba(0, 0, 0, .8); }
-.eg-pv-txt { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.eg-pv .eg-pos { width: 104px; flex: none; border-radius: var(--r-tile); box-shadow: 0 0 0 2px color-mix(in srgb, var(--card-b-ink) 30%, transparent), 0 12px 24px -14px rgba(0, 0, 0, .8); }
+.eg-pv-txt { display: flex; flex-direction: column; gap: 10px; min-width: 0; flex: 1; }
 .eg-pv-title { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 21px; line-height: 1.15; letter-spacing: -.005em; }
-.eg-pv .eg-tag { background: color-mix(in srgb, var(--card-b-ink) 9%, transparent); border-color: color-mix(in srgb, var(--card-b-ink) 18%, transparent); color: inherit; }
-.eg-pv .eg-tag .ico { color: inherit; }
-.eg-pv-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 12.5px; }
-.eg-pv .eg-dots i { background: color-mix(in srgb, var(--card-b-ink) 26%, transparent); }
-.eg-pv .eg-dots i.on { background: var(--card-b-ink); }
+.eg-pv-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; font-size: var(--fs-2); }
+.eg-pv .eg-goal, .eg-pv .eg-side { color: inherit; }
+.eg-pv .eg-goal-tok { background: var(--card-b-ink); color: var(--card-b-bg); }
+.eg-pv .eg-goal-tok.is-mate { background: var(--brand-brass); color: var(--card-b-bg); }
+.eg-pv .eg-goal-tok.is-draw { background: none; color: var(--card-b-ink); box-shadow: inset 0 0 0 1.5px var(--card-b-ink); }
+.eg-pv .eg-crans i, .eg-pv .eg-ticks i { background: color-mix(in srgb, var(--card-b-ink) 26%, transparent); }
+.eg-pv .eg-crans i.on { background: var(--card-b-ink); }
+.eg-pv .eg-stars i { background: color-mix(in srgb, var(--card-b-ink) 26%, transparent); }
+.eg-pv .eg-stars i.on { background: var(--brand-brass); }
 .eg-pv-prog { opacity: .86; }
-.eg-pv-facts { display: none; margin: 0; padding: 0; list-style: none; flex-direction: column; gap: 8px; font-size: 12.5px; }
+.eg-pv-facts { display: none; margin: 0; padding: 0; list-style: none; flex-direction: column; gap: 8px; font-size: var(--fs-2); }
 .eg-pv-facts li { display: flex; align-items: center; gap: 8px; }
 .eg-pv-facts li > .ico { width: 15px; height: 15px; opacity: .8; }
 .eg-pv .vbadge { --c: var(--card-b-ink); color: inherit; }
-.eg-pv .eg-go { width: 100%; min-height: 48px; gap: 8px; font-size: 14px; border-radius: 14px;
+.eg-pv .eg-go { width: 100%; min-height: 48px; gap: 8px; font-size: var(--fs-3); border-radius: var(--r-ctl);
                 background: var(--card-b-ink); border-color: var(--card-b-ink); color: var(--card-b-bg); box-shadow: 0 6px 16px -8px rgba(0, 0, 0, .55); }
 @media (hover: hover) { .eg-pv .eg-go:hover { background: var(--card-b-ink); border-color: var(--card-b-ink); color: var(--card-b-bg); filter: brightness(1.06); } }
 .eg-pv .eg-go:focus-visible { outline: 2px solid var(--card-b-ink); outline-offset: 3px; }
@@ -675,24 +708,31 @@
     .egl-aside .eg-pv { margin-inline: calc(-1 * var(--eg-gutter)); padding-inline: 16px; border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
 }
 
-/* Parcours (bureau seulement) */
-.eg-sum { display: none; flex-direction: column; gap: 6px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow-sm); }
+/* Parcours (bureau seulement) : un chiffre, une règle de cases par catégorie */
+.eg-sum { display: none; flex-direction: column; gap: 10px; padding: 16px 18px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--surface); }
 .eg-sum-big { display: flex; align-items: baseline; gap: 8px; }
-.eg-sum-big b { font-family: var(--font-display); font-weight: 600; font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
-.eg-sum-big span, .eg-sum-sub { font-size: 13px; color: var(--text-muted); }
+.eg-sum-big b { font-family: var(--font-display); font-weight: 600; font-size: var(--fs-6); line-height: 1; font-variant-numeric: tabular-nums; }
+.eg-sum-big span { font-size: var(--fs-2); color: var(--text-muted); }
+.eg-sum-rows { display: flex; flex-direction: column; gap: 7px; }
+.eg-sum-row { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 10px; align-items: center; font-size: var(--fs-1); color: var(--text-muted); }
+.eg-sum-row > span:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.eg-sum-row .eg-ruler i { width: 9px; height: 9px; border-radius: 2px; }
 
-/* Puces de catégorie : une rangée qui défile sur téléphone, bord à bord */
+/* Puces de catégorie : une rangée qui défile, bord à bord (cachées sur téléphone) */
 .eg-chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: calc(-1 * var(--eg-gutter)); padding: 2px var(--eg-gutter); }
 .eg-chips::-webkit-scrollbar { display: none; }
+.eg-chip { display: inline-flex; align-items: center; gap: 8px; flex: none; min-height: 36px; padding: 0 6px 0 12px; border: 1px solid var(--border); border-radius: 999px;
+           background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-2); font-weight: 600; cursor: pointer; white-space: nowrap; }
+@media (hover: hover) { .eg-chip:hover { border-color: var(--border-strong); } }
+.eg-chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.eg-chip[aria-current="true"] { background: var(--accent-soft); border-color: var(--accent-line); }
 
 /* Sections */
 .eg-sec { display: flex; flex-direction: column; gap: 8px; scroll-margin-top: calc(var(--topnav-h) + 80px); }
-.eg-sec-h { display: flex; align-items: baseline; gap: 10px; }
-.eg-sec-h h3 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 20px; letter-spacing: -.005em; }
-.eg-sec-n { font-family: var(--font-note); font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.eg-sec-bar { margin-left: auto; align-self: center; width: 110px; height: 4px; border-radius: 4px; background: var(--border); overflow: hidden; }
-.eg-sec-bar i { display: block; height: 100%; border-radius: inherit; background: var(--ok); }
-.eg-sec-desc { margin: 0 0 6px; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.eg-sec-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.eg-sec-h h3 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-5); letter-spacing: -.005em; }
+.eg-sec-prog { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.eg-sec-desc { margin: 0 0 6px; font-size: var(--fs-2); line-height: 1.5; color: var(--text-muted); }
 
 /* Exercice : ligne bord à bord (téléphone) */
 .eg-list { display: flex; flex-direction: column; margin-inline: calc(-1 * var(--eg-gutter)); border-top: 1px solid var(--border); }
@@ -700,33 +740,23 @@
            border: 0; border-bottom: 1px solid var(--border); border-radius: 0; background: var(--surface); color: var(--text);
            font: inherit; text-align: left; cursor: pointer; touch-action: manipulation; transition: background var(--dur-1); }
 @media (hover: hover) { .eg-card:hover { background: var(--surface-hover); } }
-.eg-card:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.eg-card .eg-pos { width: 56px; flex: none; border-radius: 7px; }
+.eg-card:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.eg-card .eg-pos { width: 56px; flex: none; border-radius: var(--r-tile); }
 .eg-card-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.eg-card-txt b { font-size: 14px; font-weight: 650; line-height: 1.25; }
-.eg-card-mt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 12px; color: var(--text-muted); }
-.eg-card-end { flex: none; display: flex; align-items: center; }
+.eg-card-txt b { font-size: var(--fs-3); font-weight: 650; line-height: 1.25; }
+.eg-card-mt { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: var(--fs-1); color: var(--text-muted); }
+.eg-card-end { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .eg-card.is-sel { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.eg-empty { display: flex; flex-direction: column; gap: 4px; padding: 22px; border: 1px dashed var(--border-strong); border-radius: var(--r-card); font-size: var(--fs-2); color: var(--text-muted); }
+.eg-empty b { font-family: var(--font-display); font-weight: 600; font-size: var(--fs-5); color: var(--text); }
 
-/* État d'un exercice */
-.eg-st { display: inline-flex; align-items: center; justify-content: center; }
-.eg-st.is-perfect, .eg-st.is-done { width: 26px; height: 26px; border-radius: 50%; }
-.eg-st.is-perfect { color: var(--ct-laiton); background: color-mix(in oklab, var(--ct-laiton) 18%, var(--surface)); }
-.eg-st.is-done { color: var(--ok); background: color-mix(in oklab, var(--ok) 16%, var(--surface)); }
-.eg-st .ico { width: 15px; height: 15px; stroke-width: 2.6; }
-.eg-st.is-tried { font-family: var(--font-note); font-size: 11.5px; font-weight: 500; color: var(--lv-fragile-ink); white-space: nowrap; }
-.eg-empty { display: flex; flex-direction: column; gap: 4px; padding: 22px; border: 1px dashed var(--border-strong); border-radius: 16px; font-size: 13px; color: var(--text-muted); }
-.eg-empty b { font-family: var(--font-display); font-weight: 600; font-size: 19px; color: var(--text); }
-
-/* Téléphone (Ergonomie, lot 5) : six catégories repliables, anneau en tête ; l'en-tête entier ouvre ou replie */
-.eg-sec-ring, .eg-sec-tg { display: none; }
+/* Téléphone (Ergonomie, lot 5) : six catégories repliables, la règle sous le titre ; l'en-tête entier ouvre ou replie */
+.eg-sec-tg { display: none; }
 @media (max-width: 599px) {
-    .eg-chips, .eg-sec-bar { display: none; }
+    .eg-chips { display: none; }
     #eg-preview .eg-go { background: var(--accent-soft); border: 1.5px solid var(--accent-line); color: var(--accent); box-shadow: none; }   /* le plein est au centre du dock */
     .eg-sec { gap: 0; }
-    .eg-sec-h { position: relative; align-items: center; min-height: 56px; }
-    .eg-sec-ring { display: inline-grid; flex: none; }
-    .eg-sec-h h3 { font-size: 18px; }
+    .eg-sec-h { position: relative; min-height: 64px; padding: 10px 28px 10px 0; flex-direction: column; align-items: flex-start; justify-content: center; }
     .eg-sec-tg { display: flex; align-items: center; justify-content: flex-end; position: absolute; inset: 0; padding: 0; border: 0; background: none; color: var(--text-muted); cursor: pointer; }
     .eg-sec-tg .ico { width: 18px; height: 18px; transition: transform var(--dur-2); }
     .eg-sec.is-open .eg-sec-tg .ico { transform: rotate(180deg); }
@@ -740,16 +770,12 @@
     .eg-chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding: 0; }
     .eg-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; margin-inline: 0; border-top: 0; }
     .eg-card { position: relative; flex-direction: column; align-items: stretch; gap: 10px; min-height: 0; padding: 12px;
-               border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow-sm);
-               transition: transform var(--dur-1) var(--ease-out), box-shadow var(--dur-1), border-color var(--dur-1); }
-    @media (hover: hover) { .eg-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: var(--border-strong); background: var(--surface); } }
+               border: 1px solid var(--border); border-radius: var(--r-card); transition: border-color var(--dur-1), background var(--dur-1); }
+    @media (hover: hover) { .eg-card:hover { border-color: var(--border-strong); background: var(--surface); } }
     .eg-card:focus-visible { outline-offset: 2px; }
-    .eg-card .eg-pos { width: 100%; border-radius: 10px; }
+    .eg-card .eg-pos { width: 100%; }
     .eg-card-txt b { font-size: 13.5px; min-height: 2.5em; }
-    .eg-card-budget { display: none; }
-    .eg-card-end { position: absolute; top: 18px; right: 18px; padding: 3px 7px; border-radius: 999px; background: var(--bg-elevated); box-shadow: var(--shadow-sm); }
-    .eg-card-end:has(.eg-st.is-perfect, .eg-st.is-done) { padding: 0; background: none; box-shadow: none; }
-    .eg-card-end .eg-st.is-perfect, .eg-card-end .eg-st.is-done { background: var(--bg-elevated); box-shadow: var(--shadow-sm); }
+    .eg-card-end { flex-direction: row; justify-content: space-between; align-items: center; }
     .eg-card.is-sel { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 25%, transparent); }
 }
 
@@ -768,7 +794,7 @@
 .eg-sheet-wrap { position: fixed; inset: 0; z-index: 400; display: flex; flex-direction: column; justify-content: flex-end; }
 .eg-sheet-bg { position: absolute; inset: 0; background: var(--overlay, rgba(0, 0, 0, .55)); animation: eg-fade var(--dur-2) ease-out both; }
 .eg-sheet { position: relative; width: 100%; max-width: 560px; max-height: 92vh; margin: 0 auto; overflow-y: auto; animation: eg-rise var(--dur-2) var(--ease-out) both; }
-.eg-sheet .eg-pv { border-radius: 22px 22px 0 0; border-bottom: 0; padding-top: 30px; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
+.eg-sheet .eg-pv { border-radius: var(--r-panel) var(--r-panel) 0 0; border-bottom: 0; padding-top: 30px; padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px)); }
 .eg-sheet .eg-pv-row { flex-direction: column; align-items: stretch; }
 .eg-sheet .eg-pv .eg-pos { width: min(220px, 58vw); align-self: center; }
 .eg-sheet .eg-pv-facts { display: flex; }
@@ -780,58 +806,61 @@
 @keyframes eg-fade { from { opacity: 0; } }
 @keyframes eg-rise { from { transform: translateY(40px); opacity: 0; } }
 
-/* Séance : carte d'objectif */
-.eg-goalrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--text-muted); }
-.eg-goalrow .eg-goal-tag { font-size: 13px; color: var(--text); }
-.eg-side { display: inline-flex; align-items: center; gap: 6px; }
-.eg-goalrow .eg-src { margin-left: auto; }
+/* Séance : carte d'objectif et jauge (dans #tr-progress, la marge de l'échiquier) */
+.eg-goalrow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; color: var(--text-muted); }
+.eg-cat { margin-left: auto; font: 500 var(--fs-1) var(--font-note); letter-spacing: .12em; text-transform: uppercase; color: var(--text-dim); }
+.eg-srcrow { display: flex; }
 .eg-ticks { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 3px; }
 .eg-ticks i { height: 6px; border-radius: 3px; background: var(--border); }
-.eg-ticks i.on  { background: var(--board-accent); }
-.eg-ticks i.ok  { background: var(--ok); }
+.eg-ticks i.on  { background: var(--accent); }
+.eg-ticks i.ok  { background: var(--eg-brass); }
 .eg-ticks i.bad { background: var(--err); }
-.eg-meter-lg { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--font-note); font-size: 11.5px; color: var(--text-muted); }
-.eg-meter-lg span:last-child { margin-left: auto; }
+.tr-progress.is-eg .eg-ticks i { height: 4px; border-radius: 2px; background: var(--border-strong); }
+.tr-progress.is-eg .eg-ticks i.on { background: var(--accent); }
+.tr-progress.is-eg .eg-ticks i.ok { background: var(--eg-brass); }
+.tr-progress.is-eg .eg-ticks i.bad { background: var(--err); }
+.eg-meter-lg > span:last-child:not(:first-child) { display: inline-flex; gap: 10px; }
 .eg-meter-lg .is-err, .eg-meter-lg .is-err b { color: var(--err); }
-.eg-verdict { display: flex; align-items: center; gap: 8px; }
+.eg-verdict { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .eg-verdict > .ico { width: 14px; height: 14px; color: var(--text-dim); }
-.eg-vpill { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border-radius: 999px; font-size: 12px; font-weight: 700;
+.eg-vpill { display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border-radius: 999px; font: 600 var(--fs-2) var(--font-note);
             border: 1px solid var(--border); background: var(--bg-inset); color: var(--text-muted); }
-.eg-vpill.is-from { text-decoration: line-through; text-decoration-color: var(--text-dim); }
 .eg-vpill.is-to { color: var(--err); border-color: color-mix(in oklab, var(--err) 55%, var(--border)); background: color-mix(in oklab, var(--err) 12%, var(--surface)); }
-.eg-rule { display: flex; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--bg-inset); border: 1px solid var(--border); font-size: 13px; line-height: 1.45; color: var(--text); }
-.eg-rule > .ico { width: 16px; height: 16px; flex: none; margin-top: 1px; color: var(--err); }
+.eg-vsay { font-size: var(--fs-2); color: var(--text-muted); }
+.eg-arrow-key { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: var(--fs-1); color: var(--text-muted); }
+.eg-arrow-key span { display: inline-flex; align-items: center; gap: 6px; }
+.eg-arrow-key span::before { content: ''; width: 16px; height: 4px; border-radius: 2px; }
+.eg-arrow-key .is-played::before { background: var(--annot-red); }
+.eg-arrow-key .is-best::before { background: var(--annot-gold); }
 .eg-win { display: flex; align-items: center; gap: 12px; }
-.eg-win b { display: block; font-family: var(--font-display); font-weight: 600; font-size: 19px; line-height: 1.2; }
-.eg-win > div > span { font-size: 13px; color: var(--text-muted); }
+.eg-win b { display: block; font-family: var(--font-display); font-weight: 600; font-size: var(--fs-5); line-height: 1.2; }
+.eg-win > div > span { font-size: var(--fs-2); color: var(--text-muted); }
+/* Vous contre le plus court : une réglette par ligne, les coups de trop en laiton clair */
+.eg-par { display: flex; flex-direction: column; gap: 6px; }
+.eg-par-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 26px; gap: 8px; align-items: center; font-size: var(--fs-1); color: var(--text-muted); }
+.eg-par-row b { text-align: right; color: var(--text); font-weight: 500; }
+.eg-par-bar { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 2px; }
+.eg-par-bar i { height: 8px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--border); }
+.eg-par-bar i.on { background: var(--accent); box-shadow: none; }
+.eg-par-bar i.over { background: color-mix(in oklab, var(--eg-brass) 55%, var(--surface)); box-shadow: none; }
+.eg-par-aids { font-size: var(--fs-1); color: var(--text-muted); }
 /* Étoiles des finales (EG.stars, atelier « L'envie de revenir », lot 3) : trois étoiles découpées, les gagnées en laiton. */
 .eg-stars { display: inline-flex; align-items: center; gap: 2px; flex: none; }
 .eg-stars i { width: 13px; height: 13px; background: var(--border-strong);
     clip-path: polygon(50% 0, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
-.eg-stars i.on { background: var(--brand-brass-deep); }
-[data-theme="dark"] .eg-stars i.on { background: var(--brand-brass); }
+.eg-stars i.on { background: var(--eg-brass); }
+.eg-stars.is-none i { background: var(--border); }
 .eg-stars.is-big { gap: 3px; }
 .eg-stars.is-big i { width: 24px; height: 24px; }
 .eg-stars.is-big i.on { animation: egStarIn var(--dur-3) var(--ease-out) both; }
 .eg-stars.is-big i:nth-child(2).on { animation-delay: 120ms; }
 .eg-stars.is-big i:nth-child(3).on { animation-delay: 240ms; }
 @keyframes egStarIn { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
-.eg-stars.is-one i:not(.on) { display: none; }
-.eg-sec-stars { display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-note); font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.eg-sec-stars .eg-stars i { width: 11px; height: 11px; }
-.eg-star-goal { margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.eg-star-goal { margin: 0; font-size: var(--fs-2); color: var(--text-muted); }
 @media (prefers-reduced-motion: reduce) { .eg-stars.is-big i.on { animation: none; } }
-.eg-medal { width: var(--tap); height: var(--tap); flex: none; display: grid; place-items: center; border-radius: 50%; color: var(--ok);
-            background: color-mix(in oklab, var(--ok) 18%, var(--surface)); box-shadow: 0 0 0 6px color-mix(in oklab, var(--ok) 8%, transparent); animation: eg-pop var(--dur-3) var(--ease-out) both; }
-.eg-medal .ico { width: 22px; height: 22px; stroke-width: 2.6; }
-@keyframes eg-pop { from { transform: scale(.6); opacity: 0; } }
-.eg-kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.eg-kpis div { padding: 8px 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-inset); }
-.eg-kpis b { display: block; font-size: 18px; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
-.eg-kpis small, .eg-nextup small { font-family: var(--font-note); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
-.eg-nextup { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--bg-inset); }
-.eg-nextup .eg-pos { width: 48px; flex: none; border-radius: 6px; }
-.eg-nextup small { display: block; }
+.eg-nextup { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg-inset); }
+.eg-nextup .eg-pos { width: 48px; flex: none; border-radius: var(--r-tile); }
+.eg-nextup small { display: block; font: 500 var(--fs-1) var(--font-note); letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
 .eg-nextup b { font-size: 13px; }
 .eg-theory-box { border-top: 1px solid var(--border); padding-top: 4px; }
 .eg-theory-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: var(--tap); padding: 0; border: 0; background: none;
@@ -839,14 +868,15 @@
 .eg-theory-btn .ico, .eg-theory-h .ico { width: 15px; height: 15px; }
 .eg-theory-btn .ico:last-child { margin-left: auto; transition: transform var(--dur-2); }
 .eg-theory-btn[aria-expanded="true"] .ico:last-child { transform: rotate(180deg); }
-.eg-theory-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.eg-theory-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 6px; }
 .eg-theory-h { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; font-weight: 650; color: var(--text-muted); }
+/* Téléphone : après une erreur ou une réussite, la carte ne garde que l'état (l'objectif est connu, le dock porte l'action). */
+@media (max-width: 599px) { .endgame-card:is(.is-err, .is-ok) .eg-goalrow { display: none; } }
 /* Une seule action pleine : après une erreur ou une réussite, l'action de la carte remplace Indice. */
 #game-screen:has(.endgame-card.is-ok, .endgame-card.is-err) .tb-hint { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-    .eg-card, .eg-sheet, .eg-sheet-bg, .eg-medal, .eg-theory-btn .ico { animation: none; transition: none; }
-    @media (hover: hover) { .eg-card:hover { transform: none; } }
+    .eg-card, .eg-sheet, .eg-sheet-bg, .eg-theory-btn .ico, .eg-sec-tg .ico { animation: none; transition: none; }
 }
 
 /* ─── Statistiques sur téléphone (requête de conteneur sur l'onglet) ───

@@ -414,9 +414,9 @@ ENDGAME_EXERCISES.forEach(e => { ENDGAME_BY_ID[e.id] = e; });
 const EG_SIDE = { w: 'Blancs', b: 'Noirs' };
 function egObjective(ex) {
     const who = EG_SIDE[ex.player];
-    return ex.goal === 'mate' ? `Les ${who} jouent et font mat`
-         : ex.goal === 'win'  ? `Les ${who} jouent et gagnent`
-         :                      `Les ${who} jouent et annulent`;
+    return ex.goal === 'mate' ? `Matez avec les ${who}`
+         : ex.goal === 'win'  ? `Gagnez avec les ${who}`
+         :                      `Tenez la nulle avec les ${who}`;
 }
 
 // Contrôle de cohérence du catalogue (console : endgameSelfTest()). Chaque exercice doit

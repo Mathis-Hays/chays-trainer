@@ -131,6 +131,17 @@ function _countLevels(list) {
 
 // ─── ÉCHIQUIER MINIATURE ──────────────────────────────────────────────────────
 
+// Cadre carré qui contient toutes les pièces (4 cases de côté au moins) ; 7 ou 8 : l'échiquier entier.
+function _miniCropBox(cells) {
+    let a = 8, b = -1, c = 8, d = -1;
+    cells.forEach((p, sq) => { if (!p) return; const f = sq % 8, rk = Math.floor(sq / 8); a = Math.min(a, f); b = Math.max(b, f); c = Math.min(c, rk); d = Math.max(d, rk); });
+    if (b < 0) return { f0: 0, r0: 0, n: 8 };
+    let n = Math.max(b - a + 1, d - c + 1, 4);
+    if (n >= 7) return { f0: 0, r0: 0, n: 8 };
+    const clamp = (v) => Math.min(Math.max(0, v), 8 - n);
+    return { f0: clamp(Math.round((a + b + 1) / 2 - n / 2)), r0: clamp(Math.round((c + d + 1) / 2 - n / 2)), n };
+}
+
 // Position AVANT mon coup (after : APRÈS tout le chemin), orientée de mon côté ; le dernier coup est surligné.
 // r = { side: 'w'|'b', path?: [uci…], k?: FEN } ; sans path, la FEN r.k est lue.
 // opts = { cls?, label? } : classe ajoutée à .st-mini, libellé lu par les lecteurs d'écran.
@@ -149,15 +160,25 @@ function _miniBoardHTML(r, after, opts = {}) {
         } catch (err) { cells = null; }
     });
     if (!cells) return '';
+    // opts.crop (audit « Finales en images ») : vue rapprochée sur la zone des pièces, de 4 à 6 cases de côté ;
+    // une position plus étalée garde l'échiquier entier. La case du coin bas gauche est écrite (data-at).
+    const box = opts.crop ? _miniCropBox(cells) : { f0: 0, r0: 0, n: 8 };
+    const n = box.n;
     let html = '';
-    for (let i = 0; i < 64; i++) {
-        const row = Math.floor(i / 8), col = i % 8;
-        const sq = r.side === 'w' ? (7 - row) * 8 + col : row * 8 + (7 - col);
-        const dark = (Math.floor(sq / 8) + sq % 8) % 2 === 0;
+    for (let i = 0; i < n * n; i++) {
+        const row = Math.floor(i / n), col = i % n;
+        const f = r.side === 'w' ? box.f0 + col : box.f0 + n - 1 - col, rk = r.side === 'w' ? box.r0 + n - 1 - row : box.r0 + row;
+        const sq = rk * 8 + f;
+        const dark = (rk + f) % 2 === 0;
         const p = cells[sq];
         html += `<span class="${dark ? 'd' : 'l'}${last.includes(sq) ? ' hl' : ''}">${p && PIECE_SVG[p] ? PIECE_SVG[p] : ''}</span>`;
     }
-    const cls = opts.cls ? ' ' + escapeHtml(opts.cls) : '', label = escapeHtml(opts.label || (after ? 'Position' : 'Position avant votre coup'));
+    const sqName = (f, rk) => 'abcdefgh'[f] + (rk + 1);
+    const at = n < 8 ? (r.side === 'w' ? sqName(box.f0, box.r0) : sqName(box.f0 + n - 1, box.r0 + n - 1)) : '';
+    const cls = (opts.cls ? ' ' + escapeHtml(opts.cls) : '') + (n < 8 ? ' is-crop' : '');
+    const label = escapeHtml((opts.label || (after ? 'Position' : 'Position avant votre coup'))
+        + (n < 8 ? `, vue rapprochée de ${sqName(box.f0, box.r0)} à ${sqName(box.f0 + n - 1, box.r0 + n - 1)}` : ''));
+    if (n < 8) return `<div class="st-mini${cls}" role="img" aria-label="${label}" style="--n:${n}" data-at="${at}">${html}</div>`;
     // opts.arrow : flèche laiton du dernier coup (À traiter : le coup adverse qui demande une réponse), au-dessus des cases.
     if (opts.arrow && last.length === 2) {
         const at = sq => r.side === 'w' ? [sq % 8 + .5, 7 - Math.floor(sq / 8) + .5] : [7 - sq % 8 + .5, Math.floor(sq / 8) + .5];
