@@ -184,7 +184,7 @@ html[data-board="hache"] .sq.dark .coord { color: #2d2d2d; }
 
 /* ─── CONTROLS ───────────────────────────────────────────────────────────── */
 .controls { width: 100%; max-width: 580px; display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
-.btn { padding: 10px 4px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted); font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 12px; transition: all var(--dur-1); letter-spacing: 0.3px; text-align: center; box-shadow: var(--shadow-sm); }
+.btn { padding: 10px 4px; border: 1.5px solid var(--border); background: var(--surface); color: var(--text-muted); font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; border-radius: 12px; transition: all var(--dur-1); letter-spacing: 0.3px; text-align: center; box-shadow: var(--shadow-sm); }
 @media (hover: hover) { .btn:hover { background: var(--surface-hover); border-color: var(--accent-dim); color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); } }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 700; }
 @media (hover: hover) { .btn-primary:hover { background: var(--accent-bright); border-color: var(--accent-bright); color: var(--accent-text); } }

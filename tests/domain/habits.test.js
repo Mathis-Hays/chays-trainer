@@ -85,4 +85,16 @@ t('pas de retour : absence courte, premier lancement, semaine écoulée', () => 
     assert.strictEqual(Habits.comeback(act([-1, -2, -3, -4, -5, -6, -7, -12]), NOW), null);
 });
 
+t('semaine : lundi → dimanche, faits, joker, manqués, aujourd\'hui et jours à venir', () => {
+    // Jeudi 19 novembre : lundi 16 fait, mardi et mercredi manqués (deux de suite : pas de joker), jeudi pas encore joué.
+    const thu = new Date(2026, 10, 19, 12).getTime(), wed = new Date(2026, 10, 18, 12).getTime();
+    const wk = Habits.week(act([0]), thu);
+    assert.strictEqual(wk.length, 7);
+    assert.strictEqual(wk[0].stamp, day(0), 'commence le lundi');
+    assert.deepStrictEqual([...wk.map(d => d.state)], ['done', 'missed', 'missed', 'today', 'future', 'future', 'future']);
+    assert.deepStrictEqual([...Habits.week(act([0]), wed).slice(0, 3).map(d => d.state)], ['done', 'joker', 'today'], 'hier seul manqué : couvert tant qu\'aujourd\'hui reste à jouer');
+    const wk2 = Habits.week(act([0, 2]), wed);
+    assert.deepStrictEqual([...wk2.slice(0, 3).map(d => d.state)], ['done', 'joker', 'done'], 'jour manqué seul : joker');
+});
+
 console.log(`\n${n} tests réussis.`);

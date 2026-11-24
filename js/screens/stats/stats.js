@@ -71,9 +71,17 @@ const _filterCount = (counts, f) => f === 'all' ? 0 : LEVEL_GROUPS[f] ? groupCou
 
 // Barre de répartition en trois états (À apprendre, En cours, Sues) ; counts : { case: nombre }. opts.buttons : un
 // bouton par segment, qui filtre la liste comme la légende (statsLegend, ou opts.action) ; opts.active : filtre en
-// cours. Sans opts, des <i> décoratifs.
+// cours. Sans opts, des <i> décoratifs. opts.legend (accueil, audit « Aujourd’hui en images ») : la barre posée sur une
+// plaque claire (.lv-plate, mêmes couleurs sur toute carte et en sombre) et suivie de sa légende écrite, repère de forme
+// compris (« 74 à apprendre · 134 en cours · 93 sues ») : le sens ne passe plus par la couleur seule ni par un survol.
 function levelBarHTML(counts, cls, opts) {
     const gc = groupCounts(counts), gs = LEVEL_GROUP_ORDER.filter(g => gc[g]);
+    if (opts && opts.legend) {
+        const lower = t => t.toLocaleLowerCase('fr');            // « 74 à apprendre » : une phrase française, traduite à l'affichage
+        return `<span class="lv-plate ${cls || ''}"><span class="lv-bar" aria-hidden="true">${gs
+            .map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}"></i>`).join('')}</span>`
+            + `<span class="lv-legend">${gs.map(g => `<span>${_lvgMark(g)}${gc[g]} ${escapeHtml(lower(LEVEL_GROUPS[g].label))}</span>`).join('')}</span></span>`;
+    }
     if (!opts || !opts.buttons) return `<span class="lv-bar ${cls || ''}" aria-hidden="true">${gs
         .map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}" title="${_lvPair(g, gc[g])}"></i>`).join('')}</span>`;
     const on = opts.active && opts.active !== 'all' ? levelGroup(opts.active) : '';
@@ -148,6 +156,14 @@ function _miniBoardHTML(r, after, opts = {}) {
         html += `<span class="${dark ? 'd' : 'l'}${last.includes(sq) ? ' hl' : ''}">${p && PIECE_SVG[p] ? PIECE_SVG[p] : ''}</span>`;
     }
     const cls = opts.cls ? ' ' + escapeHtml(opts.cls) : '', label = escapeHtml(opts.label || (after ? 'Position' : 'Position avant votre coup'));
+    // opts.arrow : flèche laiton du dernier coup (À traiter : le coup adverse qui demande une réponse), au-dessus des cases.
+    if (opts.arrow && last.length === 2) {
+        const at = sq => r.side === 'w' ? [sq % 8 + .5, 7 - Math.floor(sq / 8) + .5] : [7 - sq % 8 + .5, Math.floor(sq / 8) + .5];
+        const [[ax, ay], [bx, by]] = last.map(at), L = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / L, uy = (by - ay) / L;
+        const hx = bx - ux * .5, hy = by - uy * .5, f = n => n.toFixed(2);
+        html += `<svg class="st-mini-arrow" viewBox="0 0 8 8" aria-hidden="true"><line x1="${f(ax)}" y1="${f(ay)}" x2="${f(hx)}" y2="${f(hy)}"/>`
+            + `<polygon points="${f(bx)},${f(by)} ${f(hx - uy * .4)},${f(hy + ux * .4)} ${f(hx + uy * .4)},${f(hy - ux * .4)}"/></svg>`;
+    }
     return `<div class="st-mini${cls}" role="img" aria-label="${label}">${html}</div>`;
 }
 

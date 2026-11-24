@@ -104,9 +104,17 @@ function renderRepertoireList() {
     renderHomeSummary();
 }
 
-// Position illustrant une couleur : la première réponse du répertoire (la plus courte, puis la plus travaillée),
-// après mon coup. Sans position : la position de départ, de mon côté.
-function _homeArtHTML(entries, color) {
+// Image d'une couleur (audit « Aujourd’hui en images », novembre 2026) : les ouvertures du jour dans cette couleur, en
+// éventail (trois au plus, la plus fournie au milieu) ; aucune due : la première réponse du répertoire (la plus courte,
+// puis la plus travaillée), après mon coup ; répertoire vide : la position de départ, de mon côté.
+function _homeArtHTML(entries, color, dueRows = []) {
+    const groups = dueRows.length ? _homePlan(dueRows).filter(g => g.path && g.path.length).slice(0, 3) : [];
+    if (groups.length) {
+        const order = groups.length === 3 ? [groups[1], groups[0], groups[2]] : groups;
+        // Décoratif : les noms sont dans les puces d'ouverture du jour.
+        return `<span class="hp-fan is-${order.length}" aria-hidden="true">${order.map(g =>
+            _miniBoardHTML({ side: color, path: g.path, k: INIT_FEN }, true, { label: g.name })).join('')}</span>`;
+    }
     const e = entries.filter(x => Array.isArray(x.path) && x.path.length).sort((a, b) => a.path.length - b.path.length || b.attempts - a.attempts)[0];
     return _miniBoardHTML({ side: color, path: e ? e.path : [], k: INIT_FEN }, true);
 }
@@ -122,27 +130,59 @@ function _homePlan(list) {
     return groupByOpening(rows).sort((a, b) => b.n - a.n);
 }
 
-// Anneau de l'objectif du jour (positions jouées aujourd'hui, tous répertoires) : anneau commun (Ring, rings.js).
-function _homeGoalHTML(done, goal) {
+// Règle de cases de l'objectif du jour (positions jouées aujourd'hui, tous répertoires ; audit « Aujourd’hui en images ») :
+// une case par position du plafond (15, 30 ou 60), pleine une fois jouée ; visible dès le matin, même forme toute la
+// journée, à la place de l'anneau (Ring reste dans Progrès et l'Entraînement). Le libellé « 12 / 30 » est écrit.
+function _homeCasesHTML(done, goal) {
     const n = Math.min(done, goal);
-    return Ring.html({ value: done, max: goal, size: 64, label: `${n}/${goal}`, sub: done >= goal ? 'atteint' : 'auj.',
-        ariaLabel: `Objectif du jour : ${n} sur ${goal} positions`, cls: 'hp-goal' });
+    return `<div class="hp-cases${n >= goal ? ' is-done' : ''}" role="img" aria-label="Objectif du jour : ${n} sur ${goal} positions">`
+        + `<span class="hp-cases-row" aria-hidden="true">${'<i class="on"></i>'.repeat(n)}${'<i></i>'.repeat(goal - n)}</span>`
+        + `<span class="hp-cases-n" aria-hidden="true">${n} / ${goal}</span></div>`;
 }
 
-// Joker de la série (Habits.streak) : une pastille laiton, pleine tant que celui de la semaine est libre.
+// Puces des ouvertures du jour : mini-échiquier de 22 px, nom, nombre (trois au plus, les plus fournies).
+function _homeOpsHTML(due) {
+    const groups = _homePlan(due).slice(0, 3);
+    if (!groups.length) return '';
+    return `<ul class="hp-ops" aria-label="Ouvertures du jour">${groups.map(g => `<li class="hp-op" title="${escapeHtml(g.name)}">`
+        + (g.path && g.path.length ? _miniBoardHTML({ side: g.side, path: g.path, k: INIT_FEN }, true, { label: g.name }) : '')
+        + `<span class="hp-op-name">${g.html}</span><b>${g.n}</b></li>`).join('')}</ul>`;
+}
+
+// Joker de la série (Habits.streak) : une pastille laiton au bout du ruban, pleine tant que celui de la semaine est libre.
 function _homeJokerHTML(st) {
     const tip = st.jokerFree ? 'Joker de la semaine libre : un jour manqué ne casse pas la série.' : 'Joker de la semaine utilisé : le prochain arrive lundi.';
-    return ` <span class="hp-joker${st.jokerFree ? '' : ' is-used'}" title="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(tip)}"></span>`;
+    return `<span class="hp-joker${st.jokerFree ? '' : ' is-used'}" title="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(tip)}"></span>`;
 }
 
-// Prévision des 7 prochains jours (programme du répertoire, reviewPlan) : une barre fine par jour avec son total.
-function _homeForecastHTML(fc, now) {
-    const max = Math.max(1, ...fc), d0 = new Date(now);
-    const day = i => i === 0 ? 'auj.' : new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + i).toLocaleDateString(I18n.locale(), { weekday: 'short' });
-    return `<div class="hp-plan hp-fc-wrap"><div class="hp-h"><h3>7 prochains jours</h3><span class="hp-n">${fc.reduce((a, b) => a + b, 0)}</span></div>
+// Case d'un jour du ruban (Habits.week) : pleine et cochée (fait), laiton (joker), vide (manqué), cerclée (aujourd'hui
+// à faire), en pointillés (à venir : la règle des pointillés, emplacement à remplir).
+const HP_DAY_STATE = { done: 'fait', joker: 'joker', missed: 'manqué', today: 'à faire', future: 'à venir' };
+const _hpDayTip = (t, state) => I18n.pair(_hpDayName(t), I18n.t(HP_DAY_STATE[state]));
+const _hpDayLetter = t => new Date(t).toLocaleDateString(I18n.locale(), { weekday: 'narrow' });
+const _hpDayName = t => new Date(t).toLocaleDateString(I18n.locale(), { weekday: 'long' });
+
+// Ruban de la semaine (lundi → dimanche) dans le surtitre : série, joker et jours à venir d'un coup d'œil.
+function _homeWeekHTML(act, now, st) {
+    const days = Habits.week(act, now), done = days.filter(d => d.state === 'done').length, past = days.filter(d => d.state !== 'future').length;
+    const label = I18n.pair(I18n.t('Jours actifs cette semaine'), `${done} / ${past}`);
+    return `<span class="hp-week" role="img" aria-label="${escapeHtml(label)}">${days.map(d =>
+        `<span class="hp-wk is-${d.state}" title="${escapeHtml(_hpDayTip(d.t, d.state))}"><i></i><span>${escapeHtml(I18n.mark(_hpDayLetter(d.t)))}</span></span>`).join('')}</span>`;
+}
+
+// Journée faite ou à jour : le ruban prolongé, les six jours passés puis la prévision des 7 prochains (aujourd'hui
+// compris, programme du répertoire, reviewPlan) avec le nombre de révisions au-dessus de chaque case.
+function _homeForecastHTML(fc, now, act = {}) {
+    const d0 = new Date(now), at = i => new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + i).getTime();
+    const played = t => { const d = act[dayStamp(t)]; return !!d && ((d.a || 0) > 0 || (d.p || 0) > 0); };
+    const past = [-6, -5, -4, -3, -2, -1].map(i => { const t = at(i), on = played(t);
+        return `<li class="hp-wk is-${on ? 'done' : 'missed'}" aria-label="${escapeHtml(_hpDayTip(t, on ? 'done' : 'missed'))}"><b></b><i></i><span aria-hidden="true">${escapeHtml(I18n.mark(_hpDayLetter(t)))}</span></li>`; }).join('');
+    const day = i => i === 0 ? 'auj.' : new Date(at(i)).toLocaleDateString(I18n.locale(), { weekday: 'short' });
+    return `<div class="hp-plan hp-fc-wrap"><div class="hp-h"><h3>Deux semaines</h3><span class="hp-n">${fc.reduce((a, b) => a + b, 0)}</span></div>
+        <div class="hp-span"><ol class="hp-past" aria-label="Six derniers jours">${past}</ol>
         <ol class="hp-fc" aria-label="Révisions prévues sur les 7 prochains jours">${fc.map((v, i) =>
-            `<li aria-label="${escapeHtml(day(i))} : ${v} ${v > 1 ? 'positions' : 'position'}"><b class="hp-fc-n">${v}</b>`
-            + `<i style="height:${v ? Math.max(3, Math.round(36 * v / max)) : 2}px"></i><span aria-hidden="true">${escapeHtml(day(i))}</span></li>`).join('')}</ol></div>`;
+            `<li class="hp-wk is-${i === 0 ? (played(now) ? 'done' : 'today') : 'future'}" aria-label="${escapeHtml(day(i))} : ${v} ${v > 1 ? 'positions' : 'position'}"><b class="hp-fc-n">${v}</b>`
+            + `<i></i><span aria-hidden="true">${escapeHtml(I18n.mark(_hpDayLetter(at(i))))}</span></li>`).join('')}</ol></div></div>`;
 }
 
 // Rythme du jour (objectif quotidien dailyGoal, chantier « Révision du jour ») : Léger, Normal, Soutenu, réglé sur place.
@@ -179,13 +219,14 @@ function renderHomeSummary() {
     desc.hidden = !note;
     desc.textContent = note;
     ['w', 'b'].forEach(c => {
-        const list = side(c), d = list.filter(r => rp.today(r.color, r.key)).length, counts = {};
+        const list = side(c), dueC = list.filter(r => rp.today(r.color, r.key)), d = dueC.length, counts = {};
         document.getElementById('home-meta-' + c).textContent = !list.length ? 'Aucune position'
             : pl(list.length, 'position', 'positions') + ' · ' + (d ? `${d} à réviser` : 'à jour');
-        patchHTML(document.getElementById('home-art-' + c), _homeArtHTML(list.map(r => r.e), c));
+        patchHTML(document.getElementById('home-art-' + c), _homeArtHTML(list.map(r => r.e), c, dueC));
         STATS_LEVEL_ORDER.forEach(l => { counts[l] = 0; });
         list.filter(r => r.e.attempts > 0).forEach(r => { counts[_level(r.e)]++; });
-        patchHTML(document.getElementById('home-bar-' + c), STATS_MASTERY_LEVELS.some(l => counts[l]) ? levelBarHTML(counts, 'hp-bar') : '');
+        // Barre posée sur une plaque claire, légendée (mêmes couleurs sur les deux cartes, lue par les lecteurs d'écran).
+        patchHTML(document.getElementById('home-bar-' + c), STATS_MASTERY_LEVELS.some(l => counts[l]) ? levelBarHTML(counts, 'hp-bar', { legend: true }) : '');
     });
 
     // Surtitre : salutation · série (avec son joker, Habits.streak) ; « Bon retour » le jour d'une reprise (Habits.comeback).
@@ -196,8 +237,9 @@ function renderHomeSummary() {
     const held = rp.held(), cu = held ? rp.catchUp() : null, when = cu ? catchUpLabel(cu, now) : '';
     const evening = h >= 18 || h < 5, word = cb && cb.first ? 'Bon retour' : evening ? 'Bonsoir' : 'Bonjour';
     const hello = name ? `${word}, ${name}` : word;
-    const head = `<p class="hp-over">${escapeHtml(hello)}`
-        + `${st.n ? ` · <span class="hp-streak">${pl(st.n, 'jour', 'jours')} d'affilée</span>${_homeJokerHTML(st)}` : ''}</p>`;
+    // Le ruban de la semaine reste visible même sans série (pas de reproche, les jours à venir en pointillés).
+    const head = `<div class="hp-over"><span class="hp-hello">${escapeHtml(hello)}</span><span class="hp-streak-row">${_homeWeekHTML(act, now, st)}`
+        + `${st.n ? `<span class="hp-streak">${pl(st.n, 'jour', 'jours')} d'affilée</span>` : ''}${_homeJokerHTML(st)}</span></div>`;
 
     // Répertoire vide : par quelle couleur commencer (une carte choisie, une seule action pleine).
     if (!rows.length) {
@@ -215,25 +257,25 @@ function renderHomeSummary() {
 
     const link = (!due.length && held ? `<button type="button" class="hp-link" data-action="trainingMore">${ico('plus')}Encore ${Math.min(rp.goal, held)}</button>` : '')
         + `<button type="button" class="hp-link" data-action="homeExercises">Autres exercices ${ico('chevron-right')}</button>`;
-    let title, sub, cta, plan = '';
+    let title, sub, cta, plan = '', ops = '';
     const steps = _homeSteps(due, rp, now, { held, when }), next = steps.find(x => !x.done);
     _homeStepsNow = steps;
     if (!due.length && held) {
         // Objectif du jour atteint : le reste attend les jours suivants ; « Encore N » est proposé, jamais imposé.
         title = `Objectif du jour <em>atteint</em>.`;
         sub = `${pl(held, 'révision attend', 'révisions attendent')} les jours suivants`;
-        plan = _homeForecastHTML(rp.forecast(null, 7), now);
+        plan = _homeForecastHTML(rp.forecast(null, 7), now, act);
     } else if (due.length) {
         // Un nombre, une durée (qui ouvre le rythme du jour), puis les ouvertures concernées.
         const minutes = Math.max(1, Math.round(due.length * TRAIN_SECONDS_PER_POSITION / 60));
-        const names = _homePlan(due).slice(0, 3).map(g => `<span>${g.html}</span>`).join(', ');
         title = `<em>${due.length}</em> ${due.length > 1 ? 'positions' : 'position'}<br>${held && cb && cb.first ? 'pour reprendre la main' : held ? 'pour aujourd’hui' : 'à réviser'}`;
-        sub = `<button type="button" class="hp-pace-btn" data-action="homePaceShow" aria-expanded="${_homePaceOpen}">Environ ${minutes} min${ico('chevron-down')}</button>${names ? ` · ${names}` : ''}`;
+        sub = `<button type="button" class="hp-pace-btn" data-action="homePaceShow" aria-expanded="${_homePaceOpen}">Environ ${minutes} min${ico('chevron-down')}</button>`;
+        ops = _homeOpsHTML(due);
     } else {
         const nextAt = rp.next();
         title = `Révisions <em>à jour</em>.`;
         sub = (Number.isFinite(nextAt) ? `Prochaine révision <b>${dueInLabel(nextAt, true)}</b>` : 'Aucune révision prévue') + (today >= goal ? ' · objectif atteint' : '');
-        plan = _homeForecastHTML(rp.forecast(null, 7), now);
+        plan = _homeForecastHTML(rp.forecast(null, 7), now, act);
     }
     if (next) {
         // Une seule action : la première étape qui reste ; chaque ligne lance aussi la sienne.
@@ -248,9 +290,11 @@ function renderHomeSummary() {
     const pace = (due.length || held) && _homePaceOpen ? _homePaceHTML(goal) : '';
     // Bloc réécrit seulement si son HTML change (patchHTML) : un redessin à l'identique (parties relues, synchro,
     // pseudo du compte) ne détruit plus la ligne survolée.
+    // Règle de cases : dès qu'il y a un objectif à suivre (positions dues, objectif atteint, ou journée entamée).
+    const strip = due.length || held || today > 0 ? _homeCasesHTML(today, goal) : '';
     patchHTML(host, `<div class="hp-day edge-card${next ? '' : ' is-done'}">${head}
-        <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div>${today > 0 ? _homeGoalHTML(today, goal) : ''}</div>
-        ${pace}<div class="hp-ctas">${cta}</div>${_homeStepsHTML(steps.filter(x => x.id !== 'due'), _homeDailyHTML(rows, now))}${plan}</div>`);
+        <div class="hp-head"><div><h2 class="hp-title">${title}</h2><p class="hp-sub">${sub}</p></div></div>
+        ${pace}${ops}${strip}<div class="hp-ctas">${cta}</div>${_homeStepsHTML(steps.filter(x => x.id !== 'due'), _homeDailyHTML(rows, now))}${plan}</div>`);
     HomePanels.render();                         // À traiter : nouveautés des parties, dernières parties
     if (typeof Dock !== 'undefined') Dock.refresh();   // le centre du dock reprend « Commencer », maintenant dessiné
 }
@@ -278,7 +322,7 @@ function _homeSteps(due, rp, now, late = {}) {
         out.push({ id: 'due', icon: 'book', title: 'Révisions', sub: Number.isFinite(at) ? `À jour · <span>Prochaine révision ${dueInLabel(at, true)}</span>` : 'À jour', html: true, done: true });
     }
     const news = HomePanels.novelties().length;
-    if (news) out.push({ id: 'news', icon: 'swords', tone: 'new', title: 'Après vos parties', sub: news > 1 ? 'Des réponses à trouver' : 'Une réponse à trouver', n: news });
+    if (news) out.push({ id: 'news', icon: 'swords', title: 'Après vos parties', sub: news > 1 ? 'Des réponses à trouver' : 'Une réponse à trouver', n: news });
     if (typeof readEndgameProgress === 'function' && typeof _egNext === 'function') {
         const prog = readEndgameProgress(), start = new Date(now).setHours(0, 0, 0, 0);
         const won = ENDGAME_EXERCISES.find(e => prog[e.id] && prog[e.id].wins > 0 && prog[e.id].last >= start);
@@ -298,10 +342,11 @@ function _homeDailyHTML(rows, now) {
     if (!r) return '';
     const path = r.e.path && r.e.path.length ? r.e.path : null, op = path ? openingNameOf(path) : null;
     const who = r.color === 'w' ? 'Blancs' : 'Noirs';
-    const info = `Trouver le coup des ${who} · ${op ? escapeHtml(op.name) : 'position du répertoire'}`
+    // La couleur en pastille (le texte la nomme aussi) : le nom de l'ouverture tient sur téléphone.
+    const info = `<span class="hp-dot is-${r.color}" aria-hidden="true"></span>${who} · ${op ? escapeHtml(op.name) : 'position du répertoire'}`
         + (streak ? ` · <span class="hp-daily-streak">${streak} jour${streak > 1 ? 's' : ''} d’affilée</span>` : '');
-    const st = !done ? `<span class="hp-daily-go">Relever</span>`
-        : done.r ? `<span class="hp-daily-st is-ok">Réussi</span>` : `<span class="hp-daily-st is-ko">Un nouveau demain</span>`;
+    const st = !done ? `<span class="hp-step-end"><span class="count is-brass">À relever</span>${ico('chevron-right')}</span>`
+        : `<span class="count is-muted">${done.r ? 'Réussi' : 'Un nouveau demain'}</span>`;
     return `<li><button type="button" class="hp-step hp-daily${done ? ' is-done' : ''}" data-action="homeDaily" data-arg="${escapeHtml(r.color + ':' + r.key)}"${done ? ' aria-disabled="true"' : ''}>
         <span class="hp-step-ico is-brass">${ico(done && done.r ? 'check' : 'lightbulb')}</span>
         <span class="hp-step-txt"><b>Défi du jour</b><small>${info}</small></span>${st}</button></li>`;
@@ -313,7 +358,7 @@ function _homeStepsHTML(steps, daily = '') {
     return `<ol class="hp-steps" aria-label="Aussi aujourd’hui">${daily}${steps.map(x => `<li><button type="button" class="hp-step${x.done ? ' is-done' : ''}" data-action="homeStep" data-arg="${x.id}"${x.done ? ' aria-disabled="true"' : ''}>
         <span class="hp-step-ico${x.tone ? ' is-' + x.tone : ''}">${ico(x.done ? 'check' : x.icon)}</span>
         <span class="hp-step-txt"><b>${x.title}</b><small>${x.html ? x.sub : escapeHtml(x.sub)}</small></span>
-        ${x.done ? '' : `<span class="hp-step-n">${x.n}</span>`}</button></li>`).join('')}</ol>`;
+        ${x.done ? '' : `<span class="hp-step-end"><span class="count">${x.n}</span>${ico('chevron-right')}</span>`}</button></li>`).join('')}</ol>`;
 }
 
 // Lance une étape du plan : ce que faisaient la capsule Suite, l'onglet Entraînement et les Finales.
@@ -579,7 +624,7 @@ function renderResumeCard() {
     const s = _readLastPlay();
     slot.innerHTML = !s ? '' : `
         <button class="resume-card" data-action="resumeLastPlay">
-          <span class="resume-ico">${ico('rotate-ccw')}</span>
+          <span class="resume-ico is-board">${_miniBoardHTML({ side: s.color, path: s.path, k: INIT_FEN }, true, { label: 'Position à reprendre' }) || ico('rotate-ccw')}</span>
           <span class="resume-txt"><b>Reprendre</b>
             <small>${escapeHtml(s.rep)} · ${s.color === 'w' ? 'Blancs' : 'Noirs'} · ${_lineTail(s.path)}</small></span>
           <span class="tr-arrow">${ico('chevron-right')}</span>

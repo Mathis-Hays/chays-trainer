@@ -191,6 +191,8 @@
     --data-win: #5e432f; --data-draw: #ddd0bd; --data-loss: #c8452c;
     --data-me: #4a3426; --data-them: #a3825f; --data-neutral: #b5aa9c;
 }
+/* Plaque de la barre de maîtrise (accueil, levelBarHTML opts.legend) : en sombre aussi, les niveaux du clair. */
+[data-theme="dark"] .lv-plate { --lv-weak: #c1422a; --lv-fragile: #c3ad88; --lv-progress: #b99260; --lv-solid: #927258; --lv-mastered: #342216; }
 .st-big { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; }
 .st-big b { font-family: var(--font-display); font-weight: 600; font-size: 54px; line-height: .95; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
 .st-big span { font-size: 15px; font-weight: 600; }
@@ -232,6 +234,11 @@
 .st-mini span.d { background: var(--board-dark); }
 .st-mini span.hl::before { content: ''; position: absolute; inset: 0; background: rgba(214, 170, 40, .42); }
 .st-mini .piece-svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+/* Flèche du dernier coup (_miniBoardHTML, opts.arrow) : laiton, au-dessus des pièces. */
+.st-mini:has(> .st-mini-arrow) { position: relative; }
+.st-mini > .st-mini-arrow { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.st-mini-arrow line { stroke: var(--brand-brass-deep); stroke-width: .32; stroke-linecap: round; opacity: .92; }
+.st-mini-arrow polygon { fill: var(--brand-brass-deep); opacity: .92; }
 .st-ibtn .ico { fill: none; }
 .st-ibtn.pri .ico { fill: currentColor; }
 

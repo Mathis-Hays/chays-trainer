@@ -5,6 +5,8 @@
  * Atelier « L'envie de revenir », lot 1 (16 novembre 2026).
  *   streak(act, now)                série de jours actifs, avec un joker par semaine (lundi → dimanche) :
  *                                   un jour manqué seul ne casse pas la série ; deux de suite, ou deux la même semaine, si.
+ *   week(act, now)                  la semaine en cours (lundi → dimanche), un état par jour : done, joker, missed,
+ *                                   today (aujourd'hui sans essai encore), future ; ruban de l'accueil.
  *   comeback(act, now)              retour après HABITS_AWAY_DAYS jours sans essai (« Bon retour ») ; la part du jour est
  *                                   celle du plafond commun (reviewPlan, objectif quotidien), rien n'est effacé ni décalé.
  */
@@ -76,5 +78,16 @@ const Habits = (function () {
         return { first: r.t === today, away: r.away, daysLeft: Math.max(1, SPREAD_DAYS - between(r.t, today)) };
     }
 
-    return { streak, comeback, AWAY_DAYS, SPREAD_DAYS };
+    // Semaine en cours, lundi → dimanche : [{ t (minuit), stamp, state }] ; un jour manqué couvert par le joker de la série
+    // est « joker », aujourd'hui sans essai encore « today », les jours suivants « future ».
+    function week(act, now = Date.now()) {
+        const today = day(now), monday = day(now, -((new Date(now).getDay() + 6) % 7)), jokers = new Set(streak(act, now).jokers);
+        return Array.from({ length: 7 }, (_, i) => {
+            const t = day(monday, i), stamp = dayStamp(t);
+            const state = t > today ? 'future' : active(act, t) ? 'done' : jokers.has(stamp) ? 'joker' : t === today ? 'today' : 'missed';
+            return { t, stamp, state };
+        });
+    }
+
+    return { streak, week, comeback, AWAY_DAYS, SPREAD_DAYS };
 })();

@@ -36,7 +36,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert.strictEqual(w.eval('HomePanels.novelties().length'), 1, 'au journal, comme une analyse à la main');
         const step = $('#hp-today .hp-step[data-arg="news"]');
         assert(step, 'étape « Après vos parties » dans le plan du jour');
-        assert.strictEqual(step.querySelector('.hp-step-n').textContent, '1');
+        assert.strictEqual(step.querySelector('.hp-step-end .count').textContent, '1');
     });
 
     await t('au plus une fois toutes les 6 heures ; « force » passe outre', async () => {

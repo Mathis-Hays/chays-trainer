@@ -22,20 +22,20 @@
 const HomePanels = (function () {
     const LIST_SHOWN = 5, LIST_CAP = 50;              // lignes visibles sans défiler ; lignes rendues au plus
     const KINDS = { theory: ['Théorique', 'ok'], mistake: ['Erreur', 'err'], out: ['Hors répertoire', 'info'],
-                    novelty: ['Nouveauté', 'warn'], treated: ['Traitée depuis', 'new'], missing: ['Sans réponse', 'err'] };
+                    novelty: ['Nouveauté', 'warn'], treated: ['Traitée depuis', 'new'], missing: ['Sans réponse', 'warn'] };   // sans réponse : ambre, comme l'explorateur (C3)
     const date = t => (t ? new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short' }) : '');
     const srcName = id => ({ lichess: 'Partie Lichess', chesscom: 'Partie Chess.com' }[_gameSrc(id)] || 'PGN collé');
     let shown = [], shownGames = [];                  // lignes à traiter affichées (clic : index)
 
-    // Fin de ligne : les quatre derniers demi-coups, numérotés (« … 7. Cf3 Cc6 8. Fb5 »).
+    // Fin de ligne : toute la ligne jusqu'à 6 demi-coups, sinon les derniers à partir d'un coup blanc (« … 7. Cf3 Cc6 8. Fb5 »),
+    // une seule ellipse. Le dernier coup (celui de l'adversaire qui demande une réponse) est surligné : il ressort sans couleur seule.
     function lineTail(sans) {                       // HTML : figurines du jeu actif
-        const from = Math.max(0, sans.length - 4);
-        let out = from ? '… ' : '';
-        sans.slice(from).forEach((san, k) => {
+        const from = sans.length <= 6 ? 0 : (sans.length - 4) - ((sans.length - 4) % 2);
+        return (from ? '… ' : '') + sans.slice(from).map((san, k) => {
             const i = from + k, n = Math.floor(i / 2) + 1;
-            out += (i % 2 === 0 ? `${n}. ` : k === 0 ? `${n}… ` : '') + formatSan(san, i % 2 ? 'b' : 'w') + ' ';
-        });
-        return out.trim();
+            const txt = (i % 2 === 0 ? `${n}. ` : k === 0 ? `${n}… ` : '') + formatSan(san, i % 2 ? 'b' : 'w');
+            return i === sans.length - 1 ? `<mark class="hp-move-new">${txt}</mark>` : txt;
+        }).join(' ');
     }
 
     // Nouveautés du répertoire actif encore sans réponse : { id, color, path, at, vs, kind }.
@@ -56,8 +56,8 @@ const HomePanels = (function () {
 
     let pane = 'news';                               // 'news' | 'games'
 
-    // Vignette : la position à traiter (après la ligne), de mon côté.
-    const thumb = (color, path) => typeof _miniBoardHTML === 'function' ? _miniBoardHTML({ side: color, path, k: INIT_FEN }, true) : '';
+    // Vignette : la position à traiter (après la ligne), de mon côté, le dernier coup fléché.
+    const thumb = (color, path) => typeof _miniBoardHTML === 'function' ? _miniBoardHTML({ side: color, path, k: INIT_FEN }, true, { arrow: true, label: 'Position à traiter, dernier coup fléché' }) : '';
 
     // Une ligne : vignette, texte, badge de verdict (.vbadge) et, s'il y a une réponse à jouer, « Répondre ».
     const BADGE = { ok: 'is-ok', err: 'is-err', info: 'is-muted', warn: 'is-warn', new: 'is-accent' };
@@ -104,7 +104,7 @@ const HomePanels = (function () {
         const rows = pane === 'news' ? newsRows() : gameRows();
         const total = (rows.match(/class="hp-row[ "]/g) || []).length, more = total > LIST_SHOWN;
         const label = pane === 'news' ? 'Nouveautés' : 'Parties';
-        return `<div class="hp-h"><h2>À traiter</h2>${n ? `<span class="hp-count">${n}</span>` : ''}
+        return `<div class="hp-h"><h2>À traiter</h2>${n ? `<span class="count">${n}</span>` : ''}
                 <div class="hp-tabs" role="tablist" aria-label="À traiter">${tab('news', 'Nouveautés')}${tab('games', 'Parties')}</div></div>
             <div class="hp-list${more ? ' is-scroll' : ''}"${more ? ` tabindex="0" role="region" aria-label="${label} : ${total} lignes, liste défilante"` : ''}>${rows}</div>`
             + (more ? `<p class="hp-cue" aria-hidden="true"><span class="hp-cue-at">1–${LIST_SHOWN}</span><span class="hp-cue-bar"><i style="width:${Math.round(LIST_SHOWN / total * 100)}%"></i></span><span>${total}</span></p>` : '');

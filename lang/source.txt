@@ -74,7 +74,6 @@ Jouez le premier coup des Blancs (adversaire).
 translate({0}px, {1}px)
 translate(0, 0)
 cubic-bezier(.22,.8,.3,1)
-Aucun coup joué
 Copier la partie en PGN
 Retour à la position actuelle.
 Navigation — position initiale.
@@ -1876,6 +1875,7 @@ Le PGN échange vos lignes avec d'autres logiciels (sans statistiques).
 Partie Lichess
 Partie Chess.com
 PGN collé
+Position à traiter, dernier coup fléché
 Répondre
 {0}<b>Aucune nouveauté en attente</b>
 {0}<b>Aucune partie analysée</b>
@@ -2267,9 +2267,9 @@ Réussite par semaine
 cette sem.
 Joker libre cette semaine
 Joker utilisé cette semaine
-Positions sues par couleur · {0}
-Essais par jour sur {5} semaines
 d'affilée
+Positions sues par couleur · {0}
+Essais par jour sur {4} semaines
 jours actifs
 Peu <i></i>
 </i> Beaucoup
@@ -2972,9 +2972,9 @@ Révisions prévues sur 7 jours : {0}
 bientôt
 <b>À jour</b>
 Prochaine révision {0}
+{0} jour{1} d'affilée
 Révision du jour · {1}
-{6} jour{7} d'affilée
-{8} / {9} aujourd'hui
+{7} / {8} aujourd'hui
 début
 ciblée
 {0} coup{1}
@@ -3026,11 +3026,17 @@ Cet appareil a été déconnecté depuis un autre appareil. Vos données restent
 translateY(8px)
 cubic-bezier(.16, 1, .3, 1)
 Répertoire {2}
-Objectif du jour : {0} sur {1} positions
+Objectif du jour : {1} sur {2} positions
+Ouvertures du jour
 Joker de la semaine libre : un jour manqué ne casse pas la série.
 Joker de la semaine utilisé : le prochain arrive lundi.
+manqué
+à faire
+à venir
+Jours actifs cette semaine
+Six derniers jours
 Révisions prévues sur les 7 prochains jours
-7 prochains jours
+Deux semaines
 Léger
 Normal
 Soutenu
@@ -3070,9 +3076,9 @@ Des réponses à trouver
 Une réponse à trouver
 Une finale
 faite aujourd’hui
-Trouver le coup des {0} · {1}
+Coup des {1} · {2}
 {0} jour{1} d’affilée
-Relever
+À relever
 Un nouveau demain
 aria-disabled="true"
 <b>Défi du jour</b>
@@ -3092,6 +3098,7 @@ Couleur fixée par la séance guidée
 Couleur fixée par l'exercice
 Couleur fixe dans ce mode
 Couleur jouée
+Position à reprendre
 <b>Reprendre</b>
 Partie reprise
 Vous êtes revenu à la position où vous vous étiez arrêté.
@@ -3204,8 +3211,6 @@ Résultats
 <kbd>Échap</kbd> fermer
 <kbd>{1}</kbd> recherche du navigateur
 Rechercher ({0})
-· {0} à réviser
-{0} position{1}{2}
 Répertoire « {0} » (fixé par la séance guidée)
 Répertoire « {0} » : changer
 {1}Changer de répertoire
@@ -3248,6 +3253,7 @@ Focus
 Poser
 Image
 Initialisation...
+Aucun coup joué
 Données
 Répertoire :
 Dernières parties

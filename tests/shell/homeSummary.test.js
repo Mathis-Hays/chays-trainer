@@ -60,9 +60,17 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert($('#hp-today .hp-over'), 'surtitre');
         assert(!$('#hp-today .hp-focus') && !$('#hp-today .rv-gauge'), 'Chays épuré : ni position la plus en retard, ni jauge du retard');
         assert(!$('#hp-today .hp-step[data-arg="due"]'), 'les révisions sont le titre, pas une ligne de plus');
-        assert(!$('#hp-today .ring.hp-goal'), 'pas d\'anneau tant que la journée n\'est pas entamée');
+        assert(!$('#hp-today .ring.hp-goal'), 'plus d\'anneau sur l\'accueil : la règle de cases');
+        const cases = () => $('#hp-today .hp-cases[role="img"]');
+        assert(cases(), 'règle de cases dès le matin');
+        const goal = w.eval('reviewPlan(currentRepertoire).goal');
+        assert.strictEqual($$('#hp-today .hp-cases-row i').length, goal, 'une case par position de l\'objectif du jour');
+        assert.strictEqual($$('#hp-today .hp-cases-row i.on').length, 0);
         w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 1, f: 0 } }); renderHomeSummary()`);
-        assert($('#hp-today .ring.hp-goal[role="img"]'), 'anneau commun dès le premier essai');
+        assert.strictEqual($$('#hp-today .hp-cases-row i.on').length, 1, 'une case pleine par position jouée');
+        assert.strictEqual(cases().getAttribute('aria-label'), `Objectif du jour : 1 sur ${goal} positions`);
+        assert.strictEqual($('#hp-today .hp-cases-n').textContent, `1 / ${goal}`, 'libellé écrit');
+        assert($$('#hp-today .hp-ops .hp-op').length >= 1 && $('#hp-today .hp-op .st-mini'), 'puces d\'ouverture à vignette');
         w.eval(`dataStore.setJSON('chessTrainer_activity', {}); renderHomeSummary()`);
         assert(!$('#hp-today .hp-fc'), 'pas de prévision quand des positions sont dues');
         assert($('#hp-today .hp-link[data-action="homeExercises"]'), '« Autres exercices » en lien');
@@ -130,17 +138,29 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         assert.strictEqual($$('#hp-today .hp-fc li').length, 7);
     });
 
-    await t('_homeGoalHTML délègue à Ring.html (aria-label conservé, classe hp-goal)', () => {
-        w.eval('window.__ringArgs = null; const __orig = Ring.html; Ring.html = o => { window.__ringArgs = o; return __orig(o); }; window.__goal = _homeGoalHTML(3, 10); Ring.html = __orig;');
-        const args = w.__ringArgs;
-        assert(args, 'Ring.html appelé');
-        assert.strictEqual(args.value, 3);
-        assert.strictEqual(args.max, 10);
-        assert.strictEqual(args.cls, 'hp-goal');
-        assert(w.__goal.includes('aria-label="Objectif du jour : 3 sur 10 positions"'));
-        assert(/class="ring hp-goal"/.test(w.__goal));
-        assert(/class="ring is-done hp-goal"/.test(w.eval('_homeGoalHTML(12, 10)')), 'objectif atteint');
-        assert(w.eval('_homeGoalHTML(12, 10)').includes('10 sur 10 positions'));
+    await t('règle de cases : plafonnée à l\'objectif, marquée faite une fois atteint', () => {
+        const h = w.eval('_homeCasesHTML(3, 10)');
+        assert(h.includes('aria-label="Objectif du jour : 3 sur 10 positions"'));
+        assert.strictEqual((h.match(/<i class="on"><\/i>/g) || []).length, 3);
+        assert.strictEqual((h.match(/<i><\/i>/g) || []).length, 7);
+        const full = w.eval('_homeCasesHTML(12, 10)');
+        assert(/hp-cases is-done/.test(full) && full.includes('10 sur 10 positions') && !full.includes('<i></i>'));
+    });
+
+    await t('cartes Blancs / Noirs : barre légendée sur plaque, lue en texte ; éventail des ouvertures du jour', () => {
+        w.eval(`document.getElementById('home-bar-w').innerHTML = levelBarHTML({ weak: 2, progress: 3, mastered: 4 }, 'hp-bar', { legend: true })`);
+        const plate = $('#home-bar-w .lv-plate');
+        assert(plate && plate.querySelector('.lv-bar[aria-hidden="true"]'), 'barre décorative sur plaque');
+        assert(/\d+ (à apprendre|en cours|sues)/.test(plate.querySelector('.lv-legend').textContent), plate.textContent);
+        assert(plate.querySelector('.lv-legend .lv-mark'), 'repère de forme, pas la couleur seule');
+        const html = w.eval(`_homeArtHTML([], 'w', [{ color: 'w', key: 'k1', e: { path: ['e2e4'] } }, { color: 'w', key: 'k2', e: { path: ['d2d4'] } }])`);
+        assert(/hp-fan is-\d/.test(html) && (html.match(/st-mini/g) || []).length >= 1, 'éventail');
+    });
+
+    await t('À traiter : flèche du dernier coup sur la vignette, coup surligné, une seule ellipse', () => {
+        const thumb = w.eval(`_miniBoardHTML({ side: 'b', path: ['d2d4', 'g8f6', 'c2c4', 'e7e6', 'g2g3'], k: INIT_FEN }, true, { arrow: true })`);
+        assert(/class="st-mini-arrow"/.test(thumb) && /<polygon/.test(thumb), 'flèche laiton');
+        assert(!/st-mini-arrow/.test(w.eval(`_miniBoardHTML({ side: 'w', path: ['e2e4'], k: INIT_FEN }, true)`)), 'sans option : pas de flèche');
     });
 
     await t('À traiter : badge .vbadge et « Répondre » qui ouvre Jouer sur la position, sans rien compter', () => {
@@ -279,6 +299,10 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval(`dataStore.setJSON('chessTrainer_activity', { [dayStamp(Date.now())]: { a: 3, f: 0 }, [dayStamp(Date.now() - 2 * ${day})]: { a: 3, f: 0 } }); renderHomeSummary()`);
         assert(/2\s+jours d'affilée/.test($('#hp-today .hp-over').textContent), $('#hp-today .hp-over').textContent);
         assert($('#hp-today .hp-joker'), 'pastille du joker');
+        const wk = $$('#hp-today .hp-week .hp-wk');
+        assert.strictEqual(wk.length, 7, 'ruban de la semaine, lundi → dimanche');
+        assert($('#hp-today .hp-week[role="img"]').getAttribute('aria-label').startsWith('Jours actifs cette semaine'));
+        assert(wk.some(x => x.classList.contains('is-done')), 'aujourd\'hui fait');
     });
 
     await t('défi du jour : première ligne sous « Commencer », la même toute la journée ; fait, son résultat sans action', () => {
@@ -286,7 +310,7 @@ const seed = (w, dueW, dueB) => w.eval(`(() => {
         w.eval(`dataStore.remove('chessTrainer_daily'); renderHomeSummary()`);
         const card = $('#hp-today .hp-daily');
         assert(card && card.closest('li') === $('#hp-today .hp-steps > li'), 'première ligne sous « Commencer »');
-        assert(/Relever/.test(card.textContent));
+        assert(/À relever/.test(card.textContent), 'puce « À relever »');
         const arg = card.dataset.arg;
         w.eval('renderHomeSummary()');
         assert.strictEqual($('#hp-today .hp-daily').dataset.arg, arg, 'même position au second rendu');

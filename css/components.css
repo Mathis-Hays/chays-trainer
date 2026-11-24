@@ -358,3 +358,14 @@
 .engrave-depth.is-gold .eg-lip { stroke: var(--brand-brass); stroke-width: 8px; opacity: .9; }
 [data-theme="dark"] .engrave-depth.is-gold .eg-cut { stroke: var(--brand-brass); }
 [data-theme="dark"] .engrave-depth.is-gold .eg-lip { stroke: var(--brand-brass-deep); }
+
+/* ─── Puce de compte (.count) ───
+   Un seul composant pour dire un nombre ou un état court au bout d'une ligne (audit « Aujourd’hui en images », C10) :
+   contour fin, chiffres Mono. L'action est la ligne entière ; .is-brass pour ce qui se gagne (défi du jour). */
+.count { display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 22px; padding: 0 8px; flex: none;
+    border: 1px solid var(--border-strong); border-radius: 999px; background: none; color: var(--text);
+    font: 500 12px/1 var(--font-note); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.count.is-brass { border-color: color-mix(in oklab, var(--brand-brass-deep) 60%, transparent); color: var(--brand-brass-deep); }
+[data-theme="dark"] .count.is-brass { border-color: color-mix(in oklab, var(--brand-brass) 60%, transparent); color: var(--brand-brass); }
+.count.is-muted { color: var(--text-muted); border-color: var(--border); }
+

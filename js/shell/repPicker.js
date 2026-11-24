@@ -24,7 +24,8 @@ const RepPicker = (function () {
     // Description (storage.js) ; absente quand le module est chargé seul (tests).
     const noteOf = n => (typeof repertoireNote === 'function' ? repertoireNote(n) : '');
     const note = n => { const d = noteOf(n); return d ? `<i class="rp-desc">${escapeHtml(d)}</i>` : ''; };
-    const meta = s => `${s.n} position${s.n > 1 ? 's' : ''}${s.due ? ` · ${s.due} à réviser` : ''}`;
+    // Parties séparées : sur téléphone, la puce de l'accueil ne garde que « 30 à réviser » (css/home.css), sans couper le texte.
+    const meta = s => `<span class="rp-n">${s.n} position${s.n > 1 ? 's' : ''}</span>${s.due ? `<span class="rp-due"><span class="rp-sep"> · </span>${s.due} à réviser</span>` : ''}`;
 
     function html(act, { size, locked = false } = {}) {
         const name = escapeHtml(currentRepertoire);

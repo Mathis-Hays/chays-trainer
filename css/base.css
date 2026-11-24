@@ -14,6 +14,17 @@
     --ease-move: cubic-bezier(.4, 0, .2, 1);
     --topnav-h: 56px;                      /* hauteur de la barre du haut : repère des barres collantes */
     --tap: 44px;                           /* cible tactile minimale */
+    /* Formes et texte (audit « Aujourd’hui en images », novembre 2026) : quatre rayons, six tailles. Un même rôle, une même valeur. */
+    --r-tile: 10px;                        /* tuile d'icône, vignette */
+    --r-ctl: 12px;                         /* bouton, champ, puce carrée */
+    --r-card: 16px;                        /* carte dans un bloc (côtés Blancs / Noirs) */
+    --r-panel: 20px;                       /* bloc de page */
+    --fs-1: 11.5px;                        /* surtitre, étiquette, chiffres Mono */
+    --fs-2: 12.5px;                        /* ligne secondaire */
+    --fs-3: 14px;                          /* titre de ligne, bouton */
+    --fs-4: 16px;                          /* texte courant */
+    --fs-5: 19px;                          /* titre de bloc (Fraunces) */
+    --fs-6: 34px;                          /* chiffre héros */
 
     /* Couleurs de marque (identité « Noyer gravé ») : fixes, jamais tirées de l'échiquier. Logo, lancement,
        moments de maîtrise. Les commandes (boutons, liens) gardent l'accent dérivé de l'échiquier (HARMONISATION). */

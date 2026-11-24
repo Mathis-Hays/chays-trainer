@@ -620,7 +620,7 @@ html[data-piece="blindfold"] #board .piece img, html[data-piece="blindfold"] .dr
 /* ─── CHOIX DU RÉPERTOIRE (RepPicker, repPicker.js) ───
    Puce : initiale, nom, indicateurs. Liste : fenêtre flottante, ou panneau du bas sur téléphone. */
 .rp-chip { display: inline-flex; align-items: center; gap: 10px; max-width: 100%; min-height: 40px; padding: 5px 12px 5px 6px;
-           border: 1.5px solid var(--border); border-radius: 12px; background: var(--surface); box-shadow: var(--shadow-sm);
+           border: 1px solid var(--border); border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--shadow-sm);
            color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .rp-chip > .ico { width: 14px; height: 14px; flex: none; color: var(--text-dim); fill: none; }
 @media (hover: hover) { .rp-chip:hover { border-color: var(--board-accent, var(--accent)); } }

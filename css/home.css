@@ -197,15 +197,15 @@
 .hp-scope .menu-wrap { margin-left: 0; }
 .hp-quick { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .hp-quick:not(:empty)::before { content: ''; width: 1px; height: 24px; margin-right: 4px; background: var(--border); }
-.hp-q { display: grid; place-items: center; width: 32px; height: 32px; flex: none; padding: 0; border-radius: 50%; border: 1.5px solid var(--border);
+.hp-q { display: grid; place-items: center; width: 32px; height: 32px; flex: none; padding: 0; border-radius: 50%; border: 1px solid var(--border);
         background: var(--surface); color: var(--text-muted); font-family: var(--font-display); font-weight: 600; font-size: 13.5px; cursor: pointer; }
 .hp-q .ico { width: 15px; height: 15px; fill: none; }
 @media (hover: hover) { .hp-q:hover { color: var(--text); border-color: var(--board-accent); } }
 .hp-q:focus-visible { outline: 2px solid var(--board-accent); outline-offset: 2px; }
 .hp-add { margin-left: auto; }
 /* « + Ajouter » (bilan « Chays épuré », lot 2) : un bouton légendé à toutes les largeurs, à la place des icônes muettes. */
-.hp-add-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border: 1px solid var(--border); border-radius: 10px;
-    background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+.hp-add-btn { display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px 0 10px; border: 1px solid var(--border); border-radius: var(--r-ctl);
+    background: var(--surface); color: var(--text); font: inherit; font-size: var(--fs-3); font-weight: 600; cursor: pointer;
     transition: background-color var(--dur-1), border-color var(--dur-1); }
 .hp-add-btn .ico { width: 16px; height: 16px; fill: none; }
 @media (hover: hover) { .hp-add-btn:hover { border-color: var(--accent); } }
@@ -224,25 +224,25 @@
 /* Titres de bloc */
 .hp-h { display: flex; align-items: center; gap: 8px; min-height: 30px; }
 /* Description du répertoire sous « Jouer » : un texte, le toucher la modifie (editRepNote). */
-.hp-desc { display: block; width: 100%; margin: -2px 0 4px; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; line-height: 1.4; color: var(--text-muted); text-align: left; cursor: text; overflow-wrap: anywhere; }
+.hp-desc { display: block; width: 100%; margin: -2px 0 4px; padding: 0; border: 0; background: none; font: inherit; font-size: var(--fs-2); line-height: 1.4; color: var(--text-muted); text-align: left; cursor: text; overflow-wrap: anywhere; }
 .hp-desc[hidden] { display: none; }
 @media (hover: hover) { .hp-desc:hover { color: var(--text); } }
 .hp-desc:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .hp-h h2, .hp-h h3 { margin: 0; font-family: var(--font-sans); font-weight: 700; font-size: 14px; letter-spacing: .01em; color: var(--text); }
-.hp-n { margin-left: auto; font-family: var(--font-note); font-size: 12px; color: var(--text-dim); }
+.hp-n { margin-left: auto; font-family: var(--font-note); font-size: var(--fs-1); color: var(--text-dim); }
 
 /* ─── Aujourd'hui ───
    De haut en bas : surtitre, chiffre dû et anneau, position la plus en retard, action, programme ou prévision.
    Mise en page détaillée : section « ACCUEIL PUPITRE (LOT 7) » en fin de fichier. */
 .hp-day, .hp-start {
-    position: relative; height: 100%; display: flex; flex-direction: column; gap: 18px; padding: 20px; border-radius: 22px;
+    position: relative; height: 100%; display: flex; flex-direction: column; gap: 18px; padding: 20px; border-radius: var(--r-panel);
     border: 1px solid var(--border); box-shadow: var(--shadow-sm); overflow: hidden;
     background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--board-dark) 26%, transparent), transparent 62%), var(--surface);
 }
 .hp-streak { padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
 .hp-title { margin: 4px 0 2px; font-family: var(--font-display); font-weight: 600; font-size: 27px; line-height: 1.04; letter-spacing: -.015em; color: var(--text); text-wrap: balance; }
 .hp-title em { font-style: normal; color: var(--accent); }
-.hp-sub { margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-muted); }
+.hp-sub { margin: 0; font-size: var(--fs-3); line-height: 1.45; color: var(--text-muted); }
 .hp-sub b { color: var(--text); font-weight: 600; }
 /* Rythme du jour Léger, Normal, Soutenu (_homePaceHTML, préférence dailyGoal) : replié, la durée du sous-titre l'ouvre
    (lot 1 « Chays épuré »). */
@@ -253,7 +253,7 @@
 .hp-pace-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
 .hp-pace { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 12px; }
 .hp-pace-opt { display: grid; gap: 1px; justify-items: center; min-height: var(--tap, 44px); padding: 6px 4px;
-    border: 1px solid var(--border); border-radius: 10px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+    border: 1px solid var(--border); border-radius: var(--r-ctl); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
 .hp-pace-opt b { font-size: 13px; font-weight: 600; }
 .hp-pace-opt small { font-family: var(--font-note); font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .hp-pace-opt.is-on { border-color: var(--accent); background: color-mix(in oklab, var(--accent) 12%, transparent); }
@@ -263,46 +263,44 @@
 .hp-steps { list-style: none; margin: 16px 0 0; padding: 0; border-top: 1px solid var(--border); }
 .hp-steps li { border-bottom: 1px solid var(--border); }
 .hp-step {
-    display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 52px;
-    padding: 8px 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 10px;
+    display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 52px;
+    padding: 8px 4px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--r-ctl);
     transition: background var(--dur-2) var(--ease-out);
 }
 @media (hover: hover) { .hp-step:not(.is-done):hover { background: var(--surface-hover); } }
 .hp-step:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .hp-step.is-done { cursor: default; }
-.hp-step-ico { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.hp-step-ico { display: grid; place-items: center; width: 34px; height: 34px; border-radius: var(--r-tile); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .hp-step-ico .ico { width: 16px; height: 16px; fill: none; }
 .hp-step-ico.is-err { color: var(--err); background: color-mix(in srgb, var(--err) 13%, transparent); }
-.hp-step-ico.is-new { color: var(--new); background: color-mix(in srgb, var(--new) 13%, transparent); }
 .hp-step-ico.is-brass { color: var(--ct-laiton); background: color-mix(in srgb, var(--ct-laiton) 15%, transparent); }
-.hp-step.is-done .hp-step-ico { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+/* Étape faite : la coche noyer de la gravure (Engrave), plus de vert ; ce qui vient de vos parties reste noyer, défi et finale en laiton. */
+.hp-step.is-done .hp-step-ico { color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .hp-step-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .hp-step-txt b { font-size: 14px; font-weight: 600; color: var(--text); }
 .hp-step-txt small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; color: var(--text-muted); }
 .hp-step.is-done .hp-step-txt b { color: var(--text-muted); }
-.hp-step-n { min-width: 28px; padding: 2px 8px; border-radius: 999px; text-align: center; font-size: 12.5px; font-weight: 700;
-             font-variant-numeric: tabular-nums; color: var(--text-muted); background: var(--bg-inset); }
+.hp-step-txt small .hp-dot { margin-right: 5px; }
+/* Fin de ligne : une puce de compte (.count, components.css) et un chevron ; la ligne entière est l'action. */
+.hp-step-end { display: inline-flex; align-items: center; gap: 2px; color: var(--text-muted); }
+.hp-step-end .ico { width: 16px; height: 16px; fill: none; }
 @media (prefers-reduced-motion: reduce) { .hp-step { transition: none; } }
 /* Défi du jour (atelier « L'envie de revenir », lot 3, _homeDailyHTML) : première ligne sous « Commencer », pastille
    « Relever » ; fait : son résultat, plus d'action. */
 .hp-daily-streak { color: var(--brand-brass-deep); }
 [data-theme="dark"] .hp-daily-streak { color: var(--brand-brass); }
-.hp-daily-go, .hp-daily-st { font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-.hp-daily-go { padding: 5px 12px; border-radius: 999px; color: var(--accent-text); background: var(--accent); }
-.hp-daily-st.is-ok { color: var(--ok); }
-.hp-daily-st.is-ko { color: var(--text-muted); }
 .hp-ctas { display: flex; flex-direction: column; align-items: stretch; gap: 4px; margin-top: 16px; }
 .hp-cta {
     display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 50px; padding: 0 22px;
-    border: 0; border-radius: 14px; background: var(--accent); color: var(--accent-text); font: inherit; font-size: 15px; font-weight: 700; cursor: pointer;
+    border: 0; border-radius: var(--r-ctl); background: var(--accent); color: var(--accent-text); font: inherit; font-size: var(--fs-4); font-weight: 700; cursor: pointer;
     box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--accent) 90%, transparent); transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2);
 }
 .hp-cta .ico { width: 17px; height: 17px; fill: none; }
 @media (hover: hover) { .hp-cta:hover { transform: translateY(-1px); box-shadow: 0 14px 28px -14px color-mix(in srgb, var(--accent) 95%, transparent); } }
 .hp-cta:active { transform: translateY(1px) scale(.99); }
 .hp-cta:focus-visible, .hp-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.hp-link { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; padding: 0 8px; border: 0; border-radius: 10px;
-           background: none; color: var(--text-muted); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; }
+.hp-link { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 40px; padding: 0 8px; border: 0; border-radius: var(--r-ctl);
+           background: none; color: var(--text-muted); font: inherit; font-size: var(--fs-3); font-weight: 600; cursor: pointer; }
 .hp-link .ico { width: 15px; height: 15px; fill: none; }
 @media (hover: hover) { .hp-link:hover { color: var(--text); } }
 
@@ -325,7 +323,7 @@
 /* Répertoire vide : choisir une couleur */
 .hp-start .hp-title { margin: 0 0 4px; }
 .hp-picks { display: grid; gap: 10px; }
-.hp-pick { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px; border: 1px solid var(--border-strong); border-radius: 18px;
+.hp-pick { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 16px; align-items: center; padding: 12px; border: 1px solid var(--border-strong); border-radius: var(--r-card);
            background: var(--bg); color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--dur-2), transform var(--dur-2) var(--ease-out); }
 .hp-pick .st-mini { width: 100%; }
 .hp-pick b { display: block; font-size: 18px; }
@@ -334,9 +332,9 @@
 .hp-pick:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ─── Jouer : Blancs / Noirs, Reprendre ─── */
-.hp-play, .hp-inbox { padding: 14px 14px 10px; border: 1px solid var(--border); border-radius: 22px; background: var(--surface); }
+.hp-play, .hp-inbox { padding: 14px 14px 10px; border: 1px solid var(--border); border-radius: var(--r-panel); background: var(--surface); }
 .hp-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0 10px; }
-.hp-side { display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 16px; background: var(--bg);
+.hp-side { display: flex; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--r-card); background: var(--bg);
            color: var(--text); font: inherit; text-align: left; cursor: pointer; transition: background-color var(--dur-2), border-color var(--dur-2); }
 .hp-side-art .st-mini { width: 100%; border-radius: 6px; }
 .hp-side-txt { min-width: 0; }
@@ -352,14 +350,17 @@
 }
 .hp-side:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #resume-slot:empty { display: none; }
-#home-tab-play .resume-card { width: 100%; margin: 0 0 4px; border: 1px dashed var(--border-strong); background: none; box-shadow: none; border-radius: 14px; }
-@media (hover: hover) { #home-tab-play .resume-card:hover { transform: none; border-color: var(--accent); box-shadow: none; } }
-#home-tab-play .resume-ico { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); border: 0; border-radius: 9px; }
-#home-tab-play .resume-txt b { font-weight: 600; }
-#home-tab-play .resume-txt small { font-family: var(--font-note); }
+/* Reprendre et Échiquier libre : lignes pleines (les pointillés disent « emplacement vide », C11), tuile de 34 px.
+   Reprendre montre sa position (mini-échiquier de 34 px) ; sous-titre en Mono pour la notation, en Inter pour la prose (C6). */
+#home-tab-play .resume-card { width: 100%; margin: 0 0 4px; border: 1px solid var(--border); background: var(--surface); box-shadow: none; border-radius: var(--r-card); transform: none; }
+#home-tab-play .resume-ico { width: 34px; height: 34px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); border: 0; border-radius: var(--r-tile); }
+#home-tab-play .resume-ico.is-board { background: none; overflow: visible; }
+#home-tab-play .resume-ico .st-mini { width: 34px; border-radius: 4px; box-shadow: 0 0 0 1px var(--board-ring, var(--border-strong)); }
+#home-tab-play .resume-txt b { font-weight: 600; font-size: var(--fs-3); }
+#home-tab-play .resume-txt small { font-family: var(--font-note); font-size: var(--fs-1); }
+#home-tab-play .hp-free .resume-txt small { font-family: var(--font-sans); font-size: var(--fs-2); }
 
 /* ─── À traiter : nouveautés des parties, dernières parties (homePanels.js) ─── */
-.hp-count { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent); color: var(--accent-text); font-size: 11px; font-weight: 700; line-height: 20px; text-align: center; }
 .hp-tabs { display: flex; gap: 2px; margin-left: auto; padding: 2px; border-radius: 10px; background: var(--bg-inset); }
 .hp-tabs button { min-height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: none; color: var(--text-dim); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
 .hp-tabs button[aria-selected="true"] { background: var(--surface); color: var(--text); box-shadow: var(--shadow-sm); }
@@ -372,11 +373,11 @@
 .hp-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .hp-thumb .st-mini { width: 40px; border-radius: 5px; }
 .hp-row-txt { min-width: 0; }
-.hp-row-txt b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-note); font-weight: 500; font-size: 13px; }
-.hp-row-txt small { display: block; margin-top: 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12px; color: var(--text-dim); }
+.hp-row-txt b { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-family: var(--font-note); font-weight: 500; font-size: var(--fs-2); }
+.hp-row-txt small { display: block; margin-top: 1px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--fs-2); color: var(--text-dim); }
 .hp-row-end { display: flex; align-items: center; }
 .hp-empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 20px 12px 16px; text-align: center; font-size: 13px; color: var(--text-dim); }
-.hp-empty .ico { width: 40px; height: 40px; padding: 10px; border-radius: 12px; background: var(--bg-inset); color: var(--ok); fill: none; }
+.hp-empty .ico { width: 40px; height: 40px; padding: 10px; border-radius: var(--r-tile); background: var(--bg-inset); color: var(--accent); fill: none; }
 .hp-empty b { font-size: 14px; color: var(--text); }
 
 /* Sur une tablette, plus de place pour la position */
@@ -391,7 +392,6 @@
 @container home-play (min-width: 1000px) {
     .hp-day, .hp-start { padding: 26px; gap: 22px; }
     .hp-title { font-size: 40px; margin: 10px 0 6px; }
-    .hp-sub { font-size: 14.5px; }
     .hp-ctas { margin-top: 24px; }
     .hp-plan-row { grid-template-columns: 12px minmax(0, 1fr) 140px 36px; padding: 8px 0; font-size: 14px; }
     .hp-start .hp-title { font-size: 36px; }
@@ -405,7 +405,7 @@
 /* Suggestion « Essayer Noyer + Maestro » (une seule fois, homePanels.js) */
 #looks-tip:empty { display: none; }
 .looks-tip { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 14px; border: 1px solid var(--border);
-             border-radius: 16px; background: color-mix(in srgb, var(--surface) 80%, transparent); font-size: 12.5px; color: var(--text-muted); line-height: 1.45; }
+             border-radius: var(--r-card); background: color-mix(in srgb, var(--surface) 80%, transparent); font-size: var(--fs-2); color: var(--text-muted); line-height: 1.45; }
 .looks-tip > span:nth-child(2) { flex: 1 1 200px; }
 .looks-tip b { display: block; color: var(--text); font-size: 13.5px; }
 .looks-tip-sw { flex: none; width: 36px; height: 36px; border-radius: 8px; background: repeating-conic-gradient(#70503a 0 25%, #dbc09a 0 50%) 0 0 / 18px 18px; box-shadow: 0 0 0 1px var(--border); }
@@ -421,8 +421,8 @@
 
 /* Barre de contexte : cibles de 44 px */
 .hp-scope .rp-chip { min-height: var(--tap); }
-.hp-scope .hp-add-btn { height: var(--tap); border-radius: 12px; }
-.hp-scope .menu-btn { width: var(--tap); height: var(--tap); border-radius: 12px; }
+.hp-scope .hp-add-btn { height: var(--tap); border-radius: var(--r-ctl); }
+.hp-scope .menu-btn { width: var(--tap); height: var(--tap); border-radius: var(--r-ctl); }
 .hp-scope .hp-q { width: 36px; height: 36px; }
 .hp-scope .menu-btn:focus-visible, .hp-scope .rp-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -432,40 +432,35 @@
 .hp-play .hp-h h2, .hp-inbox .hp-h h2 { font: 600 19px/1.1 var(--font-display); letter-spacing: 0; }
 
 /* Aujourd'hui : surtitre Plex Mono */
-.hp-over { margin: 0 0 12px; font: 500 11.5px/1.4 var(--font-note); letter-spacing: .04em; color: var(--text-muted); }
+.hp-over { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; margin: 0 0 12px;
+    font: 500 var(--fs-1)/1.4 var(--font-note); letter-spacing: .04em; color: var(--text-muted); }
+.hp-streak-row { display: inline-flex; align-items: center; gap: 8px; }
 .hp-over .hp-streak { padding: 0; background: none; color: var(--text); font: inherit; font-weight: 600; }
 /* Joker de la série (Habits.streak) : laiton plein tant que celui de la semaine est libre, cerclé une fois utilisé. */
-.hp-joker { display: inline-block; width: 8px; height: 8px; margin-left: 4px; vertical-align: 1px; border-radius: 50%; background: var(--brand-brass-deep); box-shadow: 0 0 0 1.5px var(--brand-brass-deep); }
+.hp-joker { display: inline-block; width: 8px; height: 8px; vertical-align: 1px; border-radius: 50%; background: var(--brand-brass-deep); box-shadow: 0 0 0 1.5px var(--brand-brass-deep); }
 .hp-joker.is-used { background: transparent; }
 [data-theme="dark"] .hp-joker { background: var(--brand-brass); box-shadow: 0 0 0 1.5px var(--brand-brass); }
 [data-theme="dark"] .hp-joker.is-used { background: transparent; }
 .hp-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; }
 .hp-day .hp-title { margin: 0 0 6px; font-size: 28px; line-height: 1.08; letter-spacing: -.01em; }
 .hp-title em { font-variant-numeric: tabular-nums; }
-.hp-day.is-done .hp-title em { color: var(--ok); }
 .hp-goal .ring-txt b { font-family: var(--font-note); font-weight: 600; font-size: 13px; }
 .hp-goal .ring-txt small { font-size: 9.5px; }
 
 
 /* L'unique action pleine, puis un lien centré sans cadre */
 .hp-ctas { display: grid; gap: 2px; margin-top: 18px; }
-.btn.btn-primary.hp-cta { width: 100%; min-height: 50px; padding: 0 22px; gap: 10px; border-radius: 14px; font-size: 15px; letter-spacing: 0;
+.btn.btn-primary.hp-cta { width: 100%; min-height: 50px; padding: 0 22px; gap: 10px; border-radius: var(--r-ctl); font-size: var(--fs-4); letter-spacing: 0;
     box-shadow: 0 10px 24px -14px color-mix(in srgb, var(--accent) 90%, transparent); }
-.hp-ctas .hp-link { justify-self: center; min-height: var(--tap); }
+/* Téléphone : « Commencer » est au centre du dock ; le lien s'aligne à gauche sous la règle de cases et ferme la carte (C14). */
+.hp-ctas .hp-link { justify-self: start; margin-left: -8px; min-height: var(--tap); }
 .hp-plan { margin-top: 16px; padding-top: 10px; }
 .hp-plan .hp-h h3 { font: 500 10.5px/1 var(--font-note); letter-spacing: .13em; text-transform: uppercase; color: var(--text-dim); }
 
-/* Prévision des 7 prochains jours */
-.hp-fc { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
-.hp-fc li { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; min-height: 66px; }
-.hp-fc-n { font: 600 11.5px/1 var(--font-note); color: var(--text); font-variant-numeric: tabular-nums; }
-.hp-fc i { display: block; width: 100%; max-width: 22px; border-radius: 3px 3px 1px 1px; background: color-mix(in oklab, var(--data-me) 45%, var(--border)); }
-.hp-fc li:first-child i { background: var(--data-me); }
-.hp-fc span { font: 500 10.5px/1.2 var(--font-note); color: var(--text-dim); }
 
 /* Répertoire vide : deux cartes, une choisie, l'action sous les cartes */
 .hp-start .hp-picks { margin-top: 14px; grid-template-columns: 1fr 1fr; }
-.hp-pick { grid-template-columns: 1fr; gap: 10px; padding: 12px; border: 0; border-radius: 16px; transition: transform var(--dur-2) var(--ease-out); }
+.hp-pick { grid-template-columns: 1fr; gap: 10px; padding: 12px; border: 0; border-radius: var(--r-card); transition: transform var(--dur-2) var(--ease-out); }
 .hp-pick.is-w { background: var(--card-w-bg); color: var(--card-w-ink); }
 .hp-pick.is-b { background: var(--card-b-bg); color: var(--card-b-ink); box-shadow: inset 0 0 0 1px var(--card-b-line); }
 .hp-pick b { font: 600 17px/1.1 var(--font-display); }
@@ -475,7 +470,7 @@
 .hp-alts .hp-link { min-height: var(--tap); }
 
 /* Jouer : cartes Velours (on entre dans Jouer, qui ne compte rien) */
-.hp-side { position: relative; border: 0; border-radius: 16px; padding: 12px; gap: 10px; overflow: hidden;
+.hp-side { position: relative; border: 0; border-radius: var(--r-card); padding: 12px; gap: 10px; overflow: hidden;
     transition: transform var(--dur-2) var(--ease-out), box-shadow var(--dur-2); }
 .hp-side:nth-child(1) { background: var(--card-w-sheen), var(--card-w-bg); color: var(--card-w-ink); box-shadow: var(--shadow-sm); }
 .hp-side:nth-child(2) { background: var(--card-b-sheen), var(--card-b-bg); color: var(--card-b-ink); box-shadow: var(--shadow-sm), inset 0 0 0 1px var(--card-b-line); }
@@ -491,8 +486,8 @@
     .hp-side:hover, .hp-pick:hover { transform: translateY(-3px); box-shadow: var(--shadow); }
     .hp-side:hover .hp-go { background: var(--accent); color: var(--accent-text); transform: none; }
 }
-#home-tab-play .resume-card { margin-top: 2px; min-height: 56px; border: 1.5px dashed var(--border-strong); border-radius: 14px; }
-@media (hover: hover) { #home-tab-play .resume-card:hover { background: var(--accent-soft); border-color: var(--accent-line); } }
+#home-tab-play .resume-card { margin-top: 2px; min-height: 56px; }
+@media (hover: hover) { #home-tab-play .resume-card:hover { transform: none; box-shadow: none; background: var(--surface-hover); border-color: var(--border-strong); } }
 #home-tab-play .resume-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Échiquier libre (lot 2 « Chays épuré ») : quitte la barre du haut pour « Jouer », sous « Reprendre ». */
 #home-tab-play .hp-free { margin-top: 6px; }
@@ -504,11 +499,11 @@
 .hp-list { margin: 10px -8px 0; }
 .hp-row { grid-template-columns: 48px minmax(0, 1fr) auto; min-height: 64px; padding: 8px; cursor: default; }
 .hp-row + .hp-row { border-top: 1px solid var(--border); border-radius: 0; }
-@media (hover: hover) { .hp-row:hover, .hp-row:not(.is-static):hover { background: var(--accent-soft); } }
+@media (hover: hover) { .hp-row:hover, .hp-row:not(.is-static):hover { background: var(--surface-hover); } }   /* lignes : teinte (C17) */
 .hp-thumb .st-mini { width: 48px; border-radius: 4px; box-shadow: 0 0 0 1px var(--board-ring, var(--border-strong)); }
 .hp-row-end { flex-direction: column; align-items: flex-end; gap: 4px; }
 .hp-row-end:has(.hp-answer) { flex-direction: row; align-items: center; gap: 8px; }
-.btn.btn-soft.hp-answer { min-height: 36px; height: 36px; padding: 0 12px; border-radius: 10px; font-size: 12.5px;
+.btn.btn-soft.hp-answer { min-height: 36px; height: 36px; padding: 0 12px; border-radius: var(--r-ctl); font-size: var(--fs-2); letter-spacing: 0;
     color: color-mix(in oklab, var(--accent) 80%, var(--text)); }   /* texte de 12,5 px : 4,5:1 au moins sur la surface, en clair comme en sombre */
 
 /* À traiter : défilement (chantier « Accueil et lancement », novembre 2026, homePanels.js). Au-delà de 5 lignes, la liste
@@ -560,7 +555,7 @@
 @container home-play (min-width: 1000px) {
     .hp-grid { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
     .hp-day, .hp-start { padding: 26px; }
-    .hp-day .hp-title { font-size: 38px; }
+    .hp-day .hp-title { font-size: var(--fs-6); }
     .hp-goal.ring { width: 76px; height: 76px; }
     .hp-goal .ring-txt b { font-size: 15px; }
     .hp-sides { grid-template-columns: 1fr 1fr; }
@@ -572,6 +567,97 @@
 @media (prefers-reduced-motion: reduce) {
     .hp-side, .hp-pick, .btn.btn-primary.hp-cta { transition: none; }
     .hp-side:hover, .hp-pick:hover { transform: none; }
+}
+
+/* ─── AUJOURD'HUI EN IMAGES (audit du 24 novembre 2026, direction B « Le plateau parle ») ─────────────
+   Quatre visuels remplacent des phrases, sans nouveau nombre : la règle de cases (objectif du jour), les puces d'ouverture
+   à vignette, le ruban de la semaine (série, joker, prévision), la flèche du coup adverse (À traiter, css/screens.css).
+   Les cartes Blancs / Noirs montrent leurs ouvertures du jour en éventail, la barre de maîtrise est légendée sur plaque. */
+
+/* Règle de cases : une case par position de l'objectif, pleine une fois jouée ; le libellé « 12 / 30 » toujours écrit. */
+.hp-cases { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 16px; }
+.hp-cases-row { display: flex; flex-wrap: wrap; gap: 3px; max-width: 100%; }
+.hp-cases-row i { width: 10px; height: 10px; border-radius: 2px; background: var(--bg-inset); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.hp-cases-row i.on { background: var(--accent); box-shadow: none; }
+.hp-cases-n { font: 500 var(--fs-1)/1 var(--font-note); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.hp-cases.is-done .hp-cases-n { color: var(--accent); }
+
+/* Puces des ouvertures du jour : jeton de 22 px, nom, nombre. */
+.hp-ops { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0 0; padding: 0; list-style: none; }
+.hp-op { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-width: 0; padding: 3px 10px 3px 3px; border: 1px solid var(--border);
+    border-radius: 999px; background: var(--surface); font-size: var(--fs-2); color: var(--text); }
+.hp-op .st-mini { width: 22px; flex: none; border-radius: 50%; box-shadow: 0 0 0 1px var(--board-ring, var(--border-strong)); }
+.hp-op-name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hp-op b { font: 500 var(--fs-1)/1 var(--font-note); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* Ruban de la semaine (Habits.week) : fait (noyer coché), joker (laiton), manqué (vide), aujourd'hui (cerclé), à venir (pointillés). */
+.hp-week { display: inline-flex; align-items: flex-end; gap: 3px; }
+.hp-wk { display: grid; justify-items: center; gap: 2px; font: 500 9.5px/1 var(--font-note); letter-spacing: 0; color: var(--text-dim); text-transform: uppercase; }
+.hp-wk i { position: relative; display: block; width: 14px; height: 14px; border-radius: 4px; background: var(--bg-inset); box-shadow: inset 0 0 0 1px var(--border-strong); }
+.hp-wk.is-done i { background: var(--accent); box-shadow: none; }
+.hp-wk.is-done i::after { content: ''; position: absolute; left: 4px; top: 3.5px; width: 6px; height: 3px; border: solid var(--accent-text); border-width: 0 0 1.6px 1.6px; transform: rotate(-45deg); }
+.hp-wk.is-joker i { background: var(--brand-brass-deep); box-shadow: none; }
+[data-theme="dark"] .hp-wk.is-joker i { background: var(--brand-brass); }
+.hp-wk.is-today i { background: none; box-shadow: inset 0 0 0 2px var(--accent); }
+.hp-wk.is-future i { background: none; box-shadow: none; border: 1px dashed var(--border-strong); }
+@media (prefers-reduced-motion: no-preference) { .hp-wk i, .hp-cases-row i { transition: background-color var(--dur-2) var(--ease-out); } }
+
+/* Journée faite ou à jour : le ruban prolongé, six jours passés puis les 7 prochains avec leur nombre de révisions. */
+.hp-span { display: grid; grid-template-columns: 6fr 7fr; gap: 10px; margin-top: 10px; }
+.hp-past, .hp-fc { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.hp-past { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.hp-fc { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.hp-span .hp-wk { gap: 4px; }
+.hp-span .hp-wk i { width: 16px; height: 16px; }
+.hp-span .hp-wk.is-done i::after { left: 5px; top: 4.5px; }
+.hp-span .hp-wk > b { min-height: 12px; font: 600 var(--fs-1)/1 var(--font-note); color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* Défi du jour : la couleur en pastille ; À traiter : le coup nouveau surligné (pas la couleur seule). */
+.hp-dot { display: inline-block; width: 9px; height: 9px; margin-right: 5px; vertical-align: -.5px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--text-muted); }
+.hp-dot.is-w { background: #fffdf8; }
+.hp-dot.is-b { background: var(--brand-walnut); }
+mark.hp-move-new { padding: 0 2px; border-radius: 3px; color: inherit; background: color-mix(in oklab, var(--brand-brass) 22%, transparent); box-shadow: inset 0 -2px 0 var(--brand-brass-deep); }
+[data-theme="dark"] mark.hp-move-new { box-shadow: inset 0 -2px 0 var(--brand-brass); }
+
+/* Cartes Blancs / Noirs : éventail des ouvertures du jour (une, deux ou trois). */
+.hp-side { grid-template-columns: auto minmax(0, 1fr) auto; }
+.hp-side-art { display: block; width: 64px; flex: none; }
+.hp-side-art:has(.hp-fan.is-2), .hp-side-art:has(.hp-fan.is-3) { width: 72px; }
+.hp-fan { position: relative; display: block; height: 64px; }
+.hp-side-art .hp-fan .st-mini { position: absolute; top: 12px; width: 40px; border-radius: 4px; box-shadow: 0 2px 6px rgba(0, 0, 0, .3); }
+.hp-side-art .hp-fan.is-1 .st-mini { position: static; width: 64px; }
+.hp-side-art .hp-fan.is-2 .st-mini:nth-child(1) { left: 0; transform: rotate(-6deg); }
+.hp-side-art .hp-fan.is-2 .st-mini:nth-child(2) { right: 0; top: 6px; transform: rotate(5deg); }
+.hp-side-art .hp-fan.is-3 .st-mini:nth-child(1) { left: 0; transform: rotate(-7deg); }
+.hp-side-art .hp-fan.is-3 .st-mini:nth-child(2) { left: 16px; top: 4px; z-index: 1; }
+.hp-side-art .hp-fan.is-3 .st-mini:nth-child(3) { right: 0; transform: rotate(7deg); }
+
+/* Barre de maîtrise sur plaque claire, légendée (levelBarHTML, opts.legend) : mêmes couleurs sur les deux cartes. */
+.lv-plate { display: grid; gap: 5px; padding: 6px 7px 5px; border-radius: 8px; color: #3b2a1c;
+    background: color-mix(in oklab, var(--card-w-bg) 55%, #fffdf8); box-shadow: inset 0 0 0 1px rgba(59, 42, 28, .1); }
+.lv-plate.hp-bar { height: auto; }
+.lv-plate .lv-bar { height: 6px; }
+.lv-legend { display: flex; flex-wrap: wrap; gap: 2px 10px; font: 500 var(--fs-1)/1.3 var(--font-sans); letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.lv-legend > span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.lv-legend .lv-mark { width: 8px; height: 8px; }
+
+/* Téléphone : la puce du répertoire ne garde que « 30 à réviser » (C15). */
+@media (max-width: 599px) {
+    .hp-scope .rp-txt small:has(.rp-due) .rp-n, .hp-scope .rp-sep { display: none; }
+    #hp-today .hp-ctas { margin-top: 6px; }       /* « Commencer » est au dock : le lien suit la règle de près */
+}
+
+/* Grand écran : les deux cartes l'une sous l'autre (la légende tient sur une ligne), éventail plus serré. */
+@container home-play (min-width: 1000px) {
+    .hp-sides { grid-template-columns: 1fr; }
+    .hp-side { grid-template-columns: auto minmax(0, 1fr) auto; }
+    .hp-side .hp-go { display: grid; }
+    .hp-side-art { width: 56px; }
+    .hp-side-art:has(.hp-fan.is-2), .hp-side-art:has(.hp-fan.is-3) { width: 70px; }
+    .hp-fan { height: 58px; }
+    .hp-side-art .hp-fan .st-mini { width: 38px; }
+    .hp-side-art .hp-fan.is-1 .st-mini { width: 56px; }
+    .hp-side-art .hp-fan.is-3 .st-mini:nth-child(2) { left: 16px; }
 }
 
 /* ─── CAPSULE « SUITE » (suite.js) ─────────────────────────────────────────────
