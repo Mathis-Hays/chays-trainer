@@ -5,7 +5,7 @@
  * ou Lichess (API publiques, sans compte ni clé), les compare au répertoire actif et liste les déviations.
  *   - la couleur jouée est déduite du pseudo (en-têtes White / Black) ;
  *   - chaque partie passe par reviewGame (gameReview.js) avec la base de cette couleur : verdict noté au
- *     journal des parties, erreur d'ouverture comptée tout de suite, une seule fois par partie ;
+ *     journal des parties, erreur d'ouverture « à vérifier » à la prochaine révision, une seule fois par partie ;
  *   - les parties déjà analysées sont masquées par défaut (un bouton les affiche) ;
  *   - un clic sur une partie ouvre « Jouer » sur la position après le coup déviant (showReviewResult) ;
  *     dès 920 px, le clic choisit d'abord la partie, montrée à droite (position, extrait de la ligne, verdict) ;
@@ -83,7 +83,7 @@ function _userColor(headers, user) {
 
 // Compare chaque partie au répertoire `rep` et compte les erreurs nouvelles. Renvoie { rows, summary }.
 // Une ligne : { game, color, r (detectDeviation), counted, kind, res (reviewGame) } ;
-// kind : 'mistake' | 'novelty' | 'out' | 'treated' | 'theory'.
+// kind : 'mistake' | 'choice' | 'novelty' | 'out' | 'treated' | 'theory'.
 function analyzeOnlineGames(games, user, rep = currentRepertoire) {
     const bases = {};
     const base  = c => bases[c] || (bases[c] = { db: readDBFor(rep, c), opp: readOppFor(rep, c), dirty: false, save() { this.dirty = true; } });
@@ -102,7 +102,7 @@ function analyzeOnlineGames(games, user, rep = currentRepertoire) {
         if (res.kind === 'mistake') { summary.mistakes++; if (res.counted === 'counted') summary.newMistakes++; }
         if (res.kind === 'novelty' || res.kind === 'out') summary.novelties++;
         if (res.kind === 'treated') summary.treated++;
-        if (res.kind === 'theory') summary.theory++;
+        if (res.kind === 'theory' || res.kind === 'choice') summary.theory++;
         rows.push({ game, color, r: res.r, counted: res.counted, kind: res.kind, res });
     });
     Object.keys(bases).forEach(c => { if (bases[c].dirty) dataStore.set(dbKeyFor(rep, c), JSON.stringify(bases[c].db)); });
@@ -116,6 +116,7 @@ function analyzeOnlineGames(games, user, rep = currentRepertoire) {
 // lors d'une analyse précédente (deviation.known), toujours sans réponse.
 const ONLINE_VERDICTS = {
     mistake:  { cls: 'is-err',   label: 'Erreur d\'ouverture' },
+    choice:   { cls: 'is-muted', label: 'Autre ouverture' },
     out:      { cls: 'is-muted', label: 'Hors répertoire' },
     novelty:  { cls: 'is-warn',  label: 'Nouveauté adverse' },
     noanswer: { cls: 'is-new',   label: 'Sans réponse' },
@@ -128,10 +129,10 @@ const ONLINE_FILTERS = [
     { key: 'err',     label: 'Erreurs',    cls: 'is-err',   kinds: ['mistake'] },
     { key: 'new',     label: 'Nouveautés', cls: 'is-warn',  kinds: ['novelty', 'out'] },
     { key: 'treated', label: 'Traitées',   cls: 'is-ok',    kinds: ['treated'] },
-    { key: 'theory',  label: 'Théoriques', cls: 'is-muted', kinds: ['theory'] }
+    { key: 'theory',  label: 'Théoriques', cls: 'is-muted', kinds: ['theory', 'choice'] }
 ];
 
-const _ONLINE_ORDER = { mistake: 0, novelty: 1, out: 2, treated: 3, theory: 4 };
+const _ONLINE_ORDER = { mistake: 0, novelty: 1, out: 2, treated: 3, choice: 4, theory: 5 };
 const _SITE_NAME    = { lichess: 'Lichess', chesscom: 'Chess.com' };
 
 // Clé de ONLINE_VERDICTS d'une ligne de analyzeOnlineGames.
@@ -145,9 +146,9 @@ function _onlineBadge(row) {
     return `<span class="vbadge ${v.cls}">${v.label}</span>`;
 }
 
-// « comptée » : l'erreur vient d'être comptée par cette analyse ; « déjà » : elle l'était au journal.
+// « à vérifier » : l'erreur vient d'être relevée par cette analyse ; « déjà » : elle l'était au journal.
 function _onlineTag(row) {
-    if (row.counted === 'counted') return '<span class="online-tag is-counted">comptée</span>';
+    if (row.counted === 'counted') return '<span class="online-tag is-counted">à vérifier</span>';
     if (row.counted === 'already') return '<span class="online-tag">déjà</span>';
     return '';
 }
@@ -391,7 +392,7 @@ function _renderOnlineResults() {
     const seenBar = s.seen ? `<div class="online-seen">${ico('eye')}<span>${_online.showSeen ? _onlinePl(s.seen, 'déjà analysée', 'déjà analysées') + ' affichée' + (s.seen > 1 ? 's' : '') : _onlinePl(s.seen, 'déjà analysée masquée', 'déjà analysées masquées')}</span>${_onlineShowSeenBtn(s.seen, 'online-seen-btn')}</div>` : '';
     const sel = _online.rows[_online.sel];
 
-    box.innerHTML = `<p class="sr-only" role="status">${escapeHtml(counted || already ? `${_onlinePl(counted, 'erreur comptée', 'erreurs comptées')}${already ? ` · ${already} l'étai${already > 1 ? 'ent' : 't'} déjà` : ''}` : `${_onlinePl(rows.length, 'partie', 'parties')} analysée${rows.length > 1 ? 's' : ''}`)}</p>
+    box.innerHTML = `<p class="sr-only" role="status">${escapeHtml(counted || already ? `${_onlinePl(counted, 'erreur à vérifier', 'erreurs à vérifier')}${already ? ` · ${already} l'étai${already > 1 ? 'ent' : 't'} déjà` : ''}` : `${_onlinePl(rows.length, 'partie', 'parties')} analysée${rows.length > 1 ? 's' : ''}`)}</p>
         <div class="online-inbox">
           <div class="online-col">
             <div class="online-chips" role="group" aria-label="Filtrer par verdict">${chips}</div>

@@ -3,8 +3,11 @@
  * ──────────────────────────────────────────────────────────────────────────
  * « Analyser une partie » : on colle le PGN d'une partie jouée (Chess.com, Lichess…) et l'on
  * cherche le premier demi-coup qui sort du répertoire actif pour la couleur choisie.
- *   - coup de MON camp différent de la réponse enregistrée → erreur d'ouverture :
- *     attempts + 1, failures + 1, révision remise à plus tard (comme un mauvais coup dans « Jouer ») ;
+ *   - coup de MON camp différent de la réponse enregistrée → erreur d'ouverture « à vérifier » (chantier « Erreurs et
+ *     niveaux ») : rien n'est compté, la position passe en tête de la prochaine révision (prio, due) ; elle ne coûte
+ *     un palier que si elle est aussi ratée en séance ;
+ *   - mon premier coup différent (demi-coups 0 et 1) → « Autre ouverture » (choice) : un choix, pas une erreur ;
+ *     une erreur comptée avant cette règle pour cette partie est retirée une fois (_undoChoice, counted.undone) ;
  *   - coup ADVERSE menant à une position sans réponse de mon camp → nouveauté adverse
  *     (aucune erreur comptée).
  *   - déviation déjà TRAITÉE : la réponse qui la couvre a été enregistrée APRÈS la partie (champ created
@@ -153,11 +156,57 @@ function _legacyCounted(sig) {
     return Array.isArray(list) && list.includes(sig);
 }
 
+// Erreur comptée avant la règle du choix d'ouverture : retirée des compteurs, palier recalculé sans elle (explicite,
+// pour que la synchronisation, qui ne fait que monter les compteurs, garde le bon niveau). true si l'entrée a changé.
+function _undoChoice(e) {
+    if (!e || !(e.failures > 0) || !(e.attempts > 0)) return false;
+    e.attempts--;
+    e.failures--;
+    delete e.run;
+    if (!e.failures) delete e.relearn;
+    e.mastery = e.attempts ? Math.round(100 * (1 - e.failures / e.attempts)) : MASTERY_START;
+    delete e.step;
+    e.step = stepOf(e);
+    return true;
+}
+
+// Nettoyage unique (chantier « Erreurs et niveaux ») : les erreurs comptées avant la règle du choix d'ouverture, sur mon
+// premier coup (demi-coup 0 aux Blancs, 1 aux Noirs), sont retirées. Blancs : la position de départ. Noirs : le premier
+// coup adverse est lu dans la partie archivée de même couleur et de même heure de début (GameArchive, à 2 s près) ;
+// sans elle, l'erreur attend un lancement suivant ou une nouvelle relecture de la partie (reviewGame). Rien de recompté :
+// chaque retrait est noté au journal (counted.undone). archive : parties de GameArchive.all(). Renvoie le nombre retiré.
+function undoOpeningChoices(archive = []) {
+    const ledger = readLedger(), now = Date.now(), dbs = {};
+    const dbOf = (rep, c) => dbs[rep + '|' + c] || (dbs[rep + '|' + c] = { rep, c, db: readDBFor(rep, c), dirty: false });
+    let n = 0, marked = false;
+    Object.values(ledger).forEach(g => Object.keys(g.v || {}).forEach(scope => {
+        const v = g.v[scope], cnt = g.counted && g.counted[scope];
+        if (!v || !['mistake', 'choice'].includes(v.kind) || v.by === 'opp' || !(v.ply <= 1) || !cnt || cnt.undone) return;
+        const [rep, c] = [scope.slice(0, scope.lastIndexOf('|')), scope.slice(scope.lastIndexOf('|') + 1)];
+        let pos = Chess.start();
+        if (c === 'b') {
+            const a = archive.find(x => x.color === 'b' && g.at && Math.abs((x.start || 0) - g.at) < 2000 && x.sans && x.sans.length);
+            const uci = a && Chess.legalMoves(pos).find(u => Chess.san(pos, u) === a.sans[0]);
+            if (!uci) return;
+            pos = Chess.play(pos, uci);
+        }
+        const b = dbOf(rep, c);
+        if (_undoChoice(b.db[Chess.key(pos)])) { b.dirty = true; n++; }
+        cnt.undone = now;
+        v.kind = 'choice';
+        marked = true;
+    }));
+    if (!marked) return 0;
+    Object.values(dbs).forEach(b => { if (b.dirty) dataStore.set(dbKeyFor(b.rep, b.c), JSON.stringify(b.db)); });
+    writeLedger(ledger);
+    return n;
+}
+
 // Compare une partie au répertoire `rep` (camp `color`), compte l'erreur au besoin et note le verdict dans
 // `ledger` (lu et écrit par l'appelant : une seule écriture pour un lot de parties).
 //   base : { db, opp, save } — save() est appelé si db a changé (erreur comptée, priorité posée)
 // Renvoie { r, kind, counted, prev, answer, ply, by } :
-//   kind    : 'theory' | 'mistake' | 'out' | 'novelty' | 'treated' (null : premier coup illisible, rien n'est noté)
+//   kind    : 'theory' | 'mistake' | 'choice' | 'out' | 'novelty' | 'treated' (null : premier coup illisible, rien n'est noté)
 //   counted : 'counted' | 'already' | null
 //   prev    : { first, kind } si la partie avait déjà été analysée pour ce répertoire et cette couleur
 //   ply, by : demi-coup et camp de la déviation retenue · answer : { key, san } de la réponse ajoutée depuis
@@ -178,14 +227,19 @@ function reviewGame(game, color, rep, base, ledger) {
         kind = 'treated'; ply = pv.ply; by = pv.by || (pv.kind === 'novelty' ? 'opp' : 'me'); answerKey = d.key;
     }
 
+    if (kind === 'mistake' && by === 'me' && ply <= 1) kind = 'choice';    // autre ouverture dès mon premier coup
+
     let counted = null;
+    if (kind === 'choice' && g && g.counted && g.counted[scope] && !g.counted[scope].undone) {
+        if (_undoChoice(base.db[d.key])) base.save();
+        g.counted[scope].undone = now;
+    }
     if (kind === 'mistake') {
         if ((g && g.counted && g.counted[scope]) || _legacyCounted(_gameSignature(game.headers, game.sans, color, rep))) counted = 'already';
         else {
             const e = base.db[d.key];
-            e.attempts++;
-            e.failures++;
-            recordReview(e, false);
+            if (!e.prio) e.prio = now;                  // à vérifier : en tête de la prochaine révision
+            e.due = Math.min(dueOf(e) || now, now);
             base.save();
             counted = 'counted';
         }
@@ -290,7 +344,9 @@ function showReviewResult(res) {
             + `Vous avez ajouté ${ans} depuis : rien n'est compté.${illegal}`);
     } else if (res.kind === 'mistake') {
         setStatus(`✗ Erreur d'ouverture : ${at}`, 'err',
-            (res.counted === 'already' ? `${seen || 'Partie déjà analysée. '}Erreur non recomptée. ` : 'Erreur comptée. ') + `◀ pour retrouver le bon coup.${illegal}`);
+            (res.counted === 'already' ? `${seen || 'Partie déjà analysée. '}Déjà notée. ` : 'À vérifier à la prochaine révision : elle ne coûte que si vous la ratez aussi. ') + `◀ pour retrouver le bon coup.${illegal}`);
+    } else if (res.kind === 'choice') {
+        setStatus(`Autre ouverture : ${at}`, 'info', `${seen}Vous avez ouvert autrement : c'est un choix, rien n'est compté.${illegal}`);
     } else if (res.kind === 'out') {
         setStatus(`Hors répertoire : ${at}`, 'info', `${seen}Votre répertoire n'a pas encore de réponse ici.${illegal}`);
     } else {

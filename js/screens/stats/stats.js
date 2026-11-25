@@ -11,7 +11,7 @@
  *   1. Maîtrise : part des positions maîtrisées, sa courbe dans le temps (MasteryLog, atelier lot 4 ; la barre tant
  *      qu'il n'y a qu'un relevé) et la légende qui filtre ; retard à part puis prévision sur 7 jours, constats des parties ;
  *      points faibles en cartes « Trouver le coup » (la carte ouvre l'aperçu).
- *      « À confirmer » (trop peu d'essais) est un état à part, hors des barres de niveaux.
+ *      « À découvrir » (trop peu d'essais) est un état à part, hors des barres de niveaux.
  *   2. Ouvertures : liste « miroir » (préparation à gauche, écart à l'attendu à droite) et une seule fiche
  *      (statsOpenings.js) ; chaque position s'affiche en aperçu ou se travaille seule (▶, seule action qui lance
  *      une révision) ; « Réviser cette ouverture » ouvre la Révision du jour filtrée sur elle.
@@ -21,7 +21,7 @@
  *
  * Six niveaux, utilisés partout (Statistiques, Entraînement, arbre du répertoire) ; échelle E3 (_level, levels.js),
  * d'après la série de réussites d'affilée run (runOf, review.js) :
- *   à confirmer     aucune erreur, moins de STATS_CONFIRM_TRIES essais
+ *   à découvrir     aucune erreur, moins de STATS_CONFIRM_TRIES essais
  *   à retravailler  dernier essai raté (run 0)
  *   fragile         1 réussite d'affilée
  *   en progrès      2
@@ -38,12 +38,12 @@ const STATS_WEAK_PAGE     = 30;     // « Points faibles › Tout voir » : posi
 const STATS_FORECAST_DAYS = 7;
 const STATS_TREND_WEEKS   = 8;
 
-// « À confirmer » est un état (trop peu d'essais pour juger), pas un niveau de maîtrise : il reste hors des barres.
+// « À découvrir » (jamais retrouvée de mémoire) est un état, pas un niveau de maîtrise : il reste hors des barres.
 const STATS_STATE = 'unsure';
 const STATS_MASTERY_LEVELS = STATS_LEVEL_ORDER.filter(l => l !== STATS_STATE);
 
 let statsColor  = 'all';     // 'w' | 'b' | 'all' ; « Les deux » à chaque lancement
-let statsFilter = 'all';     // 'all', un état (learn, doing, known, levels.js) ou 'unsure'
+let statsFilter = 'all';     // 'all', un état (learn, doing, known, levels.js) ou 'unsure' (À découvrir)
 let statsPane   = 'overview'; // vue : onglets 'overview' (Répertoire) | 'games' (Parties) ; par la bande : 'regularity' | 'medals'
 let statsWeak   = null;      // vue complète « Points faibles » : { shown, y } (y : défilement de la page quittée), sinon null
 
@@ -56,7 +56,7 @@ function _opRankHTML(r, cls = '') {
     return `<span class="op-rank is-r${r}${cls ? ' ' + cls : ''}" title="Rang : ${name}"><span class="op-rank-m" aria-hidden="true">${[0, 1, 2].map(i => `<i class="${i <= r ? 'on' : ''}"></i>`).join('')}</span><span class="op-rank-t">${name}</span></span>`;
 }
 // Gravure progressive (atelier « L'envie de revenir », lot 2) : le trait gravé dont la profondeur suit la maîtrise, doré une fois Maîtrisée.
-// À confirmer : jamais plus que rayé, tant que les essais manquent.
+// À découvrir : jamais plus que rayé, tant qu'elle n'a pas été retrouvée.
 function _lvEngrave(e) {
     if (typeof Engrave === 'undefined') return '';
     const lv = _level(e), m = masteryOf(e);
@@ -66,7 +66,7 @@ function _lvEngrave(e) {
 const _lvPair = (l, n) => I18n.pair(I18n.t(levelInfo(l).label), n);
 // Repère d'un groupe (lot 3 « Chays épuré ») : la couleur et la forme de sa case représentative.
 const _lvgMark = g => _lvMark(LEVEL_GROUPS[g] ? LEVEL_GROUPS[g].mark : g);
-// Nombre de positions d'un filtre (groupe, case ou « À confirmer ») dans des comptes par case.
+// Nombre de positions d'un filtre (groupe, case ou « À découvrir ») dans des comptes par case.
 const _filterCount = (counts, f) => f === 'all' ? 0 : LEVEL_GROUPS[f] ? groupCounts(counts)[f] : counts[f] || 0;
 
 // Barre de répartition en trois états (À apprendre, En cours, Sues) ; counts : { case: nombre }. opts.buttons : un
@@ -74,15 +74,18 @@ const _filterCount = (counts, f) => f === 'all' ? 0 : LEVEL_GROUPS[f] ? groupCou
 // cours. Sans opts, des <i> décoratifs. opts.legend (accueil, audit « Aujourd’hui en images ») : la barre posée sur une
 // plaque claire (.lv-plate, mêmes couleurs sur toute carte et en sombre) et suivie de sa légende écrite, repère de forme
 // compris (« 74 à apprendre · 134 en cours · 93 sues ») : le sens ne passe plus par la couleur seule ni par un survol.
+// opts.discover : positions « À découvrir » (jamais retrouvées de mémoire, essayées ou non), dites à la suite, hors de la barre.
 function levelBarHTML(counts, cls, opts) {
     const gc = groupCounts(counts), gs = LEVEL_GROUP_ORDER.filter(g => gc[g]);
     if (opts && opts.legend) {
         const lower = t => t.toLocaleLowerCase('fr');            // « 74 à apprendre » : une phrase française, traduite à l'affichage
         return `<span class="lv-plate ${cls || ''}"><span class="lv-bar" aria-hidden="true">${gs
             .map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}"></i>`).join('')}</span>`
-            + `<span class="lv-legend">${gs.map(g => `<span>${_lvgMark(g)}${gc[g]} ${escapeHtml(lower(LEVEL_GROUPS[g].label))}</span>`).join('')}</span></span>`;
+            + `<span class="lv-legend">${gs.map(g => `<span>${_lvgMark(g)}${gc[g]} ${escapeHtml(lower(LEVEL_GROUPS[g].label))}</span>`).join('')}`
+            + (opts.discover ? `<span class="lv-discover">${_lvMark(STATS_STATE)}${opts.discover} ${escapeHtml(lower(levelInfo(STATS_STATE).label))}</span>` : '')
+            + '</span></span>';
     }
-    // opts.plate (audit « Progrès en images », K9) : la barre sur sa plaque, « À confirmer » hachuré à la suite, et la
+    // opts.plate (audit « Progrès en images », K9) : la barre sur sa plaque, « À découvrir » hachuré à la suite, et la
     // légende en boutons qui filtrent (statsLegend) : chaque nombre à côté de son nom, la forme en plus de la couleur.
     if (opts && opts.plate) {
         const lower = t => t.toLocaleLowerCase('fr'), un = counts[STATS_STATE] || 0;
@@ -90,7 +93,7 @@ function levelBarHTML(counts, cls, opts) {
         const n = g => g === STATS_STATE ? un : gc[g] || 0;
         const legend = LEVEL_GROUP_ORDER.concat(STATS_STATE);          // la légende garde ses quatre places, vides éteintes
         const label = g => g === STATS_STATE ? levelInfo(g).label : LEVEL_GROUPS[g].label;
-        // La barre filtre comme la légende (lot 7) ; « À confirmer » y est hachuré, hors des boutons.
+        // La barre filtre comme la légende (lot 7) ; « À découvrir » y est hachuré, hors des boutons.
         const hatch = un ? `<i class="lv-unsure is-hatch" style="flex:${un}" aria-hidden="true"></i>` : '';
         const bar = levelBarHTML(counts, 'st-mbar', { buttons: true, active: opts.active, action: opts.action }).replace(/<\/span>$/, `${hatch}</span>`);
         return `<div class="lv-plate st-plate ${cls || ''}">${bar}`
@@ -103,16 +106,16 @@ function levelBarHTML(counts, cls, opts) {
         `<button type="button" class="lv-${LEVEL_GROUPS[g].mark}${on === g ? ' on' : ''}" style="flex:${gc[g]}" data-action="${opts.action || 'statsLegend'}" data-arg="${g}" aria-pressed="${on === g}" title="${_lvPair(g, gc[g])}" aria-label="${I18n.mark(`${I18n.t(LEVEL_GROUPS[g].label)}, ${gc[g]}`)}"></button>`).join('')}</span>`;
 }
 
-// Échelle des réussites d'affilée (audit « Progrès en images ») : une marche par niveau (run 0, 1, 2, 3–4, 5 et plus),
-// le nombre de positions au-dessus, les trois états dessous ; « À confirmer » reste à part, dit en une phrase.
+// Échelle des paliers (chantier « Erreurs et niveaux ») : une marche par palier (0 à réapprendre, 1, 2, 3–4, 5 et plus),
+// le nombre de positions au-dessus, les trois états dessous ; « À découvrir » reste à part, dit en une phrase.
 function _ladderHTML(counts) {
     const steps = [['weak', '0'], ['fragile', '1'], ['progress', '2'], ['solid', `${STATS_SOLID_RUN}–${STATS_MASTERED_RUN - 1}`], ['mastered', `${STATS_MASTERED_RUN} +`]];
     const max = Math.max(1, ...steps.map(([l]) => counts[l] || 0));
     const label = steps.map(([l, k]) => `${k} : ${counts[l] || 0}`).join(', ');
-    return `<div class="st-ladder-w"><div class="st-ladder" role="img" aria-label="${escapeHtml(I18n.pair(I18n.t('Positions par réussites d’affilée'), label))}">${steps.map(([l, k]) =>
+    return `<div class="st-ladder-w"><div class="st-ladder" role="img" aria-label="${escapeHtml(I18n.pair(I18n.t('Positions par palier'), label))}">${steps.map(([l, k]) =>
         `<div class="lv-${l}"><b>${counts[l] || 0}</b><i style="height:${Math.round(6 + 42 * (counts[l] || 0) / max)}px"></i><span>${k}</span></div>`).join('')}</div>
         <div class="st-ladder-g" aria-hidden="true">${LEVEL_GROUP_ORDER.map(g => `<span class="g-${g}">${escapeHtml(LEVEL_GROUPS[g].label)}</span>`).join('')}</div>
-        <p class="st-sub"><span>Réussites d’affilée depuis la dernière erreur.</span>${counts[STATS_STATE] ? ` <span>Les positions à confirmer (moins de trois essais) restent à part.</span>` : ''}</p></div>`;
+        <p class="st-sub"><span>Paliers : une réussite fait monter d’un palier, une erreur fait descendre d’un seul.</span>${counts[STATS_STATE] ? ` <span>Les positions à découvrir (jamais retrouvées de mémoire) restent à part.</span>` : ''}</p></div>`;
 }
 
 const _plural = (n, one, many) => `${n} ${n > 1 ? many || one + 's' : one}`;
@@ -306,7 +309,7 @@ function _regularityHTML() {
 
 // ─── COURBE DE MAÎTRISE (atelier « Ouvertures et Progrès », lot 4) ─────────────
 // Aires empilées sur 12 semaines, du plus sûr (en bas) au plus fragile (en haut), lues dans l'historique
-// MasteryLog (un relevé par jour d'utilisation). « À confirmer » reste hors de l'empilement, comme hors des barres.
+// MasteryLog (un relevé par jour d'utilisation). « À découvrir » reste hors de l'empilement, comme hors des barres.
 const STATS_CURVE_DAYS = 84;
 const _logDay = d => { const [y, m, j] = d.split('-').map(Number); return new Date(y, m - 1, j).getTime(); };
 
@@ -317,7 +320,7 @@ function _masterySeries(now) {
     return s.length >= 2 ? s : null;
 }
 
-// Part maîtrisée d'un relevé (À confirmer compris dans le total, comme le grand chiffre).
+// Part maîtrisée d'un relevé (À découvrir compris dans le total, comme le grand chiffre).
 const _knownPctOf = c => knownPct(c, MasteryLog.ORDER);
 
 // Les états bougent-ils ? Un groupe qui varie d'au moins 5 % du total sur la période (sinon trois aires plates :
@@ -424,7 +427,7 @@ function _weakCardHTML(r) {
 
 // « Points faibles › Tout voir » : toutes les positions à retravailler ou fragiles, les plus fragiles d'abord.
 function _renderWeakList(body, rows, weakN, relearnN) {
-    const all = rows.filter(r => r.lv === 'weak' || r.lv === 'fragile').sort((a, b) => _rate(b) - _rate(a) || b.e.attempts - a.e.attempts);
+    const all = rows.filter(r => reworkOf(r)).sort((a, b) => _rate(b) - _rate(a) || b.e.attempts - a.e.attempts);
     const shown = all.slice(0, statsWeak.shown), rest = all.length - shown.length;
     body.className = 'st-body';
     body.innerHTML = `<div class="st-main"><section class="st-sec st-card st-weak edge-card" id="stats-weak-all">
@@ -708,9 +711,9 @@ function initStats() {
         </div>`;
 
     // ── Points faibles ── la ligne entière ouvre l'aperçu (où « S'entraîner » reste) ; Progrès n'a plus de bouton d'exercice (lot 5).
-    const weakest = rows.filter(r => r.lv === 'weak' || r.lv === 'fragile').sort((a, b) => _rate(b) - _rate(a) || b.e.attempts - a.e.attempts).slice(0, STATS_WEAK_CARDS);
+    const weakest = rows.filter(r => reworkOf(r)).sort((a, b) => _rate(b) - _rate(a) || b.e.attempts - a.e.attempts).slice(0, STATS_WEAK_CARDS);
     _assignOpenings(rows);
-    const weakN = counts.weak + counts.fragile, relearnN = rows.filter(r => Number.isInteger(r.e.relearn)).length;
+    const weakN = rows.filter(reworkOf).length, relearnN = rows.filter(r => Number.isInteger(r.e.relearn)).length;
     if (statsWeak) {
         if (weakN) { _renderStatsScope(); _renderWeakList(body, rows, weakN, relearnN); return; }
         statsWeak = null;                                       // plus rien à montrer : retour à la page
@@ -859,7 +862,7 @@ function _renderPreviewFacts(e) {
     const lv = _level(e), d = isDue(e, Date.now());
     box.innerHTML = `<div class="lv-${levelMark(lv)}"><span>État</span><b>${_lvMark(lv)}${levelInfo(lv).one}</b></div>
         <div title="${e.failures} err. / ${e.attempts}"><span>Maîtrise</span><b class="st-n">${Math.round(masteryOf(e))} / 100</b></div>
-        ${Number.isInteger(e.relearn) ? `<div><span>À reprendre</span><b class="st-n">${e.relearn} / ${RELEARN_DAYS.length}</b></div>` : ''}
+        ${Number.isInteger(e.relearn) ? `<div><span>À reprendre</span><b class="st-n">${isDiscovering(e) ? 'à réapprendre' : 'rattrapage'}</b></div>` : ''}
         <div><span>Révision</span><b${d ? ' class="on"' : ''}>${d ? 'Aujourd’hui' : dueInLabel(dueOf(e))}</b></div>`;
 }
 

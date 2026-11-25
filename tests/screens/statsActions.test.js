@@ -148,8 +148,8 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
 
     await t('légende : la règle du niveau en title ; plus de bulle ⓘ ni de mention de Jouer', () => {
         seed(w, [-1, 2, 0, 5]);
-        assert(/dernier essai raté/.test($('.st-lg[data-arg="learn"]').title));
-        assert(/moins de 3 essais/.test($('.st-lg[data-arg="unsure"]').title));
+        assert(/ratée deux fois d’affilée/.test($('.st-lg[data-arg="learn"]').title));
+        assert(/jamais retrouvée de mémoire/.test($('.st-lg[data-arg="unsure"]').title));
         assert(!$('#stats-info-btn') && !$('#stats-info'));
         assert(!/Jouer/.test($('#stats-body').textContent));
     });
@@ -206,6 +206,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         for (let k = 0; k < line.length; k += 2) {
             const path = line.slice(0, k + 1), pos = Chess.replay(path.slice(0, -1));
             db[Chess.key(pos)] = { move: path[k], san: Chess.san(pos, path[k]), attempts: 10, failures: k % 4 ? 5 : 8, path, ply: path.length, due: now + 864e5, interval: 3, created: now };
+            if (k % 4) db[Chess.key(pos)].relearn = 0;          // palier 1 en rattrapage : à reprendre aussi
         }
         dataStore.set(dbKeyFor(currentRepertoire, 'w'), JSON.stringify(db));
         statsColor = 'all'; statsFilter = 'all'; statsPane = 'overview'; statsWeak = null;
@@ -219,7 +220,7 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
         assert.strictEqual(link.dataset.action, 'statsWeakAll');
         link.click();
         assert($('#stats-weak-all'));
-        assert.strictEqual($$('#stats-weak-all .st-wrow').length, 6, 'à retravailler et fragiles');
+        assert.strictEqual($$('#stats-weak-all .st-wrow').length, 6, 'à réapprendre et en rattrapage');
         assert.strictEqual(w.eval('statsFilter'), 'all', 'aucun filtre appliqué en silence');
         $('#stats-weak-all .st-back').click();
         assert(!$('#stats-weak-all') && $('.st-now'));

@@ -11,8 +11,9 @@
  * « a|b » dans une traduction : singulier | pluriel, pour les langues dont le pluriel n'est pas un « s » final.
  * translate="no" protège un élément (noms donnés par l'utilisateur, coups).
  *
- * Langues : EMBEDDED, mises en cache hors ligne dès l'installation (sw.js) ; les autres sont des paquets
- * à télécharger (lang/<id>.json, comme le moteur complet), gardés dans le cache chays-lang.
+ * Langues : français et anglais (26 novembre 2026 : les neuf autres ont été retirées), EMBEDDED, mises en cache hors
+ * ligne dès l'installation (sw.js). Le téléchargement d'une langue de plus (lang/<id>.json, cache chays-lang) reste
+ * prêt : une langue ajoutée à LANGS et absente d'EMBEDDED se télécharge depuis les Paramètres.
  * Le dictionnaire actif est recopié dans chays_langPack : il doit être là, sans attendre, au premier rendu
  * (hors de chessTrainer_* : ni sauvegarde, ni synchronisation). Changer de langue recharge la page.
  */
@@ -22,18 +23,9 @@
 const I18n = (function () {
     const LANGS = {
         fr:        { label: 'Français',          locale: 'fr-FR', letters: 'CFTDR' },
-        en:        { label: 'English',           locale: 'en-GB', letters: 'NBRQK' },
-        es:        { label: 'Español',           locale: 'es-ES', letters: 'CATDR' },
-        'zh-Hans': { label: '简体中文',           locale: 'zh-CN', letters: 'NBRQK' },
-        de:        { label: 'Deutsch',           locale: 'de-DE', letters: 'SLTDK' },
-        'pt-PT':   { label: 'Português (Portugal)', locale: 'pt-PT', letters: 'CBTDR' },
-        'pt-BR':   { label: 'Português (Brasil)', locale: 'pt-BR', letters: 'CBTDR' },
-        ru:        { label: 'Русский',           locale: 'ru-RU', letters: ['К', 'С', 'Л', 'Ф', 'Кр'] },
-        ja:        { label: '日本語',             locale: 'ja-JP', letters: 'NBRQK' },
-        hi:        { label: 'हिन्दी',               locale: 'hi-IN', letters: 'NBRQK' },
-        ar:        { label: 'العربية',            locale: 'ar',    letters: 'NBRQK', rtl: true }
+        en:        { label: 'English',           locale: 'en-GB', letters: 'NBRQK' }
     };
-    const EMBEDDED = ['fr', 'en', 'es', 'zh-Hans'];
+    const EMBEDDED = ['fr', 'en'];
     const PACK_KEY = 'chays_langPack', CACHE = 'chays-lang';
     const ATTRS = ['title', 'aria-label', 'placeholder', 'alt'];
     const SKIP = 'script,style,textarea,[translate="no"],.move-token,.pgn-text';

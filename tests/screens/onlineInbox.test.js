@@ -39,7 +39,8 @@ const game = (id, white, black, moves) => `[Site "https://lichess.org/${id}"]\n[
         });
         dataStore.set(dbKeyFor('${rep}', 'w'), JSON.stringify(db));
     })()`);
-    const attemptsAfterE5 = () => w.eval(`(function () { let k; _withEngineSnapshot(() => { parseFEN(INIT_FEN); 'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5'.split(' ').forEach(_applyUciRaw); k = positionKey(); }); return readDBFor('${rep}', 'w')[k].failures; })()`);
+    const afterE5 = () => w.eval(`(function () { let k; _withEngineSnapshot(() => { parseFEN(INIT_FEN); 'e2e4 e7e5 g1f3 b8c6 f1c4 f8c5'.split(' ').forEach(_applyUciRaw); k = positionKey(); }); return readDBFor('${rep}', 'w')[k]; })()`);
+    const attemptsAfterE5 = () => afterE5().failures;
 
     await t('six verdicts → classe .vbadge (Erreur is-err, Hors répertoire is-muted, Nouveauté is-warn, Sans réponse is-new, Traitée is-ok, Théorique is-muted)', () => {
         const rows = {
@@ -108,7 +109,7 @@ const game = (id, white, black, moves) => `[Site "https://lichess.org/${id}"]\n[
         w.fetch = () => Promise.reject(new Error('réseau coupé (test)'));
     });
 
-    await t('récupération : ligne de source repliée, compteurs, une erreur comptée une seule fois par partie', async () => {
+    await t('récupération : ligne de source repliée, compteurs, une erreur « à vérifier » une seule fois par partie', async () => {
         const pgn = game('a1', 'moi', 'Kasparov_fan', '1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3')
                   + game('a2', 'moi', 'sicilien', '1. e4 c5 2. Nf3')
                   + game('a3', 'moi', 'italien', '1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3')
@@ -117,7 +118,8 @@ const game = (id, white, black, moves) => `[Site "https://lichess.org/${id}"]\n[
         $('#online-user').value = 'moi';
         const before = attemptsAfterE5();
         await w.eval('runOnlineFetch()');
-        assert.strictEqual(attemptsAfterE5(), before + 1, 'erreur comptée');
+        assert.strictEqual(attemptsAfterE5(), before, 'rien de compté : à vérifier');
+        assert(afterE5().prio, 'en tête de la prochaine révision');
         assert($('#online-form').hidden && !$('#online-done').hidden, 'formulaire replié');
         assert(/moi · Lichess · 4 parties · 4 nouvelles/.test($('#online-done').textContent.replace(/\s+/g, ' ')), $('#online-done').textContent);
         const labels = $$('#online-results .online-row .vbadge').map(b => b.textContent);
@@ -128,7 +130,7 @@ const game = (id, white, black, moves) => `[Site "https://lichess.org/${id}"]\n[
 
         // Seconde passe : rien n'est recompté ; parties déjà analysées masquées, « Afficher les 4 ».
         await w.eval('runOnlineFetch()');
-        assert.strictEqual(attemptsAfterE5(), before + 1, 'erreur recomptée');
+        assert.strictEqual(attemptsAfterE5(), before, 'rien de recompté');
         assert.strictEqual($$('#online-results .online-row').length, 0);
         assert(/Rien de nouveau/.test($('#online-results').textContent));
         const show = $('#online-results [data-action="toggleOnlineSeen"]');

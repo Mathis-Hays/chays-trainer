@@ -7,7 +7,7 @@
  * Unité de synchronisation = une clé de stockage (un « document » JSON).
  *   chessTrainer_repertoires     'list'      noms des répertoires
  *   chessTrainer_repNotes        'notes'     répertoire → { v: description, at: date } : la plus récente l'emporte
- *   openingDB_{rép}_{couleur}    'db'        position → { move, san, attempts, failures, path?, ply?, lastReviewed?, interval?, due?, created?, prio?, relearn?, mastery?, run? }
+ *   openingDB_{rép}_{couleur}    'db'        position → { move, san, attempts, failures, path?, ply?, lastReviewed?, interval?, due?, created?, prio?, relearn?, mastery?, run?, step? }
  *   openingOpp_{rép}_{couleur}   'opp'       position → [coups UCI adverses connus]
  *   chessTrainer_trash           'trash'     [{ id, type, deletedAt, … }]
  *   chessTrainer_endgames        'endgames'  exercice → { tries, wins, perfect, best, last, stars? }
@@ -141,14 +141,16 @@ const SyncModel = (function () {
         // Priorité : celle du passage le plus récent (elle est levée par une réussite) ; sinon l'une ou l'autre.
         const prio = num(l.lastReviewed) === num(r.lastReviewed) ? Math.max(num(l.prio), num(r.prio)) : num(s.prio);
         if (prio > 0) out.prio = prio;
-        // File « À revoir », score et série de réussites (run) : ceux du passage le plus récent ; égalité → le plus prudent
-        // (dans la file, score le plus bas, série la plus courte).
+        // Rattrapage, score, série (run) et palier (step) : ceux du passage le plus récent ; égalité → le plus prudent
+        // (rattrapage en attente, score le plus bas, série et palier les plus petits).
         const tie = num(l.lastReviewed) === num(r.lastReviewed);
         const least = key => { const v = [l[key], r[key]].filter(Number.isFinite); return v.length ? Math.min(...v) : undefined; };
         const relearn = tie ? least('relearn') : s.relearn, mastery = tie ? least('mastery') : s.mastery, run = tie ? least('run') : s.run;
+        const step = tie ? least('step') : s.step;
         if (Number.isFinite(relearn)) out.relearn = relearn;
         if (Number.isFinite(mastery)) out.mastery = mastery;
         if (Number.isFinite(run)) out.run = run;
+        if (Number.isFinite(step)) out.step = step;
         return out;
     }
 
@@ -219,7 +221,8 @@ const SyncModel = (function () {
     const mergePrefs = (b, l, r) => mergeMap(b, l, r, mergePref);
 
     // ─── Journal des parties analysées ────────────────────────────────────────
-    // Verdict : le plus récent (at) l'emporte. Erreur comptée : la première, gardée à vie (jamais recomptée).
+    // Verdict : le plus récent (at) l'emporte. Erreur comptée : la première, gardée à vie (jamais recomptée) ;
+    // undone (erreur retirée parce que c'était un choix d'ouverture) : gardé dès qu'un côté l'a.
     function mergeGame(b, l, r) {
         const pos = [l.first, r.first].filter(x => num(x) > 0);
         const out = { src: minStr(l.src, r.src) || '', at: Math.max(num(l.at), num(r.at)),
@@ -229,8 +232,10 @@ const SyncModel = (function () {
         out.v = mergeMap(b && b.v, l.v, r.v, (bb, ll, rr) => mergePref(bb, ll, rr));
         out.counted = mergeMap(b && b.counted, l.counted, r.counted, (bb, ll, rr) => {
             const a = num(ll.at), c = num(rr.at);
-            if (a !== c) return clone(a < c ? ll : rr);
-            return clone(stable(ll) <= stable(rr) ? ll : rr);
+            const out = clone(a !== c ? (a < c ? ll : rr) : stable(ll) <= stable(rr) ? ll : rr);
+            const undone = Math.max(num(ll.undone), num(rr.undone));   // erreur retirée (choix d'ouverture) : le reste
+            if (undone > 0) out.undone = undone;
+            return out;
         });
         return out;
     }

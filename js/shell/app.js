@@ -199,8 +199,10 @@ function renderHomeSummary() {
         patchHTML(document.getElementById('home-art-' + c), _homeArtHTML(list.map(r => r.e), c, dueC));
         STATS_LEVEL_ORDER.forEach(l => { counts[l] = 0; });
         list.filter(r => r.e.attempts > 0).forEach(r => { counts[_level(r.e)]++; });
+        // À découvrir : jamais retrouvées de mémoire, essayées ou non (gris, à part des trois états).
+        const discover = list.filter(r => _level(r.e) === STATS_STATE).length;
         // Barre posée sur une plaque claire, légendée (mêmes couleurs sur les deux cartes, lue par les lecteurs d'écran).
-        patchHTML(document.getElementById('home-bar-' + c), STATS_MASTERY_LEVELS.some(l => counts[l]) ? levelBarHTML(counts, 'hp-bar', { legend: true }) : '');
+        patchHTML(document.getElementById('home-bar-' + c), STATS_MASTERY_LEVELS.some(l => counts[l]) || discover ? levelBarHTML(counts, 'hp-bar', { legend: true, discover }) : '');
     });
 
     // Surtitre : salutation · série (avec son joker, Habits.streak) ; « Bon retour » le jour d'une reprise (Habits.comeback).

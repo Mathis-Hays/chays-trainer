@@ -106,7 +106,7 @@ t('coup illégal : lecture arrêtée, déviation antérieure conservée', () => 
 // Base modifiable pour reviewGame : { db, opp, save }.
 const baseOf = db => ({ db, opp: {}, saved: 0, save() { this.saved++; } });
 
-t('erreur comptée une seule fois par partie (journal), verdict noté', () => {
+t('erreur relevée une seule fois par partie (journal), « à vérifier » : rien de compté, en tête de la prochaine révision', () => {
     vm.runInContext('currentRepertoire = "Test"; playerColor = "w";', ctx);
     delete store['chessTrainer_gameLedger'];
     const g = ctx.pgnMainLine(CHESSCOM), b = baseOf(repertoire('w', [ITA]));
@@ -116,10 +116,45 @@ t('erreur comptée une seule fois par partie (journal), verdict noté', () => {
     const again = ctx.reviewGame(g, 'w', 'Test', b, ledger);
     jeq([again.kind, again.counted, !!again.prev], ['mistake', 'already', true]);
     const e = b.db[a.r.deviation.key];
-    jeq([e.attempts, e.failures, e.interval], [2, 1, 0]);
+    jeq([e.attempts, e.failures, !!e.prio, e.due <= Date.now()], [1, 0, true, true]);
     const id = 'chess.com/game/live/123';
     jeq(Object.keys(ledger), [id]);
     jeq([ledger[id].src, ledger[id].v['Test|w'].kind, !!ledger[id].counted['Test|w']], ['chesscom', 'mistake', true]);
+});
+
+const LICHESS = (moves, date = '2026.10.20', time = '18:00:00') =>
+    `[Site "https://lichess.org/AbCdEfGh"]\n[White "moi"]\n[Black "lui"]\n[UTCDate "${date}"]\n[UTCTime "${time}"]\n\n${moves} *`;
+t('autre ouverture dès mon premier coup : un choix, rien de compté ; une erreur comptée avant la règle est retirée une fois', () => {
+    const g = ctx.pgnMainLine(LICHESS('1. d4 d5 2. c4')), b = baseOf(repertoire('w', [ITA]));
+    const start = Object.keys(b.db).find(k => b.db[k].move === 'e2e4'), e = b.db[start];
+    Object.assign(e, { attempts: 10, failures: 6, run: 0, relearn: 0, mastery: 0 });
+    const id = ctx.gameIdOf(g.headers, g.sans);
+    const ledger = { [id]: { src: 'lichess', at: 1, first: 1, last: 1, v: { 'Test|w': { kind: 'mistake', ply: 0, by: 'me', at: 1 } }, counted: { 'Test|w': { at: 1 } } } };
+    const r = ctx.reviewGame(g, 'w', 'Test', b, ledger);
+    jeq([r.kind, r.counted], ['choice', null]);
+    jeq([e.attempts, e.failures, e.relearn, e.step], [9, 5, 0, 0]);
+    assert(ledger[id].counted['Test|w'].undone, 'retrait noté au journal');
+    ctx.reviewGame(g, 'w', 'Test', b, ledger);
+    jeq([e.attempts, e.failures], [9, 5], 'une seule fois');
+    const fresh = baseOf(repertoire('w', [ITA])), f = fresh.db[start];
+    jeq([ctx.reviewGame(g, 'w', 'Test', fresh, {}).kind, f.attempts, f.failures, !!f.prio], ['choice', 1, 0, false]);
+});
+
+t('nettoyage unique : erreurs de premier coup déjà comptées retirées (Noirs : premier coup adverse lu dans l\'archive à la même heure)', () => {
+    const w = repertoire('w', [ITA]), b = repertoire('b', ['d2d4 g8f6', 'e2e4 c7c6']);
+    const kd4 = Object.keys(b).find(k => b[k].move === 'g8f6'), kw = Object.keys(w).find(k => w[k].move === 'e2e4');
+    Object.assign(b[kd4], { attempts: 10, failures: 6, run: 0, mastery: 0 }); Object.assign(w[kw], { attempts: 5, failures: 2 });
+    store['openingDB_Test_w'] = JSON.stringify(w); store['openingDB_Test_b'] = JSON.stringify(b);
+    const T = 1700000000000, v = (c, ply) => ({ v: { ['Test|' + c]: { kind: 'mistake', ply, by: 'me', at: 1 } }, counted: { ['Test|' + c]: { at: 1 } } });
+    store['chessTrainer_gameLedger'] = JSON.stringify({ g1: { src: 'chesscom', at: T, first: 1, last: 1, ...v('b', 1) }, g2: { src: 'pgn', at: 5, first: 1, last: 1, ...v('w', 0) },
+        g3: { src: 'chesscom', at: T + 9e6, first: 1, last: 1, ...v('b', 1) } });
+    const n = ctx.undoOpeningChoices([{ color: 'b', start: T + 500, sans: ['d4', 'd5'] }]);
+    assert.strictEqual(n, 2, 'Noirs retrouvé dans l\'archive, Blancs sans archive ; la troisième partie, absente de l\'archive, attend');
+    jeq([JSON.parse(store['openingDB_Test_b'])[kd4].failures, JSON.parse(store['openingDB_Test_w'])[kw].failures], [5, 1]);
+    const L = JSON.parse(store['chessTrainer_gameLedger']);
+    jeq([!!L.g1.counted['Test|b'].undone, L.g1.v['Test|b'].kind, !!L.g3.counted['Test|b'].undone], [true, 'choice', false]);
+    assert.strictEqual(ctx.undoOpeningChoices([{ color: 'b', start: T + 500, sans: ['d4', 'd5'] }]), 0, 'une seule fois');
+    delete store['chessTrainer_gameLedger'];
 });
 
 t('ancienne signature (reviewedGames) : erreur jamais recomptée', () => {
@@ -129,8 +164,6 @@ t('ancienne signature (reviewedGames) : erreur jamais recomptée', () => {
     delete store['chessTrainer_reviewedGames'];
 });
 
-const LICHESS = (moves, date = '2026.10.20', time = '18:00:00') =>
-    `[Site "https://lichess.org/AbCdEfGh"]\n[White "moi"]\n[Black "lui"]\n[UTCDate "${date}"]\n[UTCTime "${time}"]\n\n${moves} *`;
 const PLAYED = Date.UTC(2026, 9, 20, 18, 0, 0);
 
 t('date de la partie : en-têtes Lichess et Chess.com, journée seule, absente', () => {
@@ -176,7 +209,7 @@ t('réponse retrouvée : la priorité est levée', () => {
     assert.strictEqual(e.prio, undefined);
 });
 
-t('parties en ligne : couleur déduite du pseudo, erreurs comptées une fois, autres parties classées', () => {
+t('parties en ligne : couleur déduite du pseudo, erreurs relevées une fois, autre ouverture classée à part', () => {
     store['openingDB_Test_w'] = JSON.stringify(repertoire('w', [ITA]));
     store['openingDB_Test_b'] = JSON.stringify(repertoire('b', ['e2e4 c7c5']));
     const pgn = `[Site "https://lichess.org/a1"]\n[White "Moi"]\n[Black "x"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. d3 *\n\n`
@@ -186,12 +219,12 @@ t('parties en ligne : couleur déduite du pseudo, erreurs comptées une fois, au
     const games = ctx.pgnGames(pgn);
     assert.strictEqual(games.length, 4);
     const a = ctx.analyzeOnlineGames(games, 'MOI', 'Test');
-    jeq(a.rows.map(r => r.color + ':' + r.kind), ['w:mistake', 'b:novelty', 'b:mistake']);
-    jeq([a.summary.games, a.summary.mistakes, a.summary.newMistakes, a.summary.skipped], [3, 2, 2, 1]);
+    jeq(a.rows.map(r => r.color + ':' + r.kind), ['w:mistake', 'b:novelty', 'b:choice']);
+    jeq([a.summary.games, a.summary.mistakes, a.summary.newMistakes, a.summary.skipped], [3, 1, 1, 1]);
     const c5 = Object.values(JSON.parse(store['openingDB_Test_b']))[0];
-    jeq([c5.attempts, c5.failures], [2, 1]);
+    jeq([c5.attempts, c5.failures], [1, 0], '1… e5 au lieu de 1… c5 : un choix');
     const again = ctx.analyzeOnlineGames(games, 'moi', 'Test');
-    jeq([again.summary.mistakes, again.summary.newMistakes, again.summary.seen], [2, 0, 3]);
+    jeq([again.summary.mistakes, again.summary.newMistakes, again.summary.seen], [1, 0, 3]);
 });
 
 console.log(`\n${n} tests réussis.`);

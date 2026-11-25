@@ -195,7 +195,7 @@ async function boot() {
         skip.click();                                                   // passer
         assert(!$('#status-bar .status-act'), 'bouton retiré quand la main revient');
         assert(/^À vous de jouer/.test($('#status-text .status-title').textContent));
-        assert(/gain de maîtrise réduit/.test($('.tb-hint').title), 'infobulle de l\'Indice en séance : ce que coûte le premier palier');
+        assert(/palier gardé/.test($('.tb-hint').title), 'infobulle de l\'Indice en séance : ce que coûte le premier palier');
         w.eval('quitTraining()');
     });
 
@@ -268,7 +268,7 @@ async function boot() {
         w.eval('quitTraining()');
     });
 
-    await t('exercice À revoir : positions de la file à échéance seulement, chiffre dans le menu', async () => {
+    await t('exercice À reprendre : rattrapages à échéance seulement, chiffre dans le menu', async () => {
         w.eval(`switchHomeTab('training')`);
         seed({ dueIn: 3 });
         const db = w.eval(`readDBFor(currentRepertoire, 'w')`), keys = Object.keys(db);
@@ -280,7 +280,7 @@ async function boot() {
         assert(row && !row.disabled && /À reprendre/.test(row.textContent), 'À revoir et Points faibles : une seule ligne « À reprendre », la file d\'abord');
         assert(!$('.trr-row[data-focus="weak"]'), 'pas de seconde ligne');
         assert.strictEqual(row.querySelector('.trr-n').textContent, '1', 'une seule à échéance');
-        assert(/2 à revoir/.test(row.textContent));
+        assert(/2 en rattrapage/.test(row.textContent));
         w.eval(`startTrainingExercise('relearn')`);
         assert.strictEqual(w.eval('trainingState.session.items.length'), 1);
         assert.strictEqual(w.eval('trainingState.session.items[0].key'), keys[0]);

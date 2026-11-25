@@ -25,7 +25,7 @@ const OpeningMarks = (function () {
     // Promotion : il faut tout ; maintien (déjà au rang) : des seuils plus bas, pour qu'un oubli ne fasse pas tout redescendre.
     // Pas de nombre minimal de positions : les troncs communs forment souvent de petits groupes (une ou deux positions).
     // Audit « Ouvertures en images » (O16, 24 novembre 2026) : le rang suit la part des positions sues (knownPct, levels.js,
-    // « À confirmer » compris), plus le score caché. Compagnon se garde tant que les positions à apprendre restent sous 40 %.
+    // « À découvrir » compris), plus le score caché. Compagnon se garde tant que les positions à apprendre restent sous 40 %.
     const UP = { 1: { n: 1, known: 30, weak: .25 }, 2: { n: 1, known: 80, weak: 0, unsure: 0 } };
     const HOLD = { 1: { known: 0, weak: .4 }, 2: { known: 70, weak: .1 } };
 
@@ -34,13 +34,13 @@ const OpeningMarks = (function () {
     const repOf = (all, rep) => (all[rep] && typeof all[rep] === 'object' ? all[rep] : null);
 
     // ─── RANGS ───────────────────────────────────────────────────────────────
-    // known : part des positions sues (Solides et Maîtrisées) parmi les positions essayées, « À confirmer » compris (knownPct).
-    // weak : positions à apprendre (À retravailler et Fragiles).
+    // known : part des positions sues (Solides et Maîtrisées) parmi les positions essayées, « À découvrir » compris (knownPct).
+    // weak : positions à apprendre (à réapprendre : groupe À apprendre, levels.js).
     function statsOf(rows) {
         const n = rows.length;
         return {
             n, known: n ? Math.round(100 * rows.filter(r => r.lv === 'solid' || r.lv === 'mastered').length / n) : 0,
-            weak: rows.filter(r => r.lv === 'weak' || r.lv === 'fragile').length,
+            weak: rows.filter(r => levelGroup(r.lv) === 'learn').length,
             unsure: rows.filter(r => r.lv === 'unsure').length
         };
     }
@@ -62,7 +62,7 @@ const OpeningMarks = (function () {
         conds.push({ id: 'known', label: `Au moins ${u.known} % sues`, now: `${s.known} %`, ok: s.known >= u.known });
         conds.push({ id: 'weak', label: most > 1 ? `Au plus ${most} positions à apprendre` : most ? 'Au plus une position à apprendre' : 'Aucune position à apprendre',
                      now: `${s.weak} à apprendre`, ok: s.weak <= u.weak * s.n });
-        if (u.unsure !== undefined) conds.push({ id: 'unsure', label: 'Toutes les positions confirmées', now: `${s.unsure} à confirmer`, ok: s.unsure <= u.unsure });
+        if (u.unsure !== undefined) conds.push({ id: 'unsure', label: 'Toutes les positions découvertes', now: `${s.unsure} à découvrir`, ok: s.unsure <= u.unsure });
         const need = conds.filter(c => !c.ok).map(c => c.label), pct = Math.round(100 * Math.min(1, s.known / u.known));
         return { to: rank + 1, pct: need.length ? Math.min(99, pct) : 100, need, conds };
     }

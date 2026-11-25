@@ -6,7 +6,7 @@
  *     retirable du filtre d'ouverture posé par les Statistiques (openTrainingFrom).
  *   - Trois blocs : bilan de la dernière séance (anneau du premier coup, puces, « avant → après » repliable),
  *     « Révision du jour » (carte Velours : nombre dû, durée estimée, 7 prochains jours), puis la liste des
- *     exercices (À reprendre, Ligne complète, À confirmer, Contre-la-montre, Mode libre et ses réglages)
+ *     exercices (À reprendre, Ligne complète, À découvrir, Contre-la-montre, Mode libre et ses réglages)
  *     et la maîtrise par couleur.
  *   - Un seul bouton plein, choisi par _trPrimary : erreurs de la séance qui vient de finir (« Ensuite » du bilan), sinon positions
  *     à réviser aujourd'hui (reviewPlan),
@@ -20,7 +20,7 @@
 'use strict';
 
 const TRAIN_SECONDS_PER_POSITION = 30;      // pour la durée estimée de la séance
-const TRAIN_WEAK_MAX   = 20;                // positions par séance « Points faibles » / « À confirmer »
+const TRAIN_WEAK_MAX   = 20;                // positions par séance « Points faibles » / « À découvrir »
 let _trColor   = 'mix';                     // 'mix' | 'w' | 'b' ; « Les deux » à chaque lancement
 let _trLineOpen = false;                    // liste des ouvertures (Ligne complète) dépliée
 let _trFreeOpen = false;                    // réglages du mode libre dépliés
@@ -320,7 +320,7 @@ function initTraining() {
 
     const plan = reviewPlan(currentRepertoire, now);
     const due = rows.filter(r => plan.today(r.color, r.key));
-    const weak = exRows.filter(r => r.lv === 'weak' || r.lv === 'fragile').length;
+    const weak = exRows.filter(r => reworkOf(r)).length;
     const unsure = exRows.filter(r => r.lv === 'unsure').length, unsureAll = rows.filter(r => r.lv === 'unsure').length;
     const inFile = rows.filter(r => Number.isInteger(r.e.relearn)), ready = inFile.filter(r => isDue(r.e, now));
     const fileNext = inFile.reduce((m, r) => Math.min(m, dueOf(r.e)), Infinity);
@@ -392,18 +392,18 @@ function initTraining() {
             ${stepper('seqLen', 'Coups à enchaîner')}
             ${_trBtn(primary === 'free', 'trainingEx', 'free', 'Lancer le mode libre', 'play')}
         </div>` : '';
-    const label = { weak: 'À reprendre', unsure: 'À confirmer', timed: 'Contre-la-montre' }[primary];
+    const label = { weak: 'À reprendre', unsure: 'À découvrir', timed: 'Contre-la-montre' }[primary];
     const count = { weak: Math.min(weak, TRAIN_WEAK_MAX), unsure: Math.min(unsure, TRAIN_WEAK_MAX) }[primary];
     const cta = label ? `<div class="trr-cta">${_trBtn(true, 'trainingEx', primary, label + (count ? ` · ${count} position${count > 1 ? 's' : ''}` : ''), 'play')}</div>` : '';
     const exercises = `
         <section class="trr-ex" aria-labelledby="trr-ex-h">
             <div class="trr-h"><h3 id="trr-ex-h">Exercices</h3></div>
             <div class="trr-list edge-card">
-                ${ready.length ? row('relearn', 'rotate-ccw', 'weak', 'À reprendre', ready.length, `Ratées récemment, d’abord · ${inFile.length} à revoir à intervalles`)
-                    : row('weak', 'rotate-ccw', 'weak', 'À reprendre', Math.min(weak, TRAIN_WEAK_MAX), inFile.length ? `Prochaine ratée à revoir ${dueInLabel(fileNext, true)}` : '', { empty: 'Rien à reprendre pour l’instant' })}
+                ${ready.length ? row('relearn', 'rotate-ccw', 'weak', 'À reprendre', ready.length, `Ratées récemment, d’abord · ${inFile.length} en rattrapage`)
+                    : row('weak', 'rotate-ccw', 'weak', 'À reprendre', Math.min(weak, TRAIN_WEAK_MAX), inFile.length ? `Prochain rattrapage ${dueInLabel(fileNext, true)}` : '', { empty: 'Rien à reprendre pour l’instant' })}
                 ${row('line', 'git-branch', '', 'Ligne complète', openings.length, '', { empty: 'Aucune ouverture reconnue', expanded: _trLineOpen })}
                 ${lineList}
-                ${row('unsure', 'check', 'unsure', 'À confirmer', Math.min(unsure, TRAIN_WEAK_MAX), '', { empty: 'Aucune position à confirmer' })}
+                ${row('unsure', 'check', 'unsure', 'À découvrir', Math.min(unsure, TRAIN_WEAK_MAX), '', { empty: 'Rien à découvrir' })}
                 ${row('timed', 'lightbulb', 'progress', 'Contre-la-montre', null, `3 min · ${record ? `record ${record}` : 'pas encore de record'}`)}
                 ${row('survival', 'shield-check', 'solid', 'Survie', null, `3 vies, du plus sûr au plus fragile · ${survRecord ? `record ${survRecord}` : 'pas encore de record'}`, survN ? {} : { empty: 'Aucune position déjà essayée' })}
                 ${row('club', 'swords', '', 'Adversaire du club', null, `${clubColor === 'w' ? 'Blancs' : 'Noirs'} · ${typeof ClubMatch !== 'undefined' && ClubMatch.hasToken() ? (clubElo ? `Coups joués sur Lichess à ~${clubElo}` : 'Coups joués sur Lichess') : 'Coups de vos adversaires réels'} · Jusqu’à la sortie du répertoire`, clubColor ? {} : { empty: 'Aucune réponse au premier coup' })}
@@ -423,7 +423,7 @@ function initTraining() {
     const mast = `
         <section class="trr-mast" aria-labelledby="trr-mast-h">
             <div class="trr-h"><h3 id="trr-mast-h">Maîtrise</h3><span>${rows.length} position${rows.length > 1 ? 's' : ''}</span></div>
-            <div class="trr-mast-in edge-card">${mastery}${unsureAll ? `<div class="trr-m"><span></span><span class="lv-chip lv-unsure">${unsureAll} à confirmer</span></div>` : ''}</div>
+            <div class="trr-mast-in edge-card">${mastery}${unsureAll ? `<div class="trr-m"><span></span><span class="lv-chip lv-unsure">${unsureAll} à découvrir</span></div>` : ''}</div>
         </section>`;
 
     // ── Plateau : la position de départ de chaque exercice ──
@@ -435,8 +435,8 @@ function initTraining() {
         due:    _trPreviewOf(sorted(due, (a, b) => dueOf(a.e) - dueOf(b.e))[0], 'La plus en retard'),
         retry:  missed ? _trPreviewOf(missed, 'Ratée') : null,
         relearn: _trPreviewOf(sorted(ready)[0], 'À reprendre'),
-        weak:   _trPreviewOf(sorted(exRows.filter(r => r.lv === 'weak' || r.lv === 'fragile'))[0], 'Point faible'),
-        unsure: _trPreviewOf(sorted(exRows.filter(r => r.lv === 'unsure'), (a, b) => a.e.attempts - b.e.attempts)[0], 'À confirmer'),
+        weak:   _trPreviewOf(sorted(exRows.filter(r => reworkOf(r)))[0], 'Point faible'),
+        unsure: _trPreviewOf(sorted(exRows.filter(r => r.lv === 'unsure'), (a, b) => a.e.attempts - b.e.attempts)[0], 'À découvrir'),
         line:   firstLine ? { r: { side: firstLine.color, path: firstLine.path, k: null }, after: true, title: 'Ligne complète · ' + firstLine.name,
                               line: _movesLabel(firstLine.path, true), side: firstLine.color === 'w' ? 'Blancs' : 'Noirs' } : null,
         survival: start('Survie · trois vies', `${seenOn ? 'Vues en partie' : 'Tout le répertoire'} · du plus sûr au plus fragile`),
@@ -476,10 +476,10 @@ function startTrainingExercise(kind, more) {
     }
     const pick = {
         relearn: () => rows.filter(r => Number.isInteger(r.e.relearn) && isDue(r.e, now)),
-        weak:   () => _trSeen(rows).filter(r => r.lv === 'weak' || r.lv === 'fragile').sort(_trOrder).slice(0, TRAIN_WEAK_MAX),
+        weak:   () => _trSeen(rows).filter(r => reworkOf(r)).sort(_trOrder).slice(0, TRAIN_WEAK_MAX),
         unsure: () => _trSeen(rows).filter(r => r.lv === 'unsure').sort((a, b) => a.e.attempts - b.e.attempts).slice(0, TRAIN_WEAK_MAX)
     }[kind];
-    const label = { relearn: 'À reprendre', due: 'Révision du jour', weak: 'À reprendre', unsure: 'À confirmer' };
+    const label = { relearn: 'À reprendre', due: 'Révision du jour', weak: 'À reprendre', unsure: 'À découvrir' };
     if (kind === 'due') {
         // File du jour du programme (reviewPlan) : plafonnée à l'objectif, déjà triée par importance ; portée affichée.
         const plan = reviewPlan(currentRepertoire, now, more > 0 ? { left: more } : undefined), inScope = new Set(rows.map(r => r.color + '|' + r.key));

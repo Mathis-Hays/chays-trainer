@@ -95,7 +95,7 @@ function _settingRows() {
             { group: 'Révisions', kind: 'seg', key: 'rhythm', label: 'Rythme', search: 'révision espacée', tip: 'Doux : les positions réussies reviennent moins souvent. Intensif : plus souvent.',
               opts: [['soft', 'Doux'], ['std', 'Standard'], ['intense', 'Intensif']] },
             { group: 'Révisions', kind: 'toggle', key: 'trainSeen', label: 'Positions vues en partie', search: 'parties réelles jouées filtre lichess chess.com',
-              tip: 'Points faibles, À confirmer, Ligne complète, Contre-la-montre et Mode libre ne tirent que les positions atteintes dans vos parties archivées. La Révision du jour reste entière. Sans assez de parties (moins de 5 positions), tout le répertoire.' },
+              tip: 'Points faibles, À découvrir, Ligne complète, Contre-la-montre et Mode libre ne tirent que les positions atteintes dans vos parties archivées. La Révision du jour reste entière. Sans assez de parties (moins de 5 positions), tout le répertoire.' },
             { group: 'Révisions', kind: 'seg', key: 'trainNext', label: 'Exercice suivant', search: 'enchaîner automatiquement passage suivant pause',
               tip: 'Après une erreur : une réussite nette enchaîne seule, une erreur, un indice ou la solution laissent le temps d’analyser. Le contre-la-montre enchaîne toujours.',
               opts: [['error', 'Après une erreur'], ['wait', 'Toujours attendre'], ['auto', 'Toujours enchaîner']] },
@@ -278,7 +278,7 @@ function _fullEngineHTML() {
 }
 
 // ─── Langue ──────────────────────────────────────────────────────────────────
-// Quatre langues d'office ; les autres sont des paquets à télécharger, comme le moteur complet (i18n.js).
+// Français et anglais d'office ; une langue de plus serait un paquet à télécharger, comme le moteur complet (i18n.js).
 const _langDl = { have: {}, sizes: {}, busy: null, pct: 0, error: '', checked: false };
 const _ko = n => `${Math.max(1, Math.round(n / 1024))} Ko`;
 function _langCheck() {

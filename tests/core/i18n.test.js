@@ -85,12 +85,12 @@ async function boot(lang) {
         w.eval(`showSettings('apparence')`);
         await flush();
         const tiles = [...w.document.querySelectorAll('.pn-langs .pn-lang b')].map(x => x.textContent);
-        assert.deepStrictEqual(tiles, ['Français', 'English', 'Español', '简体中文']);
+        assert.deepStrictEqual(tiles, ['Français', 'English']);
         assert(w.document.querySelector('.pn-lang.is-on b').textContent === 'English');
         w.eval('SettingsPanel.close()');
     });
-    await t('paquets : les trois langues d’office existent et ne créent aucun trou', () => {
-        for (const l of ['en', 'es', 'zh-Hans']) {
+    await t('paquet anglais : il existe et ne crée aucun trou', () => {
+        for (const l of ['en']) {
             const d = JSON.parse(read(`lang/${l}.json`));
             assert(Object.keys(d).length > 2000, l);
             for (const [k, v] of Object.entries(d)) {
@@ -98,10 +98,12 @@ async function boot(lang) {
                 const kh = holes(k);
                 holes(v).forEach(h => assert(kh.has(h), `${l} : ${h} inventé dans « ${k.slice(0, 60)} »`));
             }
-            assert.strictEqual(d['Jouer'], { en: 'Play', es: 'Jugar', 'zh-Hans': '对弈' }[l]);
+            assert.strictEqual(d['Jouer'], 'Play');
         }
     });
-    await t('les onze langues : chaque paquet est publié, l’arabe se lit de droite à gauche', () => {
+    await t('deux langues seulement : français et anglais, le paquet anglais publié', () => {
+        assert.strictEqual(w.eval('Object.keys(I18n.LANGS).join()'), 'fr,en');
+        assert.strictEqual(w.eval('I18n.EMBEDDED.join()'), 'fr,en');
         const manifest = JSON.parse(read('lang/manifest.json')), langs = w.eval('Object.keys(I18n.LANGS)');
         langs.filter(l => l !== 'fr').forEach(l => {
             assert(manifest[l] > 100000, l);
@@ -110,8 +112,6 @@ async function boot(lang) {
             assert(d['Télécharger'], `${l} : Télécharger`);
             Object.entries(d).forEach(([k, v]) => (v.match(/\{\d\}/g) || []).forEach(h => assert(k.includes(h), `${l} : ${h} inventé dans « ${k.slice(0, 60)} »`)));
         });
-        assert.strictEqual(w.eval('I18n.LANGS.ar.rtl'), true);
-        assert.strictEqual(w.eval('I18n.LANGS.ru.letters[4]'), 'Кр');
     });
     await t('pluriel « a|b » : le trou « s » choisit la forme', () => {
         w.eval(`I18n.install('de', Object.assign(JSON.parse(localStorage.getItem('chays_langPack')).dict, { 'essai test {0} coup{1}': 'versuch {0} Zug|versuch {0} Züge' }))`);
@@ -122,7 +122,8 @@ async function boot(lang) {
         const sw = read('sw.js');
         const rule = /\/\\\/lang\\\/\(\?!en[^/]*\/[^.]*\.json\$\//.exec(sw);
         assert(sw.includes('/lang/') || rule);
-        const re = /\/lang\/(?!en\.json|es\.json|zh-Hans\.json)[^/]+\.json$/;
+        const re = /\/lang\/(?!en\.json)[^/]+\.json$/;
+        assert(sw.includes(String(re)), 'même règle que sw.js');
         assert(re.test('/lang/de.json'));
         assert(!re.test('/lang/en.json'));
     });

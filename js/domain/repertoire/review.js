@@ -56,6 +56,12 @@ function reviewGoal() {
     return DAILY_GOALS.includes(g) ? g : DAILY_GOAL_DEFAULT;
 }
 
+// Places gardées chaque jour pour des découvertes même quand du retard attend (chantier « Erreurs et niveaux ») :
+// 2 à l'objectif Léger, 3 au-delà, dans le plafond.
+function _discoverSlots(cap) {
+    return cap <= 0 ? 0 : Math.min(cap, reviewGoal() < 30 ? 2 : 3);
+}
+
 function newPerDay() {
     return Math.max(1, Math.round(reviewGoal() / 5));
 }
@@ -101,7 +107,7 @@ function reviewPlan(rep = currentRepertoire, now = Date.now(), opts = {}) {
     const SP = typeof SeenPositions !== 'undefined' && SeenPositions.ready && SeenPositions.ready() ? SeenPositions : null;
     const seenOn = !!SP && items.filter(x => SP.has(x.color, x.key)).length >= SP.MIN;
     items.forEach(x => {
-        x.fresh = !x.e.attempts && dueOf(x.e) <= now;   // une échéance future explicite est respectée comme une révision
+        x.fresh = needsShowing(x.e) && dueOf(x.e) <= now;   // jamais présentée ; une échéance future explicite est respectée
         x.at = dueOf(x.e);
         x.seen = seenOn ? SP.count(x.color, x.key) : 0;
         x.rank = Number.isInteger(x.e.relearn) ? 0 : x.e.prio ? 1 : !seenOn || x.seen ? 2 : 3;
@@ -110,33 +116,36 @@ function reviewPlan(rep = currentRepertoire, now = Date.now(), opts = {}) {
     });
     const fresh = items.filter(x => x.fresh)
         .sort((a, b) => (b.e.prio ? 1 : 0) - (a.e.prio ? 1 : 0) || (a.e.created || 0) - (b.e.created || 0) || (a.e.ply || 0) - (b.e.ply || 0));
-    const growth = reviewGrowth(), failRate = Number.isFinite(opts.failRate) ? opts.failRate : _reviewFailRate(now);
+    const failRate = Number.isFinite(opts.failRate) ? opts.failRate : _reviewFailRate(now);
     let miss = 0;
-    let sims = items.filter(x => !x.fresh).map(x => ({ x, due: x.at, iv: x.e.interval || impliedInterval(x.e), rl: x.e.relearn }));
+    let sims = items.filter(x => !x.fresh).map(x => ({ x, due: x.at, st: stepOf(x.e), rl: x.e.relearn }));
     const takes = [], heldAt = [];
     let ran = -1, nf = 0, caught = null;
     // Un jour de la simulation : la file (échéances avant la fin du jour), le plafond, puis les nouvelles s'il reste de la place.
     function step(i) {
         const end = start(i + 1), cap = i === 0 ? left : goal;
         const pool = sims.filter(s => s.due < end).sort((a, b) => _reviewImportance(a.x, b.x));
-        const take = pool.slice(0, cap), day = take.map(s => ({ x: s.x, at: Math.max(s.due, start(i)), first: s.x.day === Infinity }));
-        heldAt[i] = pool.slice(cap).map(s => s.x);
+        const keep = pool.length >= cap ? Math.min(_discoverSlots(cap), fresh.length - nf) : 0;   // retard : places de découverte
+        const take = pool.slice(0, cap - keep), day = take.map(s => ({ x: s.x, at: Math.max(s.due, start(i)), first: s.x.day === Infinity }));
+        heldAt[i] = pool.slice(cap - keep).map(s => s.x);
         take.forEach(s => {
             if (s.x.day === Infinity) s.x.day = i;
             miss += failRate;
-            if (miss >= 1) { miss -= 1; s.rl = 0; s.iv = 0; s.due = start(i + 1); return; }   // erreur attendue : file « À revoir »
-            if (Number.isInteger(s.rl)) { s.iv = RELEARN_DAYS[s.rl]; s.rl = s.rl + 1 >= RELEARN_DAYS.length ? undefined : s.rl + 1; }
-            else s.iv = s.iv ? Math.min(REVIEW_MAX_DAYS, s.iv * growth) : 1;
-            s.due = start(i + Math.max(1, Math.round(s.iv)));
+            if (miss >= 1) {                                  // erreur attendue : un palier de moins, rattrapage demain
+                miss -= 1;
+                s.st = Number.isInteger(s.rl) || s.st <= 0 ? 0 : Math.max(1, s.st - 1); s.rl = 0; s.due = start(i + 1); return;
+            }
+            if (Number.isInteger(s.rl)) { s.rl = undefined; s.st = Math.max(1, s.st); } else s.st++;
+            s.due = start(i + stepDays(s.st));
         });
-        if (!heldAt[i].length) {
-            if (caught === null) caught = i;
-            const room = Math.min(k, cap - take.length, fresh.length - nf);
+        if (!heldAt[i].length && caught === null) caught = i;
+        {
+            const room = heldAt[i].length ? keep : Math.min(k, cap - take.length, fresh.length - nf);
             for (let j = 0; j < room; j++) {
                 const x = fresh[nf++];
                 x.day = i;
                 day.push({ x, at: start(i), first: true });
-                sims.push({ x, due: start(i + 1), iv: 1 });
+                sims.push({ x, due: start(i + 1), st: 0 });
             }
         }
         takes[i] = day;
@@ -209,11 +218,10 @@ function _nextMastery(entry, ok, wasDue, help = 0) {
     return Math.round(ok ? m + gain * (100 - m) : m * MASTERY_KEEP);
 }
 
-// ─── SÉRIE DE RÉUSSITES (niveaux E3, chantier « Révision du jour ») ───
-// run : réussites d'affilée depuis la dernière erreur ; c'est lui qui fait le niveau (_level, levels.js).
-// Sans champ run (position d'avant cette règle) : déduit, sans erreur → les essais, dans la file « À revoir » → son
-// étape, sinon d'après le score (sous 50 : 0, sous 70 : 1, sous 85 : 2, au-delà 3, et 5 si l'intervalle atteint 7 jours
-// en 3 essais au moins) : les niveaux d'une position déjà ratée ne bougent pas le jour du passage.
+// ─── SÉRIE DE RÉUSSITES (ancienne échelle E3) ───
+// run : réussites d'affilée depuis la dernière erreur. Il ne fait plus le niveau (voir PALIERS ci-dessous) : il sert
+// seulement à déduire le palier d'une position d'avant le chantier « Erreurs et niveaux ».
+// Sans champ run : déduit, sans erreur → les essais, dans l'ancienne file « À revoir » → son étape, sinon d'après le score.
 function _runFrom(e) {
     if (!e.failures) return Math.max(0, e.attempts || 0);
     if (Number.isInteger(e.relearn)) return e.relearn;
@@ -223,52 +231,108 @@ function _runFrom(e) {
 
 const runOf = e => Number.isInteger(e.run) && e.run >= 0 ? e.run : _runFrom(e);
 
-// Bonus de retard : une réussite à l'échéance après N jours de retard part de l'intervalle + N ÷ 2 (comme Anki) :
-// une position retrouvée après trois semaines d'oubli ne revient pas aussi vite qu'une position revue à l'heure.
-const REVIEW_LATE_BONUS = 0.5;
+// ─── PALIERS (chantier « Erreurs et niveaux », 25 novembre 2026, système C « Apprendre, puis entretenir ») ───
+// step : 0 = découverte (jamais retrouvée de mémoire, ou ratée deux fois d'affilée), puis un palier par réussite à
+// l'échéance (au plus un par jour hors échéance), revue après STEP_DAYS[palier] jours. Une erreur fait descendre d'un
+// palier (jamais sous 1) et ouvre un rattrapage (relearn = 0) : revue le lendemain ; réussie, la position garde ce palier ;
+// ratée, elle repart en découverte. En découverte, un raté ne compte pas (recordMiss) : on remontre le coup demain.
+const STEP_DAYS = [1, 1, 3, 7, 16, 35, 90, 180];
+
+// Rythme des révisions (Paramètres) : Doux allonge les paliers, Intensif les raccourcit (Normal : les jours ci-dessus).
+const stepDays = step => Math.max(1, Math.round(STEP_DAYS[Math.min(Math.max(0, step), STEP_DAYS.length - 1)] * reviewGrowth() / REVIEW_GROWTH));
+
+// Palier d'une position d'avant cette règle, lu dans tout son historique (rien n'est réécrit) : jamais ratée → ses
+// essais (Sue dès 3, Maîtrisée dès 5, comme avant) ; sinon sa série (5+ : Maîtrisée) ; série à 0 (dernier essai raté) :
+// un cran sous ce que dit la part de réussites, découverte si elle est sous la moitié ou jamais réussie.
+function _stepFrom(e) {
+    const a = e.attempts || 0, f = e.failures || 0, succ = a - f;
+    if (!a || succ <= 0) return 0;
+    if (!f) return Math.min(5, a);
+    const run = runOf(e);
+    if (run >= 5) return 5;
+    if (run >= 1) return Math.min(4, run);
+    const q = succ / a;
+    return q >= 0.5 ? (succ >= 3 ? 2 : 1) : 0;
+}
+
+const stepOf = e => Number.isInteger(e.step) && e.step >= 0 ? e.step : _stepFrom(e);
+
+// En découverte : ses ratés ne comptent pas.
+const isDiscovering = e => stepOf(e) === 0;
+
+// Jamais présentée : ni essai noté ni passage. La séance montre d'abord le coup (presentEntry).
+const needsShowing = e => !e.attempts && !e.lastReviewed;
+
+// Début du jour suivant (le rattrapage et la découverte reviennent « demain », pas 24 h plus tard).
+function _tomorrow(now) {
+    const d = new Date(now);
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime();
+}
+
+// Présentation d'une position nouvelle : coup montré puis joué ; rien n'est compté, elle revient demain.
+function presentEntry(entry, now = Date.now()) {
+    entry.lastReviewed = now;
+    entry.step = 0;
+    entry.interval = 0;
+    entry.due = _tomorrow(now);
+    logActivity(true);
+}
+
+// Un raté en révision : en découverte, il ne compte pas (revue demain, le coup est remontré) ; sinon erreur comptée.
+// Renvoie true si une erreur a été comptée.
+function recordMiss(entry, now = Date.now()) {
+    if (isDiscovering(entry)) {
+        entry.step = 0;
+        entry.lastReviewed = now;
+        entry.interval = 0;
+        entry.due = _tomorrow(now);
+        logActivity(true);
+        return false;
+    }
+    entry.attempts++;
+    entry.failures++;
+    recordReview(entry, false);
+    return true;
+}
 
 // Une note par passage (une seule, cf. answerTrainingMove ; seules les séances de révision notent : TRAIN_SCORED).
-// File « À revoir » : une erreur y fait entrer ou y ramène à zéro ; seule une réussite à l'échéance avance
-// (10 min, puis 1, 3 et 7 jours) ; la troisième fait sortir de la file. Erreur hors échéance (Points faibles, À confirmer,
-// Ligne complète) : même file, mais revue demain au plus tard, pas dans 10 minutes (la séance la repasse déjà).
-// Série (run) : une erreur la remet à 0 ; une réussite l'allonge d'un cran si la position était due, ou si elle n'avait
-// pas encore été notée aujourd'hui (au plus un cran par jour hors échéance).
-// help = palier d'indice reçu avant une réussite : 0 aucun, 1 type de pièce (gain réduit, planning normal),
-// 2 pièce exacte (neutre : score et série gardés, revue demain, intervalle et file « À revoir » inchangés, priorité gardée).
-// La solution ne passe jamais ici en réussite : elle est notée comme une erreur (showTrainingSolution).
+// Les compteurs sont mis à jour AVANT l'appel (une erreur passe par recordMiss).
+// Réussite : palier + 1 si la position était due ou pas encore notée aujourd'hui ; en rattrapage, le palier est gardé
+// et le rattrapage levé ; avec l'indice 1 (type de pièce), le palier est gardé ; revue dans STEP_DAYS[palier] jours.
+// help 2 (pièce exacte) : neutre, palier et rattrapage gardés, revue demain.
+// Erreur : un palier de moins (au moins 1) et rattrapage demain ; deuxième erreur d'affilée (rattrapage en attente) :
+// découverte. La solution passe ici comme une erreur (showTrainingSolution, via recordMiss).
 function recordReview(entry, ok, help = 0) {
     const now = Date.now(), d = new Date(now), today = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-    const wasDue = isDue(entry, now), prev = entry.interval || impliedInterval(entry), dueBefore = dueOf(entry);
-    const runBefore = Number.isInteger(entry.run) && entry.run >= 0 ? entry.run
-        : _runFrom({ ...entry, attempts: entry.attempts - 1, failures: entry.failures - (ok ? 0 : 1) });
-    const freshToday = !(entry.lastReviewed >= today);
+    const wasDue = isDue(entry, now);
+    const before = Number.isInteger(entry.step) && entry.step >= 0 ? entry.step
+        : _stepFrom({ ...entry, attempts: entry.attempts - 1, failures: entry.failures - (ok ? 0 : 1) });
+    const freshToday = !(entry.lastReviewed >= today), catching = Number.isInteger(entry.relearn);
     entry.mastery = _nextMastery(entry, ok, wasDue, help);
     entry.lastReviewed = now;
+    delete entry.run;
     if (ok && help >= 2) {
-        entry.run = runBefore;
-        if (!entry.interval && prev) entry.interval = prev;
+        entry.step = before;
         entry.due = now + DAY_MS;
         logActivity(true);
         return;
     }
-    entry.run = !ok ? 0 : wasDue || freshToday ? runBefore + 1 : runBefore;
-    if (ok) delete entry.prio;                 // réponse « Traitée depuis » enfin retrouvée : priorité levée
-    if (!ok) {
+    if (ok) {
+        delete entry.prio;                     // réponse « à vérifier » ou « Traitée depuis » retrouvée : priorité levée
+        let step = before;
+        if (catching) { delete entry.relearn; step = Math.max(1, before); }
+        else if (help) step = before;
+        else if (wasDue || freshToday) step = before + 1;
+        entry.step = step;
+        if (step !== before || catching || wasDue || !entry.due) {
+            entry.interval = step ? stepDays(step) : 0;
+            entry.due = step ? now + entry.interval * DAY_MS : _tomorrow(now);
+        }
+    } else {
+        if (catching || before <= 0) { entry.step = 0; entry.relearn = 0; }
+        else { entry.step = Math.max(1, before - 1); entry.relearn = 0; }
         entry.interval = 0;
-        entry.due = wasDue ? now + REVIEW_RETRY_MS : Math.min(entry.due || Infinity, now + DAY_MS);
-        entry.relearn = 0;
-    } else if (wasDue && Number.isInteger(entry.relearn)) {
-        entry.interval = RELEARN_DAYS[entry.relearn];
-        entry.due = now + entry.interval * DAY_MS;
-        if (entry.relearn + 1 >= RELEARN_DAYS.length) delete entry.relearn; else entry.relearn++;
-    } else if (wasDue) {
-        const late = prev && dueBefore > 0 ? Math.max(0, (now - dueBefore) / DAY_MS) : 0;
-        const base = prev + late * REVIEW_LATE_BONUS;
-        entry.interval = prev ? Math.min(REVIEW_MAX_DAYS, Math.round(base * reviewGrowth() * 10) / 10) : 1;
-        entry.due = now + entry.interval * DAY_MS;
-    } else if (!entry.due) {                   // révision anticipée d'une ancienne position : son planning devient explicite
-        entry.interval = prev;
-        entry.due = now + prev * DAY_MS;
+        entry.due = _tomorrow(now);
     }
     logActivity(ok);
 }

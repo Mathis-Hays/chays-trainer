@@ -100,10 +100,10 @@ const StatsOpenings = (function () {
     const sideDot = s => `<span class="side-dot is-${s}" aria-hidden="true"></span>`;
     const pctKnown = g => knownPct(g.counts);
     const metaOf = g => g.all.length ? `${_plural(g.stats.n, 'partie')} · ${pctKnown(g)} % sues` : `${_plural(g.stats.n, 'partie')} · hors répertoire`;
-    // Barre légendée sur plaque (audit O9, O10, O14) : les trois états, puis « À confirmer », qui reste hors de la barre.
+    // Barre légendée sur plaque (audit O9, O10, O14) : les trois états, puis « À découvrir », qui reste hors de la barre.
     function plateHTML(counts, cls = '') {
         const u = counts[STATS_STATE] || 0, h = levelBarHTML(counts, cls, { legend: true });
-        return u ? h.replace(/<\/span><\/span>$/, `<span>${_lvMark(STATS_STATE)}${u} à confirmer</span></span></span>`) : h;
+        return u ? h.replace(/<\/span><\/span>$/, `<span>${_lvMark(STATS_STATE)}${u} à découvrir</span></span></span>`) : h;
     }
 
     // Score face à l'attendu, dit en Elo (chantier « Ouvertures repensées », point 3) : le niveau joué dans l'ouverture
@@ -124,7 +124,7 @@ const StatsOpenings = (function () {
     // L'état porte le nom de son niveau (« À apprendre », O13) ; [classe, texte].
     function stateOf(g) {
         if (!g.all.length) return ['out', 'Hors répertoire'];
-        const d = fairDelta(g.stats), learn = g.counts.weak + g.counts.fragile;
+        const d = fairDelta(g.stats), learn = g.counts.weak;
         if (d !== null && d <= LOSING) return ['loss', 'Perd des points'];
         if (learn) return ['learn', `${learn} à apprendre`];
         if (g.due) return ['muted', `${g.due} à réviser`];
@@ -202,17 +202,17 @@ const StatsOpenings = (function () {
     // fragiles, sinon la ligne entière), et trois variantes en puces ; « Échiquier libre » ouvre l'Analyse ici.
     function reviewHTML(g) {
         if (!g.all.length) return g.path.length ? `<div class="so-acts"><button type="button" class="hp-link so-free" data-action="opFree" data-arg="${escapeHtml(g.key)}">${ico('cpu')}Échiquier libre</button></div>` : '';
-        const weak = g.counts.weak + g.counts.fragile, unsure = g.counts[STATS_STATE];
+        const weak = g.counts.weak, unsure = g.counts[STATS_STATE];
         const main = g.due ? 'due' : weak ? 'weak' : g.path.length ? 'line' : 'unsure';
         const chip = (kind, label, n) => kind === main ? '' : `<button type="button" class="so-chip" data-action="opReview" data-arg="${escapeHtml(kind + ':' + g.key)}"${n === 0 ? ' disabled' : ''}>${label}${n ? ` <span class="count">${n}</span>` : ''}</button>`;
         // Audit O14 : le bouton dit ce qu'il compte (« 1 à réviser », « 18 à apprendre »), dans la puce de compte.
         const label = { due: 'Réviser', weak: 'Reprendre', line: 'Réviser la ligne entière', unsure: 'Confirmer' }[main];
-        const n = { due: [g.due, 'à réviser'], weak: [weak, 'à apprendre'], unsure: [unsure, 'à confirmer'] }[main];
+        const n = { due: [g.due, 'à réviser'], weak: [weak, 'à apprendre'], unsure: [unsure, 'à découvrir'] }[main];
         // Lot 5 « Chays épuré » : une action pleine ; les variantes et l'Échiquier libre sous « Autres façons ».
         return `<div class="so-review">
             <button type="button" class="btn btn-primary so-go" data-action="opReview" data-arg="${escapeHtml(main + ':' + g.key)}">${ico('play')}<span>${label}</span>${n ? `<span class="count">${n[0]} ${n[1]}</span>` : ''}</button>
             <details class="so-more"><summary>Autres façons ${ico('chevron-down')}</summary>
-            <div class="so-chips">${chip('weak', 'À reprendre', weak)}${g.path.length ? chip('line', 'Ligne entière') : ''}${chip('unsure', 'À confirmer', unsure)}
+            <div class="so-chips">${chip('weak', 'À reprendre', weak)}${g.path.length ? chip('line', 'Ligne entière') : ''}${chip('unsure', 'À découvrir', unsure)}
                 ${g.path.length ? `<button type="button" class="so-chip is-free" data-action="opFree" data-arg="${escapeHtml(g.key)}">${ico('cpu')}Échiquier libre</button>` : ''}</div></details>
         </div>`;
     }
@@ -444,7 +444,7 @@ const StatsOpenings = (function () {
 
     // Mes coups, du plus fragile au plus sûr (ex « Vos coups à connaître », allégée) : miniature, coup, niveau, un bouton.
     // Parties, maîtrise et prochaine révision sont dans l'aperçu (toucher la miniature). Audit « Ouvertures en images » :
-    // rangés sous le titre de leur état (À apprendre, En cours, À confirmer, Sues), avec son compte ; notation en Mono.
+    // rangés sous le titre de leur état (À apprendre, En cours, À découvrir, Sues), avec son compte ; notation en Mono.
     const GROUP_ORDER = ['learn', 'doing', STATS_STATE, 'known'];
     function positionsHTML(g) {
         if (!g.all.length) return '';
@@ -469,9 +469,9 @@ const StatsOpenings = (function () {
             <div class="st-rows">${rows}${more}</div></div>`;
     }
 
-    // Filtre de niveau (lot 1) : la barre de niveaux elle-même, « À confirmer » à part (hors des barres), une ligne de rappel.
+    // Filtre de niveau (lot 1) : la barre de niveaux elle-même, « À découvrir » à part (hors des barres), une ligne de rappel.
     // Audit « Ouvertures en images » (O10, O12) : la barre est légendée, chaque légende filtre comme son segment ;
-    // « À confirmer » est un état, en contour plein.
+    // « À découvrir » est un état, en contour plein.
     function filterHTML() {
         const { counts } = st.ctx, on = statsFilter, u = counts[STATS_STATE], gc = groupCounts(counts), act = on === 'all' ? '' : levelGroup(on);
         const leg = (k, mark, label, n) => `<button type="button" class="so-leg-b${act === k ? ' on' : ''}" data-action="statsFilter" data-arg="${k}" aria-pressed="${act === k}">${mark}<b>${n}</b> ${escapeHtml(label.toLocaleLowerCase('fr'))}</button>`;
@@ -535,7 +535,7 @@ const StatsOpenings = (function () {
     function mirrorHTML() {
         const row = g => {
             const [cls, text] = stateOf(g), k = g.all.length ? pctKnown(g) : null, gc = groupCounts(g.counts), elo = eloTag(g.stats);
-            const said = g.all.length ? ` · ${gc.learn} à apprendre, ${gc.doing} en cours, ${gc.known} sues${gc.unsure ? `, ${gc.unsure} à confirmer` : ''}` : '';
+            const said = g.all.length ? ` · ${gc.learn} à apprendre, ${gc.doing} en cours, ${gc.known} sues${gc.unsure ? `, ${gc.unsure} à découvrir` : ''}` : '';
             const label = `${g.name}${g.rank !== null ? ` · ${OpeningMarks.RANKS[g.rank]}` : ''} · ${text}${k === null ? '' : ` · ${k} % sues`}${said}${elo ? ` · ${eloSigned(g.stats.gap)}` : ''}`;
             const seal = g.rank !== null && g.rank >= 1 ? _opRankHTML(g.rank, 'so-seal') : '';
             const chip = cls === 'out' ? `<span class="so-mr-st is-out">${text}</span>` : `<span class="so-mr-st count is-${cls}">${text}</span>`;
@@ -549,9 +549,9 @@ const StatsOpenings = (function () {
         const rep = st.list.filter(g => g.all.length), out = st.list.filter(g => !g.all.length);
         const outOpen = out.some(g => g.key === st.cur && st.open);
         const top = statsFilter === 'all' && rep.length >= PRIORITY_MIN
-            ? rep.filter(g => g.counts.weak + g.counts.fragile).sort((a, b) => (b.counts.weak + b.counts.fragile) - (a.counts.weak + a.counts.fragile)).slice(0, PRIORITY) : [];
+            ? rep.filter(g => g.counts.weak).sort((a, b) => b.counts.weak - a.counts.weak).slice(0, PRIORITY) : [];
         const pri = top.length ? `<section class="so-pri" aria-label="À reprendre d’abord"><h4 class="so-sub"><span>À reprendre d’abord</span></h4><div class="so-pri-l">${top.map(g => {
-            const n = g.counts.weak + g.counts.fragile;
+            const n = g.counts.weak;
             return `<button type="button" class="so-pri-c" data-action="statsOpPick" data-arg="${escapeHtml(g.key)}" aria-label="${escapeHtml(`${g.name} · ${n} à apprendre`)}">${boardOf(g)}<b>${g.html}</b><span class="so-pri-n"><span class="count is-learn">${n}</span>à apprendre</span></button>`;
         }).join('')}</div><h4 class="so-sub"><span>Toutes</span><span class="count is-muted">${rep.length}</span></h4></section>` : '';
         return `${pri}<div class="so-mirror">${rep.map(row).join('')}</div>${out.length ? `<details class="so-out"${outOpen ? ' open' : ''}><summary>Hors répertoire <span class="count is-muted">${out.length}</span>${ico('chevron-down')}</summary>

@@ -7,7 +7,7 @@
  *   1. Séance guidée (startSession) : une liste connue d'avance, avec barre de progression et bilan.
  *        due     Révision du jour : positions dont la révision est due
  *        weak    Points faibles : positions à retravailler ou fragiles
- *        unsure  À confirmer : positions jouées moins de STATS_CONFIRM_TRIES fois sans erreur
+ *        unsure  À découvrir : positions jamais retrouvées de mémoire (nouvelles d'abord, coup montré)
  *        review  Liste donnée par l'onglet Statistiques (startReviewQueue)
  *        retry   Erreurs d'une séance précédente
  *        line    Ligne complète : une ouverture jouée du premier coup jusqu'au bout de la variante
@@ -21,14 +21,16 @@
  * Pour chaque position : l'échiquier se place 3 demi-coups avant, rejoue automatiquement ces trois coups
  * (contexte, touchez l'échiquier pour passer), puis me rend la main.
  *   Une seule note par passage, donnée par le premier coup, en révision seulement (_scores) ; le deuxième passage
- *   d'une séance n'en donne pas :
- *   - succès : attempts + 1, score de maîtrise et planning de révision mis à jour (recordReview, storage.js)
- *   - erreur : coup refusé, attempts + 1 et failures + 1, la position entre dans la file « À revoir » ; on réessaie,
- *     sans rien compter de plus (erreurs suivantes comme réussite finale).
+ *   d'une séance n'en donne pas. Paliers (chantier « Erreurs et niveaux », review.js) :
+ *   - position jamais présentée : son coup est montré, à jouer tel quel (_presentIfNew, presentEntry) ; rien n'est
+ *     compté, elle revient demain, de mémoire ;
+ *   - succès : attempts + 1, palier + 1 (gardé en rattrapage ou avec l'indice), planning (recordReview) ;
+ *   - erreur (recordMiss) : en découverte, rien n'est compté ; sinon attempts + 1, failures + 1, un palier de moins et
+ *     rattrapage demain (deux erreurs d'affilée : découverte) ; on réessaie, sans rien compter de plus ;
  *   - indice en trois paliers (showHint, boardLogic.js), barème de recordReview(entry, true, palier) :
- *       type de pièce : réussite à +20 % de ce qui manque (au lieu de +35 %), échéance allongée normalement ;
- *       pièce exacte : neutre, score gardé, revue demain, ni file « À revoir » ni allongement ;
- *       solution (3e appui) : compte comme une erreur (× 0,4, file « À revoir »), aucune réussite comptée.
+ *       type de pièce : réussite sans montée, palier gardé ;
+ *       pièce exacte : neutre, palier gardé, revue demain ;
+ *       solution (3e appui) : compte comme une erreur (recordMiss), aucune réussite comptée.
  *     La gravure « Maîtrisée » reste réservée au coup trouvé sans aide.
  */
 
@@ -62,6 +64,7 @@ const trainingState = {
     session: null,          // séance guidée en cours (cf. startSession)
     lastSummary: null,      // bilan de la dernière séance, affiché par l'onglet Entraînement
     keyErred: false,        // erreur (ou solution) sur la position posée
+    presenting: null,       // position en découverte dont le coup est montré (_presentIfNew)
     keyLv: null,            // niveau de la position posée avant le coup (bilan : avant → après)
     combo: 0,               // série en cours de positions réussies du premier coup (séance guidée)
     ctxSkip: null,          // passe la mise en situation en cours
@@ -558,7 +561,7 @@ function _drillReason(e) {
     const now = Date.now();
     if (trainingState.session && trainingState.session.items[trainingState.session.cur] && trainingState.session.items[trainingState.session.cur].second)
         return 'Deuxième passage : erreur plus tôt dans la séance';
-    if (Number.isInteger(e.relearn)) return `À revoir · ${e.relearn} / ${RELEARN_DAYS.length}`;
+    if (Number.isInteger(e.relearn)) return isDiscovering(e) ? 'À réapprendre' : 'Rattrapage après une erreur';
     if (e.failures === 0 || !e.attempts) return `Entretien · 100% de réussite · ${_ageLabel(e, now)}`;
     const m = Math.round(masteryOf(e));
     if (m <= 50)                  return `Position critique · maîtrise ${m} / 100`;
@@ -688,6 +691,18 @@ function _positionPosed() {
     trainingState.drill.keys.push(positionKey());
     trainingState.keyErred = false;
     trainingState.keyLv = e ? _level(e) : null;
+    trainingState.presenting = null;
+}
+
+// Découverte (chantier « Erreurs et niveaux ») : en révision, une position jamais présentée montre d'abord son coup,
+// à jouer tel quel ; rien n'est compté, elle revient demain, de mémoire (presentEntry, review.js).
+function _presentIfNew() {
+    const key = positionKey(), e = openingDB[key];
+    if (!e || !_scores() || !needsShowing(e)) return false;
+    trainingState.presenting = key;
+    revealSolution(e);
+    setStatus(`Nouveau coup : ${formatSanText(e.san, turn)}`, 'hint', 'Découverte : jouez-le. Rien n’est compté, il reviendra demain, de mémoire.');
+    return true;
 }
 
 function _drillReady() {
@@ -712,7 +727,7 @@ function _drillReady() {
     trainingState.busy = false;
     _positionPosed();
     _renderSessionBar();
-    setStatus(`À vous de jouer${_seqLabel()}`, 'info', _readyDetail());
+    if (!_presentIfNew()) setStatus(`À vous de jouer${_seqLabel()}`, 'info', _readyDetail());
 }
 
 // ─── NAVIGATION EN SÉANCE ─────────────────────────────────────────────────────
@@ -728,6 +743,7 @@ function trainingBackToLive() {
 // Retour à la position en cours : la consigne de la séance revient (navGo).
 function trainingLiveStatus() {
     if (gameMode !== 'training' || trainingState.busy || turn !== playerColor) return false;
+    if (trainingState.presenting === positionKey() && _presentIfNew()) return true;
     setStatus(`À vous de jouer${_seqLabel()}`, 'info', _readyDetail());
     return true;
 }
@@ -812,7 +828,7 @@ function _playOpponentReply(opp) {
             trainingState.busy = false;
             _positionPosed();
             _renderSessionBar();
-            setStatus(`Adversaire : ${san}`, 'info', `À vous de jouer${_seqLabel()}`);
+            if (!_presentIfNew()) setStatus(`Adversaire : ${san}`, 'info', `À vous de jouer${_seqLabel()}`);
         } else {
             setStatus('Fin de la variante.', 'ok');
             _finishDrill();
@@ -940,7 +956,7 @@ function _editPlayed(from, to, promo) {
         trainingState.busy = true;
         loadPositionFromPath(path.concat(mv));
         _syncAfterTools();
-        setStatus('Coup remplacé', 'ok', `${label(san)} est votre nouvelle réponse ; elle passe en « À confirmer ».${extra ? ` ${extra} coup(s) orphelin(s) mis à la corbeille.` : ''}`);
+        setStatus('Coup remplacé', 'ok', `${label(san)} est votre nouvelle réponse ; elle passe en « À découvrir ».${extra ? ` ${extra} coup(s) orphelin(s) mis à la corbeille.` : ''}`);
         _offerNext();
     });
 }
@@ -976,9 +992,7 @@ function showTrainingSolution() {
         trainingState.keyErred = true;
         if (first && !_scores() && !_secondPass()) _logPlayed();
         if (TRAIN_SOLUTION_PENALTY && first && _scores()) {
-            entry.attempts++;
-            entry.failures++;
-            recordReview(entry, false);
+            recordMiss(entry);                         // en découverte, rien n'est compté
             saveDB();
         }
     }
@@ -1007,14 +1021,11 @@ function _scores() {
     return !!S && TRAIN_SCORED.has(S.kind) && !_secondPass();
 }
 
-// Ce que le passage a changé : file « À revoir », sinon la série de réussites et son niveau (échelle E3 : le score sur 100
-// ne s'affiche plus, il ne sert qu'au tri de la file du jour).
+// Ce que le passage a changé : rattrapage réussi, sinon le palier et la prochaine révision.
 function _answerDetail(entry, inFile) {
-    if (inFile && !Number.isInteger(entry.relearn)) return 'Acquise : elle sort des positions à reprendre.';
-    if (Number.isInteger(entry.relearn)) return entry.relearn === inFile.step ? `À revoir : ${entry.relearn} / ${RELEARN_DAYS.length} · trop tôt pour avancer`
-        : `À revoir : ${entry.relearn} / ${RELEARN_DAYS.length} · ${dueInLabel(entry.due)}`;
-    const run = runOf(entry);
-    return `${run} réussite${run > 1 ? 's' : ''} d’affilée · ${levelInfo(_level(entry)).one}`;
+    const step = stepOf(entry), next = step ? `revue ${dueInLabel(entry.due, true)}` : 'revue demain';
+    if (inFile && !Number.isInteger(entry.relearn)) return `Rattrapage réussi : palier ${step} gardé · ${next}`;
+    return step ? `Palier ${step} · ${next}` : `Découverte · ${next}`;
 }
 
 // Appelé par executePlayerMove() en mode entraînement (le coup n'est pas encore appliqué).
@@ -1031,6 +1042,21 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
     const revealed = trainingState.solutionFor === key;
     const second   = _secondPass(), scored = _scores();
 
+    if (entry && trainingState.presenting === key) {     // découverte : le coup montré, à jouer tel quel
+        if (movStr !== entry.move) { _rejectMove(to, 'Jouez le coup montré', 'Découverte : rien n’est compté.', from); return; }
+        trainingState.presenting = null;
+        presentEntry(entry);
+        saveDB();
+        _sessionRecord(key, true);
+        trainingState.drill.answered = key;
+        trainingState.busy = true;
+        _commitMove(from, to, promo, null, '✓ Coup découvert', 'ok', 'Il reviendra demain : à retrouver de mémoire.');
+        _renderSessionBar();
+        trainingState.seq.done++;
+        _continueSequence();
+        return;
+    }
+
     if (entry && movStr === entry.move) {
         let msg = '✓ Bien joué !', detail = second ? 'Deuxième passage : rien de plus n’est compté.' : 'Hors révision : rien n’est noté.', engraved = false;
         const help = typeof hintLevel === 'function' ? hintLevel(key) : 0;     // palier d'indice reçu : 0, 1 (type), 2 (pièce exacte)
@@ -1043,7 +1069,7 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
             recordReview(entry, true, help);
             saveDB();
             if (typeof Suite !== 'undefined') Suite.afterAnswer();
-            detail = help >= 2 ? 'Avec la pièce montrée : série gardée, revue demain.'
+            detail = help >= 2 ? 'Avec la pièce montrée : palier gardé, revue demain.'
                 : help ? `Avec l’indice : ${_answerDetail(entry, inFile)}` : _answerDetail(entry, inFile);
             if (help) msg = '✓ Trouvé avec l’indice';
             engraved = !help && lvBefore !== 'mastered' && _level(entry) === 'mastered';   // la gravure reste au coup sans aide
@@ -1060,10 +1086,9 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
     } else if (entry && !revealed) {
         const first = !trainingState.keyErred;
         if (first && !scored && !second) _logPlayed();
+        let counted = false;
         if (first && scored) {                         // erreur : comptée une fois, sur la position exacte, en révision seulement
-            entry.attempts++;
-            entry.failures++;
-            recordReview(entry, false);
+            counted = recordMiss(entry);               // en découverte, rien n'est compté
             saveDB();
             if (typeof Suite !== 'undefined') Suite.afterAnswer();
         }
@@ -1079,7 +1104,8 @@ function answerTrainingMove(entry, from, to, promo, movStr) {
         }
         const told = !first ? '' : S && S.kind === 'timed' ? '−10 s. '
             : S && S.kind === 'survival' ? (S.lives > 0 ? `Plus que ${S.lives} vie${S.lives > 1 ? 's' : ''}. ` : 'Troisième erreur : la survie s’arrête après cette position. ')
-            : scored ? 'Elle passe dans « À reprendre ». ' : '';
+            : scored ? (counted ? (entry.step === 0 ? 'Deuxième erreur d’affilée : à réapprendre, revue demain. ' : 'Un palier de moins, rattrapage demain. ')
+                : 'Découverte : rien n’est compté, elle revient demain. ') : '';
         _rejectMove(to, '✗ Pas le bon coup', `${told}Réessayez, ou appuyez sur Indice.`, from);
         noteMistake(key);
     } else {
@@ -1094,12 +1120,15 @@ GameModes.register('training', {
     backToLive: () => trainingBackToLive(),
     sessionCursor: true,
     hintToSolution: true,
-    hintNote: ' — gain de maîtrise réduit',
-    pieceNote: ' — maîtrise gardée, revue demain',
+    hintNote: ' — palier gardé',
+    pieceNote: ' — palier gardé, revue demain',
     solutionNote: ' — compte une erreur',
-    hintCost: step => !_scores() ? '' : step >= 2 ? ' Trouvé ainsi : maîtrise gardée, revue demain.' : ' Trouvé ainsi : gain de maîtrise réduit.',
+    hintCost: step => !_scores() ? '' : step >= 2 ? ' Trouvé ainsi : palier gardé, revue demain.' : ' Trouvé ainsi : palier gardé.',
     idleAction: () => _focusHintAction(),
-    solutionCost: () => (TRAIN_SOLUTION_PENALTY && _scores() ? ' Voir la solution compte comme une erreur.' : ''),
+    solutionCost: () => {
+        const e = openingDB[positionKey()];
+        return TRAIN_SOLUTION_PENALTY && _scores() && !(e && isDiscovering(e)) ? ' Voir la solution compte comme une erreur.' : '';
+    },
     onMove: (from, to, promo) => trainingState.editing === positionKey() ? _editPlayed(from, to, promo)
         : answerTrainingMove(openingDB[positionKey()], from, to, promo, moveToStr(from, to, promo)),
     onSolution: () => showTrainingSolution(),

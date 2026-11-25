@@ -128,7 +128,7 @@ self.addEventListener('fetch', e => {
     }
     if (url.origin !== self.location.origin) return;            // API Chess.com / Lichess / Supabase : on ne s'en mêle pas
     // Paquets de langue à télécharger : ni dans le cache de l'application, ni servis par lui (i18n.js, cache chays-lang).
-    if (/\/lang\/(?!en\.json|es\.json|zh-Hans\.json)[^/]+\.json$/.test(url.pathname) && !url.pathname.endsWith('/manifest.json')) return;
+    if (/\/lang\/(?!en\.json)[^/]+\.json$/.test(url.pathname) && !url.pathname.endsWith('/manifest.json')) return;
 
     // Moteur : fichiers versionnés, jamais modifiés. Rangés sans le fragment et rendus dans une réponse neuve
     // (sans adresse) : le Worker garde ainsi l'adresse demandée, dont le fragment « #blob:… » qui désigne le

@@ -88,13 +88,17 @@ t('veille : une ligne jamais rencontrée en partie attend que le reste soit à j
     assert(p.todayList().some(x => x.key[0] === 'u'), 'sans assez de parties, l\'ordre ordinaire (demi-coup) reprend');
 });
 
-t('nouvelles : en pause tant qu\'une révision attend ; sinon objectif ÷ 5 par jour, dans le plafond', () => {
+t('nouvelles : 2 ou 3 places gardées quand une révision attend ; sinon objectif ÷ 5 par jour, dans le plafond', () => {
     reset();
     const fresh = i => ({ move: 'e2e4', attempts: 0, failures: 0, due: NOW - DAY, created: NOW - DAY + i, ply: 3 });
     const w = Object.assign(many(40), Object.fromEntries(Array.from({ length: 20 }, (_, i) => ['n' + i, fresh(i)])));
     setDB(w);
     let p = ctx.reviewPlan('R', NOW);
-    assert(p.todayList().every(x => x.key[0] === 'p'), '40 révisions pour 30 places : aucune nouvelle');
+    assert.strictEqual(p.todayList().filter(x => x.key[0] === 'n').length, 3, '40 révisions pour 30 places : 3 places gardées pour des découvertes');
+    assert.strictEqual(p.todayList().length, 30, 'dans le plafond');
+    ctx.appSettings.dailyGoal = 15;
+    assert.strictEqual(ctx.reviewPlan('R', NOW).todayList().filter(x => x.key[0] === 'n').length, 2, 'objectif Léger : 2 places');
+    ctx.appSettings.dailyGoal = 30;
     setDB(Object.assign(many(10), Object.fromEntries(Array.from({ length: 20 }, (_, i) => ['n' + i, fresh(i)]))));
     p = ctx.reviewPlan('R', NOW);
     assert.strictEqual(p.todayList().filter(x => x.key[0] === 'n').length, 6, 'à jour : 30 ÷ 5 = 6 nouvelles');
@@ -120,43 +124,44 @@ t('date « à jour vers… » : retard de 70 à 30 par jour, et prochaine révis
 
 const note = (e, ok, help = 0) => { e.attempts++; if (!ok) e.failures++; ctx.recordReview(e, ok, help); return e; };
 
-t('bonus de retard : intervalle + retard ÷ 2, puis × 2,5 ; à l\'heure, × 2,5 seulement', () => {
+const nextDay = t => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); };
+
+t('paliers : l\'intervalle suit le palier (1, 3, 7, 16, 35, 90, puis 180 jours), quel que soit le retard', () => {
     reset();
-    const late = note({ move: 'x', attempts: 3, failures: 0, interval: 4, due: NOW - 10 * DAY, lastReviewed: NOW - 14 * DAY }, true);
-    assert.strictEqual(late.interval, 22.5, '(4 + 10 ÷ 2) × 2,5');
-    const onTime = note({ move: 'x', attempts: 3, failures: 0, interval: 4, due: NOW - 1000, lastReviewed: NOW - 4 * DAY }, true);
-    assert.strictEqual(onTime.interval, 10);
-    const capped = note({ move: 'x', attempts: 3, failures: 0, interval: 100, due: NOW - 200 * DAY }, true);
+    const late = note({ move: 'x', attempts: 3, failures: 0, step: 2, interval: 4, due: NOW - 10 * DAY, lastReviewed: NOW - 14 * DAY }, true);
+    assert.strictEqual(late.step, 3); assert.strictEqual(late.interval, 7, 'palier 3 : 7 jours');
+    const capped = note({ move: 'x', attempts: 9, failures: 0, step: 7, interval: 180, due: NOW - 200 * DAY }, true);
     assert.strictEqual(capped.interval, 180, 'plafond de 180 jours');
+    ctx.appSettings.rhythm = 'soft';
+    assert.strictEqual(note({ move: 'x', attempts: 3, failures: 0, step: 2, due: NOW - 1000 }, true).interval, 9, 'rythme Doux : paliers allongés');
+    ctx.appSettings.rhythm = 'std';
 });
 
-t('erreur hors échéance : file « À revoir », revue demain au plus tard (pas dans 10 minutes) ; à l\'échéance : 10 minutes', () => {
+t('erreur : un palier de moins, rattrapage au début du jour suivant, à l\'échéance comme hors échéance', () => {
     reset();
-    const soon = note({ move: 'x', attempts: 3, failures: 0, interval: 10, due: NOW + 5 * DAY, lastReviewed: NOW - 5 * DAY }, false);
-    assert.strictEqual(soon.relearn, 0); assert.strictEqual(soon.interval, 0);
-    assert.strictEqual(soon.due, NOW + DAY);
-    const tonight = note({ move: 'x', attempts: 3, failures: 0, interval: 1, due: NOW + 3600e3, lastReviewed: NOW - DAY }, false);
-    assert.strictEqual(tonight.due, NOW + 3600e3, 'une échéance plus proche est gardée');
-    const due = note({ move: 'x', attempts: 3, failures: 0, interval: 10, due: NOW - 1000 }, false);
-    assert.strictEqual(due.due, NOW + 10 * 60000);
+    const soon = note({ move: 'x', attempts: 3, failures: 0, step: 3, interval: 7, due: NOW + 5 * DAY, lastReviewed: NOW - 5 * DAY }, false);
+    assert.strictEqual(soon.relearn, 0); assert.strictEqual(soon.step, 2);
+    assert.strictEqual(soon.due, nextDay(NOW));
+    const due = note({ move: 'x', attempts: 3, failures: 0, step: 3, interval: 7, due: NOW - 1000 }, false);
+    assert.strictEqual(due.due, nextDay(NOW), 'pas de retour dans 10 minutes : la séance repasse déjà la position');
 });
 
-t('série run : réussite à l\'échéance +1, erreur 0, hors échéance au plus +1 par jour, pièce montrée neutre', () => {
+t('palier : réussite à l\'échéance +1, hors échéance au plus +1 par jour, pièce montrée et type de pièce : palier gardé', () => {
     reset();
     const e = note({ move: 'x', attempts: 0, failures: 0, due: NOW - 1000 }, true);
-    assert.strictEqual(e.run, 1);
+    assert.strictEqual(e.step, 1);
     note(e, true);                                            // pas due, déjà notée aujourd'hui
-    assert.strictEqual(e.run, 1);
-    setNow(NOW + DAY - 3600e3);                               // le lendemain, avant l'échéance (+1 j) : un cran
+    assert.strictEqual(e.step, 1);
+    setNow(NOW + DAY - 3600e3);                               // le lendemain, avant l'échéance : un palier
     note(e, true);
-    assert.strictEqual(e.run, 2);
+    assert.strictEqual(e.step, 2);
     setNow(NOW + 3 * DAY); e.due = NOW;                       // due
     note(e, true, 2);
-    assert.strictEqual(e.run, 2, 'pièce exacte : série gardée');
+    assert.strictEqual(e.step, 2, 'pièce exacte : palier gardé');
     e.due = NOW; note(e, true, 1);
-    assert.strictEqual(e.run, 3, 'type de pièce : réussite');
+    assert.strictEqual(e.step, 2, 'type de pièce : palier gardé');
     note(e, false);
-    assert.strictEqual(e.run, 0);
+    assert.strictEqual(e.step, 1, 'erreur : un palier de moins');
     setNow(NOW);
 });
 
@@ -172,18 +177,21 @@ t('série run déduite pour les anciennes entrées : sans erreur → essais, dan
     assert.strictEqual(ctx.runOf({ attempts: 6, failures: 2, mastery: 10, run: 4 }), 4, 'un run enregistré l\'emporte');
     // Première réussite notée sur une ancienne entrée sans erreur : la déduction ne compte pas ce passage.
     const old = note({ move: 'x', attempts: 2, failures: 0, due: NOW - 1000, lastReviewed: NOW - 3 * DAY, interval: 1 }, true);
-    assert.strictEqual(old.run, 3);
+    assert.strictEqual(old.step, 3, 'palier déduit sans compter ce passage (2), puis + 1');
+    assert.strictEqual(old.run, undefined, 'la série n\'est plus écrite');
+    assert.strictEqual(ctx.normalizeEntry({ move: 'x', step: 4 }).step, 4, 'normalizeEntry garde step');
+    assert.strictEqual(ctx.normalizeEntry({ move: 'x', step: -1 }).step, undefined);
     assert.strictEqual(ctx.normalizeEntry({ move: 'x', run: 3 }).run, 3, 'normalizeEntry garde run');
     assert.strictEqual(ctx.normalizeEntry({ move: 'x', run: -1 }).run, undefined);
     assert.strictEqual(ctx.normalizeEntry({ move: 'x', run: 2.5 }).run, undefined);
 });
 
-t('niveaux E3 : À confirmer, À retravailler, Fragile, En progrès, Solide (3 ou 4), Maîtrisée (5 et plus)', () => {
+t('niveaux par palier : À découvrir, À réapprendre, paliers 1 et 2 (En cours), Solide (3 ou 4), Maîtrisée (5 et plus)', () => {
     const lv = e => ctx._level(e);
-    assert.strictEqual(lv({ attempts: 2, failures: 0, run: 2 }), 'unsure');
-    assert.strictEqual(lv({ attempts: 3, failures: 0, run: 0 }), 'unsure', 'sans erreur ni réussite comptée (pièce montrée)');
-    assert.strictEqual(lv({ attempts: 5, failures: 1, run: 0 }), 'weak');
-    assert.strictEqual(lv({ attempts: 1, failures: 1, run: 0 }), 'weak');
+    assert.strictEqual(lv({ attempts: 0, failures: 0 }), 'unsure', 'jamais essayée : À découvrir');
+    assert.strictEqual(lv({ attempts: 1, failures: 1, run: 0 }), 'unsure', 'jamais retrouvée : À découvrir');
+    assert.strictEqual(lv({ attempts: 4, failures: 2, step: 0 }), 'weak', 'déjà retrouvée, ratée deux fois d\'affilée : à réapprendre');
+    assert.strictEqual(lv({ attempts: 2, failures: 0 }), 'progress', 'ancienne « À confirmer » : En cours');
     assert.strictEqual(lv({ attempts: 5, failures: 1, run: 1 }), 'fragile');
     assert.strictEqual(lv({ attempts: 5, failures: 1, run: 2 }), 'progress');
     assert.strictEqual(lv({ attempts: 5, failures: 1, run: 3 }), 'solid');
@@ -191,38 +199,39 @@ t('niveaux E3 : À confirmer, À retravailler, Fragile, En progrès, Solide (3 o
     assert.strictEqual(lv({ attempts: 9, failures: 1, run: 5 }), 'mastered');
     assert.strictEqual(lv({ attempts: 3, failures: 0 }), 'solid', 'ancienne entrée sans erreur, 3 essais');
     assert.strictEqual(lv({ attempts: 5, failures: 0 }), 'mastered');
-    // La position de l'artefact : ✓ ✓ ✗ ✓ ✓ ✓ → À confirmer, À confirmer, À retravailler, Fragile, En progrès, Solide.
+    assert.strictEqual(ctx.levelGroup('fragile'), 'doing', 'palier 1 : En cours, plus À apprendre');
+    // ✓ ✓ ✗ ✓ ✓ ✓ à l'échéance : palier 1, 2, 1 (un cran), 1 (rattrapage gardé), 2, 3.
     reset();
     const e = { move: 'x', attempts: 0, failures: 0, due: NOW - 1000 }, seen = [];
     [true, true, false, true, true, true].forEach((ok, i) => { setNow(NOW + i * 30 * DAY); e.due = NOW + i * 30 * DAY - 1000; note(e, ok); seen.push(lv(e)); });
-    assert.deepStrictEqual(seen, ['unsure', 'unsure', 'weak', 'fragile', 'progress', 'solid']);
+    assert.deepStrictEqual(seen, ['fragile', 'progress', 'fragile', 'fragile', 'progress', 'solid']);
     setNow(NOW);
     assert.deepStrictEqual([...Object.keys(ctx.STATS_LEVELS)], ['weak', 'fragile', 'progress', 'solid', 'unsure', 'mastered'], 'mêmes six cases, même ordre');
 });
 
-t('simulation : un retard de 650 se résorbe au rythme Normal (30 par jour, 85 % de réussite, 650 nouvelles en pause), date annoncée juste', () => {
+t('simulation : un retard de 650 se résorbe au rythme Normal (30 par jour, 85 % de réussite, 3 découvertes par jour), date annoncée juste', () => {
     reset(30);
     let seed = 7;
     const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
     const w = {};
     for (let i = 0; i < 650; i++) w['late' + i] = { move: 'x', attempts: 4, failures: 1, mastery: 70, interval: 1 + (i % 20), due: NOW - (1 + i % 60) * DAY, lastReviewed: NOW - (2 + i % 60) * DAY - (1 + i % 20) * DAY, ply: 1 + i % 20 };
     for (let i = 0; i < 200; i++) w['ok' + i] = { move: 'x', attempts: 6, failures: 0, interval: 20 + i % 60, due: NOW + (1 + i % 90) * DAY, lastReviewed: NOW - 10 * DAY, ply: 1 + i % 20 };
-    for (let i = 0; i < 650; i++) w['new' + i] = { move: 'x', attempts: 0, failures: 0, due: NOW - DAY, created: i, ply: 5 };
+    for (let i = 0; i < 40; i++) w['new' + i] = { move: 'x', attempts: 0, failures: 0, due: NOW - DAY, created: i, ply: 5 };
     setDB(w);
     const first = ctx.reviewPlan('R', NOW);
     assert(first.held() >= 600, 'départ : plus de 600 en attente');
     assert(first.catchUp(), 'une date « à jour vers… » existe au rythme Normal');
     let day = 0, newBefore = null;
-    for (; day < 200; day++) {
+    for (; day < 260; day++) {
         const at = new Date(2026, 10, 18 + day, 9).getTime();
         setNow(at);
         const p = ctx.reviewPlan('R', at), list = p.todayList();
         assert(list.length <= 30, `jour ${day} : jamais plus que l'objectif`);
         if (p.held() === 0) break;
-        if (newBefore === null) assert(!list.some(x => x.key.startsWith('new')), `jour ${day} : nouvelles en pause tant qu'il y a du retard`);
-        list.forEach(x => { const e = w[x.key]; note(e, rand() < 0.85); });
+        if (newBefore === null && day < 13) assert.strictEqual(list.filter(x => x.key.startsWith('new')).length, 3, `jour ${day} : 3 places de découverte malgré le retard`);
+        list.forEach(x => { const e = w[x.key]; if (ctx.needsShowing(e)) ctx.presentEntry(e); else if (rand() < 0.85) note(e, true); else ctx.recordMiss(e); });
     }
-    assert(day < 150, `retard résorbé en ${day} jours (moins de 150)`);
+    assert(day < 200, `retard résorbé en ${day} jours (moins de 200 : 3 places par jour vont aux découvertes)`);
     const est = first.catchUp().days;
     assert(Math.abs(est - day) <= day / 4, `date « à jour vers… » annoncée au premier jour (${est}) proche du réel (${day})`);
     console.log(`     (650 en retard : à jour au jour ${day}, estimation du premier jour : ${first.catchUp().days})`);

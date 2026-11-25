@@ -38,28 +38,61 @@ t('programme : révisions à leur échéance, retards aujourd\'hui, réponses «
     assert.deepStrictEqual([...p.forecast(c => c === 'b', 2)], [3, 0], 'portée : une couleur (chaque position comptée une fois)');
 });
 
-// ─── File « À revoir » et score de maîtrise (recordReview) ───────────────────
-const note = (e, ok) => { e.attempts++; if (!ok) e.failures++; ctx.recordReview(e, ok); return e; };
+// ─── Paliers, rattrapage et découverte (recordReview, chantier « Erreurs et niveaux ») ───────────────
+const note = (e, ok, help = 0) => { e.attempts++; if (!ok) e.failures++; ctx.recordReview(e, ok, help); return e; };
 const ready = e => { e.due = Date.now() - 1000; return e; };
+const tomorrow = () => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1).getTime(); };
 
-t('file À revoir : une erreur y fait entrer, trois réussites à l\'échéance en sortent (1, 3, 7 jours)', () => {
+t('palier : une erreur fait descendre d\'un seul palier, rattrapage demain ; réussi, le palier est gardé', () => {
     const e = note({ attempts: 5, failures: 0, due: Date.now() - 1000, interval: 30 }, false);
-    assert.strictEqual(e.relearn, 0); assert.strictEqual(e.interval, 0);
-    assert(e.due - Date.now() <= 10 * 60000 && e.due > Date.now(), 'retour dans 10 min');
-    note(ready(e), true); assert.strictEqual(e.relearn, 1); assert.strictEqual(e.interval, 1);
-    note(ready(e), true); assert.strictEqual(e.relearn, 2); assert.strictEqual(e.interval, 3);
-    note(ready(e), true); assert.strictEqual(e.relearn, undefined, 'sortie de la file'); assert.strictEqual(e.interval, 7);
-    note(ready(e), true); assert.strictEqual(e.interval, 17.5, 'ensuite, intervalle normal');
+    assert.strictEqual(e.step, 4, 'Maîtrisée (5 essais sans erreur) → palier 4, toujours Solide');
+    assert.strictEqual(e.relearn, 0); assert.strictEqual(e.due, tomorrow(), 'revue demain');
+    note(ready(e), true);
+    assert.strictEqual(e.relearn, undefined, 'rattrapage levé'); assert.strictEqual(e.step, 4, 'palier gardé'); assert.strictEqual(e.interval, 16);
+    note(ready(e), true); assert.strictEqual(e.step, 5); assert.strictEqual(e.interval, 35);
+    note(ready(e), true); note(ready(e), true); note(ready(e), true);
+    assert.strictEqual(e.interval, 180, 'au-delà de 90 jours : 180 au plus');
 });
 
-t('file À revoir : une réussite avant l\'échéance n\'avance pas, une erreur ramène à zéro', () => {
-    const e = note({ attempts: 1, failures: 0, due: Date.now() - 1000 }, false);
-    note(e, true); note(e, true); note(e, true);
-    assert.strictEqual(e.relearn, 0, 'trois réussites de suite tout de suite après : toujours à 0');
-    note(ready(e), true); note(ready(e), true);
-    assert.strictEqual(e.relearn, 2);
+t('palier : deux erreurs d\'affilée renvoient en découverte ; en découverte, un raté ne compte pas', () => {
+    const e = note({ attempts: 3, failures: 0, step: 2, due: Date.now() - 1000 }, false);
+    assert.strictEqual(e.step, 1);
     note(ready(e), false);
-    assert.strictEqual(e.relearn, 0);
+    assert.strictEqual(e.step, 0, 'deuxième erreur d\'affilée : découverte');
+    assert(ctx.isDiscovering(e));
+    const a = e.attempts, f = e.failures;
+    assert.strictEqual(ctx.recordMiss(ready(e)), false, 'raté en découverte : rien de compté');
+    assert.strictEqual(e.attempts, a); assert.strictEqual(e.failures, f); assert.strictEqual(e.due, tomorrow());
+    note(ready(e), true); assert.strictEqual(e.step, 1, 'retrouvée de mémoire : palier 1'); assert.strictEqual(e.relearn, undefined);
+    assert.strictEqual(ctx.recordMiss(ready(e)), true, 'ensuite, une erreur compte');
+    assert.strictEqual(e.failures, f + 1); assert.strictEqual(e.step, 1, 'jamais sous le palier 1 après une première erreur');
+});
+
+t('palier : une réussite avant l\'échéance monte au plus d\'un palier par jour ; indice 1 garde le palier, indice 2 neutre', () => {
+    const e = { attempts: 3, failures: 0, step: 3, due: Date.now() + 5 * 864e5, lastReviewed: Date.now() - 2 * 864e5 };
+    note(e, true); assert.strictEqual(e.step, 4, 'premier passage du jour : un palier');
+    note(e, true); assert.strictEqual(e.step, 4, 'deuxième le même jour, pas dû : rien de plus');
+    const h = note({ attempts: 3, failures: 0, step: 2, due: Date.now() - 1000 }, true, 1);
+    assert.strictEqual(h.step, 2, 'indice 1 : palier gardé'); assert.strictEqual(h.interval, 3);
+    const p = note({ attempts: 3, failures: 0, step: 2, due: Date.now() - 1000, relearn: 0 }, true, 2);
+    assert.strictEqual(p.step, 2); assert.strictEqual(p.relearn, 0, 'indice 2 : rattrapage gardé');
+});
+
+t('palier déduit des anciennes entrées, sans rien réécrire', () => {
+    assert.strictEqual(ctx.stepOf({ attempts: 26, failures: 0 }), 5, 'jamais ratée, 26 essais : Maîtrisée');
+    assert.strictEqual(ctx.stepOf({ attempts: 2, failures: 0 }), 2, 'ancienne « À confirmer » : En cours');
+    assert.strictEqual(ctx.stepOf({ attempts: 9, failures: 2, run: 3 }), 3, 'série gardée');
+    assert.strictEqual(ctx.stepOf({ attempts: 10, failures: 6, run: 0, relearn: 0, mastery: 0 }), 0, 'moins d\'une réussite sur deux : découverte');
+    assert.strictEqual(ctx.stepOf({ attempts: 8, failures: 3, run: 0, mastery: 31 }), 2, 'dernier essai raté, 5 réussites sur 8 : un cran sous Sue');
+    assert.strictEqual(ctx.stepOf({ attempts: 0, failures: 0 }), 0);
+    assert.strictEqual(ctx.stepOf({ attempts: 9, failures: 9, step: 3 }), 3, 'palier enregistré : il fait foi');
+});
+
+t('découverte : une position jamais présentée montre son coup ; présentée, elle revient demain sans rien compter', () => {
+    const e = { attempts: 0, failures: 0, due: Date.now() - 1000 };
+    assert(ctx.needsShowing(e));
+    ctx.presentEntry(e);
+    assert(!ctx.needsShowing(e)); assert.strictEqual(e.attempts, 0); assert.strictEqual(e.step, 0); assert.strictEqual(e.due, tomorrow());
 });
 
 t('score : une erreur ancienne s\'efface, gain réduit hors échéance, positions anciennes déduites des compteurs', () => {
@@ -67,7 +100,7 @@ t('score : une erreur ancienne s\'efface, gain réduit hors échéance, position
     assert.strictEqual(Math.round(ctx.masteryOf(old)), 20);
     note(old, true);
     assert.strictEqual(old.mastery, 48, 'calculé depuis 8 erreurs sur 10, sans compter ce passage : 20 + 35 % de 80');
-    const e = { attempts: 0, failures: 0, due: Date.now() - 1000 };
+    const e = { attempts: 2, failures: 1, step: 2, mastery: 60, due: Date.now() - 1000 };
     note(e, false); assert.strictEqual(e.mastery, 24, 'erreur : il reste 40 %');
     for (let i = 0; i < 6; i++) note(ready(e), true);
     assert(e.mastery >= 85, 'six réussites à l\'échéance : solide, quels que soient les compteurs');

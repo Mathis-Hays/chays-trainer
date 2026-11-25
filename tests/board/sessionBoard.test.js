@@ -78,7 +78,7 @@ const tick = (ms = 300) => new Promise(r => setTimeout(r, ms));
         run('abandonSession(); goHome()');
     });
 
-    await t('barème : type de pièce +20 %, pièce exacte neutre (revue demain), sans aide +35 % et gravure réservée', async () => {
+    await t('barème : type de pièce palier gardé, pièce exacte neutre (revue demain), sans aide un palier de plus', async () => {
         const play = async (steps) => {
             await startOne();
             for (let i = 0; i < steps; i++) run('showHint()');
@@ -90,19 +90,19 @@ const tick = (ms = 300) => new Promise(r => setTimeout(r, ms));
         const now = Date.now();
         let e = await play(0);
         assert.strictEqual(e.mastery, 68, 'sans aide : 50 → 68');
-        assert(e.interval > 3);
+        assert.strictEqual(e.step, 2, 'palier 1 → 2'); assert.strictEqual(e.interval, 3);
         e = await play(1);
         assert.strictEqual(e.mastery, 60, 'type de pièce : 50 → 60');
-        assert(e.interval > 3, 'échéance allongée normalement');
+        assert.strictEqual(e.step, 1, 'type de pièce : palier gardé'); assert.strictEqual(e.interval, 1);
         e = await play(2);
         assert.strictEqual(e.mastery, 50, 'pièce exacte : score gardé');
         assert.strictEqual(e.interval, 3, 'intervalle inchangé');
         assert(Math.abs(e.due - (now + 864e5)) < 60000, 'revue demain');
-        assert(!Number.isInteger(e.relearn), 'pas de file À revoir');
+        assert(!Number.isInteger(e.relearn), 'pas de rattrapage');
         assert.strictEqual(e.failures, 1, 'aucune erreur comptée');
         e = await play(3);
         assert.strictEqual(e.mastery, 20, 'solution : × 0,4');
-        assert.strictEqual(e.relearn, 0, 'file À revoir');
+        assert.strictEqual(e.relearn, 0, 'rattrapage demain'); assert.strictEqual(e.failures, 2, 'erreur comptée');
     });
 
     await t('Focus : l\'Indice devient l\'action de la barre d\'état (Indice, Pièce, Solution), Espace reste', async () => {

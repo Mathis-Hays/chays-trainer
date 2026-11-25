@@ -108,7 +108,7 @@
 .vbadge.is-new { --c: var(--new); }
 .vbadge.is-accent { --c: var(--accent); }
 .vbadge.is-muted { --c: var(--text-muted); }
-.vbadge.is-dashed { border-style: dashed; }              /* verdict estimé, « À confirmer » */
+.vbadge.is-dashed { border-style: dashed; }              /* verdict estimé, « À découvrir » */
 :where(:root:not([data-theme="dark"])) .vbadge { color: color-mix(in oklab, var(--c) 45%, var(--text)); }   /* clair */
 
 /* ─── Bouton secondaire à contour teinté (avec .btn) ─── */

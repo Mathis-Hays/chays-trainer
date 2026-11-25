@@ -70,32 +70,11 @@ async function boot(lang) {
         assert.deepStrictEqual(await tour(w), []);
     });
 
-    await t('une langue téléchargée (allemand) : mêmes écrans, rien en français', async () => {
-        const de = await boot('de');
-        assert.deepStrictEqual(await tour(de.w), []);
-        assert.deepStrictEqual(de.errors, []);
-        de.w.close();
-    });
-
-    await t('pluriels : russe (une, quelques, beaucoup) et arabe (six formes)', () => {
-        const tr = (l, s) => w.eval(`I18n.install(${JSON.stringify(l)}, ${JSON.stringify(pack(l))}); I18n.t(${JSON.stringify(s)})`);
-        const ru = pack('ru')['{n} positions'].split('|');
-        assert.strictEqual(tr('ru', '1 position'), ru[0].replace('{n}', '1'));
-        assert.strictEqual(tr('ru', '3 positions'), ru[1].replace('{n}', '3'));
-        assert.strictEqual(tr('ru', '7 positions'), ru[2].replace('{n}', '7'));
-        const ar = pack('ar')['{n} positions'].split('|');
-        assert.strictEqual(ar.length, 6);
-        assert.strictEqual(tr('ar', '5 positions'), ar[3].replace('{n}', '5'));
-        assert.strictEqual(tr('ar', '11 positions'), ar[4].replace('{n}', '11'));
-    });
-
-    await t('chaque phrase à nombre de l\'anglais existe dans tous les paquets', () => {
-        const en = Object.keys(pack('en')).filter(k => k.includes('{n}'));
-        assert(en.length >= 20);
-        ['es', 'zh-Hans', 'de', 'pt-PT', 'pt-BR', 'ru', 'ja', 'hi', 'ar'].forEach(l => {
-            const p = pack(l);
-            assert.deepStrictEqual(en.filter(k => !(k in p)), [], l);
-        });
+    await t('pluriel anglais : « {n} positions » choisit la forme', () => {
+        const tr = s => w.eval(`I18n.install('en', ${JSON.stringify(pack('en'))}); I18n.t(${JSON.stringify(s)})`);
+        const en = pack('en')['{n} positions'].split('|');
+        assert.strictEqual(tr('1 position'), en[0].replace('{n}', '1'));
+        assert.strictEqual(tr('7 positions'), en[1].replace('{n}', '7'));
     });
 
     assert.deepStrictEqual(errors, []);

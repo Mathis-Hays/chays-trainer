@@ -29,16 +29,17 @@ t('nom d\'ouverture : l\'entrée la plus longue qui commence le chemin', () => {
     assert.strictEqual(openingNameOf(path('a2a3')), null);
 });
 
-t('niveaux E3 : la série de réussites d\'affilée (run) décide, plus le score', () => {
+t('niveaux par palier : la série enregistrée donne le palier des anciennes entrées, plus le score', () => {
     assert.strictEqual(_level({ attempts: 10, failures: 8, mastery: 90, interval: 3, run: 1 }), 'fragile');
     assert.strictEqual(_level({ attempts: 100, failures: 1, mastery: 40, interval: 3, run: 6 }), 'mastered');
-    assert.strictEqual(_level({ attempts: 4, failures: 1, run: 0 }), 'weak', 'dernier essai raté');
+    assert.strictEqual(_level({ attempts: 4, failures: 1, run: 0 }), 'progress', 'dernier essai raté, 3 réussites sur 4 : un cran sous Sue');
+    assert.strictEqual(_level({ attempts: 4, failures: 2, step: 0 }), 'weak', 'palier 0 après avoir été retrouvée : à réapprendre');
 });
 
 t('niveaux sans série enregistrée : déduite (sans erreur → essais, sinon le score)', () => {
     const lv = (a, f, interval) => _level({ attempts: a, failures: f, interval });
     assert.strictEqual(lv(0, 0), 'unsure');
-    assert.strictEqual(lv(2, 0), 'unsure');
+    assert.strictEqual(lv(2, 0), 'progress', 'ancienne « À confirmer » : En cours');
     assert.strictEqual(lv(3, 0), 'solid');
     assert.strictEqual(lv(5, 0), 'mastered');
     assert.strictEqual(lv(10, 1), 'solid');                 // score 90 → série 3
@@ -61,13 +62,13 @@ t('regroupement : une position rejoint l\'unique ouverture plus précise de ses 
     assert.strictEqual(t2.gName, 'Sicilienne ouverte');                               // tronc commun : son propre nom
 });
 
-t('« À confirmer » : un état à part, absent des barres ; trois états à l\'écran (Chays épuré, lot 3)', () => {
+t('« À découvrir » : un état à part, absent des barres ; trois états à l\'écran (paliers 1 et 2 : En cours)', () => {
     assert(!ctx.STATS_MASTERY_LEVELS.includes('unsure'));
     assert.strictEqual(ctx.STATS_MASTERY_LEVELS.length, 5, 'six cases dans le moteur');
     const html = ctx.levelBarHTML({ weak: 1, fragile: 2, progress: 0, solid: 2, unsure: 7, mastered: 3 });
     assert(!html.includes('lv-unsure') && !html.includes('lv-solid') && !html.includes('lv-fragile'), html);
-    assert(/À apprendre : 3/.test(html) && /Sues : 5/.test(html), 'Fragiles avec À retravailler, Solides avec Maîtrisées');
-    assert.strictEqual(ctx.levelGroup('fragile'), 'learn');
+    assert(/À apprendre : 1/.test(html) && /En cours : 2/.test(html) && /Sues : 5/.test(html), 'palier 1 avec le palier 2, Solides avec Maîtrisées');
+    assert.strictEqual(ctx.levelGroup('fragile'), 'doing');
     assert.strictEqual(ctx.levelGroup('unsure'), 'unsure');
     assert(ctx.levelMatches('solid', 'known') && !ctx.levelMatches('progress', 'known') && ctx.levelMatches('weak', 'all'));
 });
@@ -115,8 +116,8 @@ t('aperçu : la barre du haut montre la catégorie de la position et la liste qu
     const getById = ctx.document.getElementById;
     ctx.document.getElementById = id => id === 'stats-back' ? btn : id === 'stats-cat' ? cat : null;
     ctx._renderStatsBack('fragile', 'weak');
-    // Trois états à l'écran (Chays épuré, lot 3) : une position Fragile se lit « À apprendre », couleur de son état.
-    assert(cat.innerHTML.includes('lv-chip lv-weak') && cat.innerHTML.includes('lv-mark lv-weak') && cat.innerHTML.includes('À apprendre</span>'), cat.innerHTML);
+    // Trois états à l'écran : une position au palier 1 se lit « En cours », couleur de son état.
+    assert(cat.innerHTML.includes('lv-chip lv-progress') && cat.innerHTML.includes('lv-mark lv-progress') && cat.innerHTML.includes('En cours</span>'), cat.innerHTML);
     assert(cat.innerHTML.includes('· À reprendre'));
     assert.strictEqual(btn.attrs['aria-label'], 'Retour à Progrès · À reprendre');
     ctx._renderStatsBack('mastered', 'Partie espagnole');

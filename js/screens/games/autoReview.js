@@ -49,7 +49,17 @@ const AutoReview = (function () {
         return total;
     }
 
-    if (typeof window !== 'undefined') Bus.afterIntro(() => { run().catch(e => reportError('parties relues au lancement', e)); }, DELAY);
+    // Erreurs de premier coup comptées avant la règle du choix d'ouverture : retirées une fois (undoOpeningChoices).
+    async function cleanChoices() {
+        const archive = typeof GameArchive !== 'undefined' ? await GameArchive.all().catch(() => []) : [];
+        if (!undoOpeningChoices(archive)) return;
+        if (_gameScreenShown() && gameMode === 'play') loadDB();
+        Bus.emit('games:reviewed', { games: 0, novelties: 0, newMistakes: 0 });
+    }
 
-    return { run, accounts, KEY, EVERY };
+    if (typeof window !== 'undefined') Bus.afterIntro(() => {
+        cleanChoices().catch(e => reportError('erreurs de premier coup', e)).then(() => run()).catch(e => reportError('parties relues au lancement', e));
+    }, DELAY);
+
+    return { run, cleanChoices, accounts, KEY, EVERY };
 })();

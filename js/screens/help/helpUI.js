@@ -42,13 +42,13 @@ const HELP_GUIDES = [
       count: { label: 'Compte', tone: 'is-ok' },
       points: [
         'Chaque position a une <strong>date de révision</strong> : elle s’éloigne à chaque réussite et revient vite après une erreur.',
-        '<strong>Révision du jour</strong> (aussi « Commencer la révision » sur l’accueil), Points faibles, Ligne complète, À confirmer, Contre-la-montre et Mode libre.',
+        '<strong>Révision du jour</strong> (aussi « Commencer la révision » sur l’accueil), Points faibles, Ligne complète, À découvrir, Contre-la-montre et Mode libre.',
         'Chaque séance finit par un <strong>bilan</strong> ; une position ratée revient une fois en fin de séance.',
         'C’est le seul endroit qui fait évoluer <strong>statistiques et révisions</strong>.'] },
     { id: 'stats', icon: 'bar-chart', title: 'Progrès', sub: 'Voir ce qui tient et ce qui flanche', to: 'stats',
       count: { label: 'Observe', tone: 'is-muted is-dashed' },
       points: [
-        'Cinq niveaux de maîtrise par position ; « À confirmer » (moins de 3 essais) est montré à part. Toucher la barre ou la légende filtre la liste.',
+        'Trois états par position : À apprendre, En cours, Sues, d’après son palier (une réussite fait monter d’un palier, une erreur fait descendre d’un seul) ; « À découvrir » (jamais retrouvée de mémoire) est montré à part. Toucher la barre ou la légende filtre la liste.',
         'Positions regroupées par <strong>ouverture nommée</strong> ; la régularité (série, calendrier) couvre tous les répertoires.',
         'Les boutons ouvrent l’exercice d’<strong>Entraînement</strong> déjà filtré, sans lancer de séance : Progrès observe, l’Entraînement agit.',
         'Aperçu d’une position : « S’entraîner » lance sa révision, « ‹ Progrès » ramène au même endroit.'] },

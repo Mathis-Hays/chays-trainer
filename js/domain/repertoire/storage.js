@@ -96,13 +96,14 @@ function renameRepertoire(oldName, newName) {
 // ─── BASE DE DONNÉES (ouvertures) ─────────────────────────────────────────────
 
 // Modèle d'une entrée (une seule réponse par position de MON camp) :
-//   openingDB[cléPosition] = { move, san, attempts, failures, path?, ply?, lastReviewed?, due?, interval?, created?, prio?, relearn?, mastery? }
+//   openingDB[cléPosition] = { move, san, attempts, failures, path?, ply?, lastReviewed?, due?, interval?, created?, prio?, relearn?, mastery?, run?, step? }
 //   - path : coups UCI depuis la position initiale, mon coup inclus (sert aux stats
 //            et à la cinématique de l'entraînement) ; ply = path.length.
 //   - created : date d'enregistrement de la réponse (absente sur les entrées d'avant octobre 2026) ;
 //               « Analyser mes parties » ne compte pas d'erreur si la réponse est postérieure à la partie.
 //   - prio : réponse ajoutée après une partie (« Traitée depuis ») et jamais réussie : en tête de la révision du jour.
-//   - relearn : position dans la file « À revoir » : réussites espacées déjà obtenues (0 à 2), cf. recordReview.
+//   - relearn : rattrapage en attente après une erreur (0 ; anciennes valeurs 1 et 2 lues comme 0), cf. recordReview.
+//   - step : palier (0 découverte, 1-2 En cours, 3-4 Solide, 5+ Maîtrisée), cf. stepOf (review.js) ; absent : déduit.
 //   - mastery : score de maîtrise de 0 à 100, qui suit les derniers passages (absent : déduit des compteurs, cf. masteryOf).
 // Les coups adverses ne sont jamais stockés : ils sont implicites dans les clés.
 
@@ -133,6 +134,7 @@ function normalizeEntry(e) {
     if (Number.isInteger(e.relearn) && e.relearn >= 0 && e.relearn < RELEARN_DAYS.length) out.relearn = e.relearn;
     if (Number.isFinite(e.mastery)) out.mastery = Math.min(100, Math.max(0, e.mastery));
     if (Number.isInteger(e.run) && e.run >= 0) out.run = Math.min(e.run, 999);   // réussites d'affilée (niveaux E3, runOf)
+    if (Number.isInteger(e.step) && e.step >= 0) out.step = Math.min(e.step, 99);  // palier (chantier « Erreurs et niveaux », stepOf)
     return out;   // l'ancien champ `alt` est volontairement abandonné
 }
 

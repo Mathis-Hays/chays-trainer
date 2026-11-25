@@ -18,6 +18,8 @@ const ctx = {
     formatSanText: s => s, RELEARN_DAYS: [1, 3, 7], dueInLabel: () => 'demain', STATS_LEVELS: { fragile: { one: 'Fragile' } },
     positionKey: () => 'k', openingDB: {},
     recordReview: (e, ok, help) => { reviews.push({ ok, help }); e.due = 1; e.mastery = ok ? 70 : 20; },
+    recordMiss: e => { e.attempts++; e.failures++; ctx.recordReview(e, false); return true; },
+    needsShowing: e => !e.attempts && !e.lastReviewed, isDiscovering: () => false, stepOf: e => e.step || 0, presentEntry() {},
     ClubMatch: { stopText: () => '', finish() {}, next() {} },
     logActivity: (ok, played) => logs.push(!!played)
 };
@@ -114,7 +116,7 @@ t('solution dévoilée : une erreur en révision, rien ailleurs ; le coût annon
     ['timed', 'survival', 'daily', 'club', 'retry', 'frame', null].forEach(kind => untouched(reveal(kind), `solution, ${kind}`));
     const cost = () => vm.runInContext("GameModes.current().solutionCost() + GameModes.current().hintCost(1)", ctx);
     session('weak');
-    assert(/erreur/.test(cost()) && /réduit/.test(cost()), 'révision : indice et solution ont un coût annoncé');
+    assert(/erreur/.test(cost()) && /palier gardé/.test(cost()), 'révision : indice et solution ont un coût annoncé');
     session('survival');
     assert.strictEqual(cost(), '', 'Survie : rien n\'est annoncé');
 });
