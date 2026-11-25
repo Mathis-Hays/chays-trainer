@@ -53,31 +53,36 @@ const seed = (w, dues, tries = [[4, 3], [5, 2], [6, 0], [2, 0]]) => w.eval(`(() 
     await t('tout à jour : aucune action pleine ; la prévision compte 7 jours', () => {
         seed(w, [2, 3, 1, 9]);
         assert.strictEqual(primaries().length, 0);
-        const bars = $$('.st-fc > div');
-        assert.strictEqual(bars.length, 7);
-        assert(/3 positions/.test($('.st-fc-h b').textContent), 'trois échéances dans les 7 jours, la quatrième au-delà');
+        // Ruban prolongé de l'accueil (audit « Progrès en images », K8) : six jours passés, puis les 7 prochains.
+        assert.strictEqual($$('.st-fcard .hp-past > li').length, 6);
+        assert.strictEqual($$('.st-fcard .hp-fc > li').length, 7);
+        assert.strictEqual($('.st-fcard .st-h .count').textContent, '3', 'trois échéances dans les 7 jours, la quatrième au-delà');
     });
 
     await t('retard à part (chantier « Révision du jour ») : ce qui dépasse l\'objectif du jour attend, avec sa date', () => {
         w.eval(`appSettings.dailyGoal = 15; dataStore.setJSON(ACTIVITY_KEY, { [dayStamp(Date.now())]: { a: 14, f: 0 } })`);   // une place libre aujourd'hui
         seed(w, [-3, -1, 0, 2]);
-        assert.strictEqual($('.st-late b').textContent, '2', 'trois dues pour une place : deux attendent');
-        assert(/à jour vers/.test($('.st-late').textContent), 'date « à jour vers… »');
-        assert.strictEqual($$('.st-fc > div')[0].querySelector('b').textContent, '1', 'la case du jour suit le plafond');
+        // Le retard en pile hachurée au-dessus d'aujourd'hui, son nombre et sa date en légende (K8).
+        assert.strictEqual($('.st-fcard .hp-held').textContent, '+2', 'trois dues pour une place : deux attendent');
+        assert.strictEqual($('.hp-held-note b').textContent, '2');
+        assert(/à jour vers/.test($('.hp-held-note').textContent), 'date « à jour vers… »');
+        assert.strictEqual($$('.st-fcard .hp-fc > li')[0].querySelector('.hp-fc-n').textContent, '1', 'la case du jour suit le plafond');
         w.eval(`appSettings.dailyGoal = 30; dataStore.setJSON(ACTIVITY_KEY, {})`);
         seed(w, [-3, -1, 0, 2]);
-        assert(!$('.st-late'), 'tout tient dans l\'objectif : pas de cadre');
+        assert(!$('.hp-held-note'), 'tout tient dans l\'objectif : pas de retard');
         seed(w, [2, 3, 1, 9]);
-        assert(!$('.st-late'), 'rien en retard : pas de cadre');
+        assert(!$('.hp-held-note'), 'rien en retard : pas de retard');
     });
 
     await t('courbe de maîtrise (atelier, lot 4) : un seul relevé, la barre et une note ; deux jours, aires empilées et écart', () => {
         seed(w, [2, 3, 1, 9]);
         w.eval(`dataStore.remove(MasteryLog.KEY); initStats()`);
-        assert(!$('.st-curve') && $('.st-mbar') && $('.st-curve-note'), 'un seul relevé : pas encore de courbe');
+        assert(!$('.st-curve') && $('.st-mastery .st-plate') && $('.st-curve-note'), 'un seul relevé : la barre légendée et une note');
+        assert($('.st-mastery .st-ladder') && $$('.st-ladder > div').length === 5, 'l\'échelle des réussites d\'affilée remplace « Comment chaque état est décidé »');
+        assert(!$('.st-mastery .st-rules') && !$('.st-mastery.vel-light'), 'carte sur la surface du thème (K1)');
         // Il y a dix jours : rien de maîtrisé, deux à retravailler (dont une position aujourd'hui fragile).
         w.eval(`MasteryLog.put(currentRepertoire, { [MasteryLog.dayOf(Date.now() - 10 * 864e5)]: { w: [2, 0, 1, 0, 0, 1], b: [0, 0, 0, 0, 0, 0], at: 1 } }); initStats()`);
-        assert(!$('.st-mbar'), 'la courbe remplace la barre');
+        assert($('.st-mastery .st-plate'), 'la barre légendée reste à côté de la courbe');
         assert.strictEqual($$('.st-curve path').length, 3, 'trois états empilés (Chays épuré, lot 3), À confirmer à part');
         assert(/^\+\d+ %$/.test($('.st-gain').textContent) && $('.st-gain').classList.contains('up'), 'des positions sues, contre aucune');
         assert(/depuis le/.test($('.st-since').textContent));

@@ -82,11 +82,37 @@ function levelBarHTML(counts, cls, opts) {
             .map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}"></i>`).join('')}</span>`
             + `<span class="lv-legend">${gs.map(g => `<span>${_lvgMark(g)}${gc[g]} ${escapeHtml(lower(LEVEL_GROUPS[g].label))}</span>`).join('')}</span></span>`;
     }
+    // opts.plate (audit « Progrès en images », K9) : la barre sur sa plaque, « À confirmer » hachuré à la suite, et la
+    // légende en boutons qui filtrent (statsLegend) : chaque nombre à côté de son nom, la forme en plus de la couleur.
+    if (opts && opts.plate) {
+        const lower = t => t.toLocaleLowerCase('fr'), un = counts[STATS_STATE] || 0;
+        const on = opts.active && opts.active !== 'all' ? (opts.active === STATS_STATE ? STATS_STATE : levelGroup(opts.active)) : '';
+        const n = g => g === STATS_STATE ? un : gc[g] || 0;
+        const legend = LEVEL_GROUP_ORDER.concat(STATS_STATE);          // la légende garde ses quatre places, vides éteintes
+        const label = g => g === STATS_STATE ? levelInfo(g).label : LEVEL_GROUPS[g].label;
+        // La barre filtre comme la légende (lot 7) ; « À confirmer » y est hachuré, hors des boutons.
+        const hatch = un ? `<i class="lv-unsure is-hatch" style="flex:${un}" aria-hidden="true"></i>` : '';
+        const bar = levelBarHTML(counts, 'st-mbar', { buttons: true, active: opts.active, action: opts.action }).replace(/<\/span>$/, `${hatch}</span>`);
+        return `<div class="lv-plate st-plate ${cls || ''}">${bar}`
+            + `<span class="lv-legend st-legend" role="group" aria-label="Filtrer la liste par niveau">${legend.map(g => `<button type="button" class="st-lg${on === g ? ' active' : ''}" data-action="${opts.action || 'statsLegend'}" data-arg="${g}" aria-pressed="${on === g}"${n(g) ? '' : ' disabled'} title="${I18n.pair(I18n.t(levelInfo(g).one), I18n.t(levelInfo(g).rule))}">${_lvgMark(g)}<span>${n(g)} ${escapeHtml(lower(label(g)))}</span>${opts.deltas ? opts.deltas(g) : ''}</button>`).join('')}</span></div>`;
+    }
     if (!opts || !opts.buttons) return `<span class="lv-bar ${cls || ''}" aria-hidden="true">${gs
         .map(g => `<i class="lv-${LEVEL_GROUPS[g].mark}" style="flex:${gc[g]}" title="${_lvPair(g, gc[g])}"></i>`).join('')}</span>`;
     const on = opts.active && opts.active !== 'all' ? levelGroup(opts.active) : '';
     return `<span class="lv-bar lv-bar-btn${on ? ' has-on' : ''} ${cls || ''}" role="group" aria-label="Filtrer la liste par niveau">${gs.map(g =>
         `<button type="button" class="lv-${LEVEL_GROUPS[g].mark}${on === g ? ' on' : ''}" style="flex:${gc[g]}" data-action="${opts.action || 'statsLegend'}" data-arg="${g}" aria-pressed="${on === g}" title="${_lvPair(g, gc[g])}" aria-label="${I18n.mark(`${I18n.t(LEVEL_GROUPS[g].label)}, ${gc[g]}`)}"></button>`).join('')}</span>`;
+}
+
+// Échelle des réussites d'affilée (audit « Progrès en images ») : une marche par niveau (run 0, 1, 2, 3–4, 5 et plus),
+// le nombre de positions au-dessus, les trois états dessous ; « À confirmer » reste à part, dit en une phrase.
+function _ladderHTML(counts) {
+    const steps = [['weak', '0'], ['fragile', '1'], ['progress', '2'], ['solid', `${STATS_SOLID_RUN}–${STATS_MASTERED_RUN - 1}`], ['mastered', `${STATS_MASTERED_RUN} +`]];
+    const max = Math.max(1, ...steps.map(([l]) => counts[l] || 0));
+    const label = steps.map(([l, k]) => `${k} : ${counts[l] || 0}`).join(', ');
+    return `<div class="st-ladder-w"><div class="st-ladder" role="img" aria-label="${escapeHtml(I18n.pair(I18n.t('Positions par réussites d’affilée'), label))}">${steps.map(([l, k]) =>
+        `<div class="lv-${l}"><b>${counts[l] || 0}</b><i style="height:${Math.round(6 + 42 * (counts[l] || 0) / max)}px"></i><span>${k}</span></div>`).join('')}</div>
+        <div class="st-ladder-g" aria-hidden="true">${LEVEL_GROUP_ORDER.map(g => `<span class="g-${g}">${escapeHtml(LEVEL_GROUPS[g].label)}</span>`).join('')}</div>
+        <p class="st-sub"><span>Réussites d’affilée depuis la dernière erreur.</span>${counts[STATS_STATE] ? ` <span>Les positions à confirmer (moins de trois essais) restent à part.</span>` : ''}</p></div>`;
 }
 
 const _plural = (n, one, many) => `${n} ${n > 1 ? many || one + 's' : one}`;
@@ -187,6 +213,16 @@ function _miniBoardHTML(r, after, opts = {}) {
         html += `<svg class="st-mini-arrow" viewBox="0 0 8 8" aria-hidden="true"><line x1="${f(ax)}" y1="${f(ay)}" x2="${f(hx)}" y2="${f(hy)}"/>`
             + `<polygon points="${f(bx)},${f(by)} ${f(hx - uy * .4)},${f(hy + ux * .4)} ${f(hx + uy * .4)},${f(hy - ux * .4)}"/></svg>`;
     }
+    // opts.arrows (audit « Progrès en images ») : [[uci, 'bad' | 'good']] : votre coup en vermillon, celui du répertoire en
+    // laiton, même code que les Finales et les oublis de la fiche d'ouverture.
+    if (opts.arrows && opts.arrows.length) {
+        const at = sq => r.side === 'w' ? [sq % 8 + .5, 7 - Math.floor(sq / 8) + .5] : [7 - sq % 8 + .5, Math.floor(sq / 8) + .5], f = n => n.toFixed(2);
+        html += `<svg class="st-mini-arrow" viewBox="0 0 8 8" aria-hidden="true">${opts.arrows.filter(([u]) => u).map(([u, k]) => {
+            const [[ax, ay], [bx, by]] = [squareToIdx(u.slice(0, 2)), squareToIdx(u.slice(2, 4))].map(at), L = Math.hypot(bx - ax, by - ay), ux = (bx - ax) / L, uy = (by - ay) / L;
+            const hx = bx - ux * .5, hy = by - uy * .5;
+            return `<g class="is-${k}"><line x1="${f(ax)}" y1="${f(ay)}" x2="${f(hx)}" y2="${f(hy)}"/><polygon points="${f(bx)},${f(by)} ${f(hx - uy * .4)},${f(hy + ux * .4)} ${f(hx + uy * .4)},${f(hy - ux * .4)}"/></g>`;
+        }).join('')}</svg>`;
+    }
     return `<div class="st-mini${cls}" role="img" aria-label="${label}">${html}</div>`;
 }
 
@@ -284,6 +320,14 @@ function _masterySeries(now) {
 // Part maîtrisée d'un relevé (À confirmer compris dans le total, comme le grand chiffre).
 const _knownPctOf = c => knownPct(c, MasteryLog.ORDER);
 
+// Les états bougent-ils ? Un groupe qui varie d'au moins 5 % du total sur la période (sinon trois aires plates :
+// un rectangle qui ne dit rien ; la phrase « stable depuis… » suffit).
+function _masteryMoves(series) {
+    const ORDER = MasteryLog.ORDER, at = (c, g) => LEVEL_GROUPS[g].levels.reduce((n, l) => n + c[ORDER.indexOf(l)], 0);
+    const tot = Math.max(1, ...series.map(x => x.counts.reduce((a, b) => a + b, 0)));
+    return LEVEL_GROUP_ORDER.some(g => { const v = series.map(x => at(x.counts, g)); return Math.max(...v) - Math.min(...v) >= .05 * tot; });
+}
+
 function _masteryCurveHTML(series, now) {
     const W = 520, H = 170, P = { l: 30, r: 6, t: 8, b: 20 };
     // Trois couches (lot 3 « Chays épuré ») : Sues en bas, En cours, À apprendre en haut.
@@ -346,28 +390,35 @@ function statsDeltaBar(d) {
     return `<span class="st-dbar ${d >= 0 ? 'up' : 'down'}" aria-hidden="true"><i style="${d >= 0 ? 'left:50%' : `left:${50 - w}%`};width:${w}%"></i></span>`;
 }
 // Écart de score à l'attendu, en points de pourcentage, écrit « % » partout (arbitrage du 12 novembre 2026).
-const _signedPct = d => I18n.mark(`${d >= 0 ? '+' : '−'}${Math.abs(d).toLocaleString(I18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 })} %`);
+const _signedPct = d => fmtDelta(d);
 
-// Une position fragile : miniature, coup masqué, ouverture, maîtrise ; la ligne entière ouvre l'aperçu.
+// Crans des essais (audit « Progrès en images », K10) : à la place du score 0 à 100, réservé au tri.
+function _triesHTML(e) {
+    const n = Math.min(e.attempts, 10), x = Math.min(e.failures, n);
+    return `<span class="st-tries" role="img" aria-label="${escapeHtml(I18n.mark(`${e.failures} ${e.failures > 1 ? 'erreurs' : 'erreur'} sur ${_plural(e.attempts, 'essai')}`))}">${Array.from({ length: n }, (_, i) => `<i${i >= n - x ? ' class="x"' : ''}></i>`).join('')}</span>`;
+}
+
+// Une position fragile : miniature, coup masqué, ouverture, essais ; la ligne entière ouvre l'aperçu.
 function _weakRowHTML(r) {
     const mv = r.e.ply ? _moveLabel(r.e, true) : 'Coup à retrouver', from = (r.side === 'w' ? 'Blancs · ' : 'Noirs · ');
     return `
                 <button type="button" class="st-wrow lv-${r.lv}" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="weak" aria-label="Voir la position ${escapeHtml(mv)}, ${escapeHtml(from + r.gName)}">
                     ${_miniBoardHTML(r, false, { cls: 'st-wmini' })}
                     <span class="st-wrow-txt"><b>${escapeHtml(mv)}</b><small>${statsColor === 'all' ? from : ''}${r.gHtml}</small></span>
-                    <span class="st-errs"><span class="st-rate" aria-hidden="true"><i style="width:${Math.max(3, Math.round(masteryOf(r.e)))}%"></i></span><span class="st-n">${_lvEngrave(r.e)}${Math.round(masteryOf(r.e))} / 100</span>${ico('chevron-right')}</span>
+                    <span class="st-errs">${_triesHTML(r.e)}${ico('chevron-right')}</span>
                 </button>`;
 }
 
-// Carte de Progrès (lot 4) : la question posée (« Trouver le coup des Blancs ») sur un échiquier lisible, plutôt que
-// « 4. ? », qui se lisait comme une donnée perdue ; ouverture et maîtrise dessous ; la carte ouvre l'aperçu.
+// Carte de Progrès (lot 4 ; audit « Progrès en images ») : la position avant mon coup avec la flèche du dernier coup
+// adverse (comme À traiter), le numéro du coup (« 2… ? »), les crans des essais et l'ouverture ; la carte ouvre l'aperçu.
 function _weakCardHTML(r) {
-    const who = r.side === 'w' ? 'Blancs' : 'Noirs', m = Math.round(masteryOf(r.e)), q = `Trouver le coup des ${who}`;
+    const who = r.side === 'w' ? 'Blancs' : 'Noirs';
+    const num = r.e.ply ? `${Math.ceil(r.e.ply / 2)}${r.e.ply % 2 ? '.' : '…'}` : '';
     return `
-                <button type="button" class="st-wcard lv-${r.lv}" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="weak">
-                    ${_miniBoardHTML(r, false, { cls: 'st-wcard-b' })}
-                    <b class="st-wcard-q">${q}</b>
-                    <span class="st-wcard-s"><small>${r.gHtml}</small><span>${_lvMark(r.lv)}${_lvEngrave(r.e)}${m} / 100</span></span>
+                <button type="button" class="st-wcard lv-${r.lv}" data-action="statsPreview" data-arg="${_statsArg(r)}" data-origin="weak" aria-label="${escapeHtml(I18n.mark(`Trouver le coup des ${who}${num ? `, coup ${num}` : ''} · ${r.gName || ''}`))}">
+                    ${_miniBoardHTML(r, false, { cls: 'st-wcard-b', arrow: true, label: `Position avant le coup des ${who}` })}
+                    <span class="st-wcard-s"><span class="san">${num ? `<span class="mv-n">${num}</span> ` : ''}?</span>${_triesHTML(r.e)}</span>
+                    <b class="st-wcard-q">${r.gHtml}</b>
                 </button>`;
 }
 
@@ -378,7 +429,7 @@ function _renderWeakList(body, rows, weakN, relearnN) {
     body.className = 'st-body';
     body.innerHTML = `<div class="st-main"><section class="st-sec st-card st-weak edge-card" id="stats-weak-all">
         <button type="button" class="st-link st-back" data-action="statsWeakBack">${ico('chevron-left')}Progrès</button>
-        <div class="st-h"><h3>À reprendre</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · dont ${relearnN} ratée${relearnN > 1 ? 's' : ''} récemment` : ''}</span></div>
+        <div class="st-h"><h3>À reprendre</h3><span class="count is-learn">${weakN}</span>${relearnN ? `<span class="st-sub">dont ${relearnN} ratée${relearnN > 1 ? 's' : ''} récemment</span>` : ''}</div>
         <div class="st-wlist">${shown.map(_weakRowHTML).join('')}</div>
         ${rest ? `<button type="button" class="st-more" data-action="statsWeakMore">Afficher les ${rest} autres positions</button>` : ''}
     </section></div>`;
@@ -390,14 +441,16 @@ function _renderWeakList(body, rows, weakN, relearnN) {
 // Deux constats au plus, chacun avec son lien : l'ouverture qui coûte le plus de points, ce que disent les parties.
 // Une carte sans assez de parties n'existe pas. Plus de carte du jour (lot 2 : elle est dans « Aujourd’hui »).
 
-const _todoCard = (kind, claim, ev, go, label) => `<article class="st-card st-todo-card edge-card">
-        <span class="st-eyebrow">${kind}</span><p class="st-claim">${claim}</p>${ev}
-        <button type="button" class="btn btn-soft st-todo-go" data-action="statsTodoGo" data-arg="${escapeHtml(go)}">${label} ${ico('chevron-right')}</button></article>`;
+// Une ligne par constat (audit « Progrès en images », K12) : vignette, phrase, sous-ligne, barre, chevron ; la ligne
+// entière ouvre l'onglet ou la vue. La barre reste visible à toutes les largeurs (K15).
+const _todoCard = (thumb, claim, sub, ev, go) => `<button type="button" class="st-todo-card${/^games\|repertoire/.test(go) ? ' is-gain' : ''}" data-action="statsTodoGo" data-arg="${escapeHtml(go)}">
+        <span class="st-todo-th">${thumb}</span><span class="st-todo-t"><span class="st-claim">${claim}</span><small>${sub}</small>${ev}</span>${ico('chevron-right')}</button>`;
 
 function _todoOpeningCard() {
     const o = StatsOpenings.topLoss();
     if (!o) return '';
-    return _todoCard('Ouverture · Score face à l\'attendu', `${o.html} <em>${_signedPct(o.delta)}</em>`, statsDeltaBar(o.delta), 'openings|' + o.key, 'Voir la fiche');
+    const side = o.side || o.key.split('|')[0], board = o.path && o.path.length ? _miniBoardHTML({ side, path: o.path }, true, { label: o.name || '' }) : `<span class="st-todo-ic">${ico('book')}</span>`;
+    return _todoCard(board, `${o.html} <em>${_signedPct(o.delta)}</em>`, side === 'w' ? 'Avec les Blancs' : 'Avec les Noirs', statsDeltaBar(o.delta), 'openings|' + o.key);
 }
 
 function _todoGamesCard() {
@@ -408,11 +461,11 @@ function _todoGamesCard() {
     const en = GameInsights.ends(list);
     if (en.losses.n >= MIN && en.losses.time >= 20) {
         const v = Math.round(en.losses.time);
-        return _todoCard('Parties', `<em>${v} %</em> de vos défaites se jouent au temps`,
-            `<span class="st-dbar is-share" aria-hidden="true"><i style="width:${v}%"></i></span>`, 'games|temps', 'Voir le temps');
+        return _todoCard(`<span class="st-todo-ic">${ico('rotate-ccw')}</span>`, `<em>${v} %</em> de vos défaites se jouent au temps`, 'Fins de partie',
+            `<span class="st-dbar is-share" aria-hidden="true"><i style="width:${v}%"></i></span>`, 'games|temps');
     }
     const s = OpeningReport.summarize(list);
-    if (s.delta !== null && s.delta <= -3) return _todoCard('Parties', `Score <em>${_signedPct(s.delta)}</em> face à l'attendu`, statsDeltaBar(s.delta), 'games|bilan', 'Voir le bilan');
+    if (s.delta !== null && s.delta <= -3) return _todoCard(`<span class="st-todo-ic">${ico('swords')}</span>`, `Score <em>${_signedPct(s.delta)}</em> face à l'attendu`, _plural(s.n, 'partie'), statsDeltaBar(s.delta), 'games|bilan');
     return '';
 }
 
@@ -424,17 +477,16 @@ function _todoPayoffCard() {
     if (!rows || !rows.length) return '';
     const p = OpeningReport.payoff(rows, Date.now()), gain = p.gain === null ? 0 : Math.round(p.gain);
     if (gain < 1) return '';
-    return _todoCard('Répertoire · Ce qu\'il rapporte', `Le suivre vous fait marquer <em>+${gain} %</em>`,
-        `<small class="st-todo-note">Score face à l’attendu, suivi contre quitté · ${p.n} parties relues sur un an</small>`,
-        'games|repertoire', 'Voir le répertoire');
+    return _todoCard(`<span class="st-todo-ic">${ico('book')}</span>`, `Le suivre vous fait marquer <em>${fmtDelta(gain)}</em>`,
+        'Suivi contre quitté, sur un an', statsDeltaBar(Math.min(gain, 20)), 'games|repertoire');
 }
 
 function _paintTodo() {
     const box = document.getElementById('stats-todo');
     if (!box) return;
     const cards = [_todoOpeningCard(), _todoGamesCard(), _todoPayoffCard()].filter(Boolean);
-    box.className = `st-todo n-${cards.length}`;
-    box.innerHTML = cards.join('');
+    box.className = `st-todo st-card edge-card n-${cards.length}`;
+    box.innerHTML = cards.length ? `<div class="st-h"><h3>À regarder</h3><span class="count">${cards.length}</span></div><div class="st-todo-rows">${cards.join('')}</div>` : '';
 }
 
 // ─── ONGLETS ──────────────────────────────────────────────────────────────────
@@ -445,22 +497,24 @@ function _paintTodo() {
 function _weekCardHTML(now) {
     if (typeof WeekCard === 'undefined') return '';
     const act = readActivity(), from = WeekCard.shown(now), w = WeekCard.week(act, currentRepertoire, from);
-    const hist = WeekCard.history(act, currentRepertoire, now, 8), prev = hist[0];
+    const hist = WeekCard.history(act, currentRepertoire, now, 8), prev = hist[0], sunday = new Date(now).getDay() === 0;
     if (!w.tries && !hist.some(h => h.tries)) return '';
+    // Semaine au repos : une ligne calme, jamais quatre zéros (audit « Progrès en images »).
+    if (!w.tries) return `<p class="st-week st-rest" data-pane="regularity"><span>${escapeHtml(WeekCard.line(w, prev))}</span></p>`;
     const span = t => I18n.mark(new Date(t).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'short' }));
     const range = f => I18n.mark(`${span(f)} – ${span(_dayStart(f, 6))}`);
-    const top = Math.max(1, ...w.days), sunday = new Date(now).getDay() === 0;
+    const top = Math.max(1, ...w.days);
     const bars = w.days.map((a, i) => `<div title="${I18n.mark(`${new Date(_dayStart(from, i)).toLocaleDateString(I18n.locale(), { weekday: 'long' })} · ${a}`)}"><i style="height:${a ? 6 + Math.round(42 * a / top) : 2}px"${a ? '' : ' class="zero"'}></i><span>${new Date(_dayStart(from, i)).toLocaleDateString(I18n.locale(), { weekday: 'narrow' })}</span></div>`).join('');
     const diff = prev.tries ? w.tries - prev.tries : null;
-    const kpi = (label, v, sub) => `<div class="st-wk-kpi"><span>${label}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
-    const sure = w.sure === null ? '–' : I18n.mark(`${w.sure > 0 ? '+' : w.sure < 0 ? '−' : ''}${Math.abs(w.sure)}`);
+    const kpi = (label, v, sub) => `<div class="st-wk-kpi kpi"><span>${label}</span><b>${v}</b>${sub ? `<small>${sub}</small>` : ''}</div>`;
+    const sure = w.sure === null ? '–' : fmtDelta(w.sure, '');
     const row = h => `<li><span>${range(h.from)}</span><b>${_plural(h.tries, 'position')}</b><small>${h.sure === null ? '' : I18n.mark(`${h.sure > 0 ? '+' : h.sure < 0 ? '−' : ''}${Math.abs(h.sure)}`)}</small></li>`;
-    return `<section class="st-sec st-card st-week edge-card" data-pane="overview">
+    return `<section class="st-sec st-card st-week edge-card" data-pane="regularity">
         <div class="st-h"><h3>${sunday ? 'Votre semaine' : 'La semaine dernière'}</h3><span class="st-sub">${range(from)}</span></div>
         <div class="st-wk">
             <div class="st-wk-days" role="img" aria-label="${I18n.pair(I18n.t('Positions révisées'), String(w.tries))}">${bars}</div>
             <div class="st-wk-kpis">
-                ${kpi('Positions révisées', w.tries, diff === null ? '' : I18n.mark(`${diff >= 0 ? '+' : '−'}${Math.abs(diff)} ${I18n.t('par rapport à la semaine d’avant')}`))}
+                ${kpi('Positions révisées', w.tries, diff === null ? '' : I18n.mark(`${fmtDelta(diff, '')} ${I18n.t('par rapport à la semaine d’avant')}`))}
                 ${kpi('Du premier coup', w.rate === null ? '–' : `${w.rate} %`)}
                 ${kpi('Positions sues', sure, 'Solides et maîtrisées')}
                 ${kpi('Temps', w.minutes ? `≈ ${w.minutes} min` : '–', _plural(w.active, 'jour actif', 'jours actifs'))}
@@ -542,16 +596,17 @@ const STATS_BAND_PANES = ['regularity', 'medals'];
 function _bandHTML(hasAct, now) {
     const items = [];
     if (hasAct && typeof Habits !== 'undefined') {
-        const st = Habits.streak(readActivity(), now);
+        const act = readActivity(), st = Habits.streak(act, now), days = _activeDays();
+        const head = st.n > 1 ? `<b>${st.n} jours d’affilée</b>` : `<b><span class="mono">${days} / ${STATS_DAYS}</span> <span>jours actifs</span></b>`;
         items.push(`<button type="button" class="st-band-i" data-action="statsPane" data-arg="regularity">
-            <span class="st-band-ic">${ico('flame')}</span><span class="st-band-t">${st.n ? `<b>${st.n} jour${st.n > 1 ? 's' : ''} d’affilée</b><small>Régularité</small>`
-                : `<b>${_activeDays()} / ${STATS_DAYS}</b><small>jours actifs</small>`}</span>${ico('chevron-right')}</button>`);
+            <span class="st-band-t">${head}<span class="st-band-wk">${WeekRibbon.week(act, now)}<small>Régularité</small></span></span>${ico('chevron-right')}</button>`);
     }
     if (typeof Medals !== 'undefined') {
         const list = Medals.list({}, now), got = list.filter(m => m.at).length, nx = Medals.next(list);
-        items.push(`<button type="button" class="st-band-i" data-action="statsPane" data-arg="medals">
-            <span class="st-band-ic is-brass">${nx ? _medalCoinSVG(nx.medal, 28) : ico('shield-check')}</span>
-            <span class="st-band-t"><b>${got > 1 ? `${got} médailles sur ${list.length}` : `${got} médaille sur ${list.length}`}</b>${nx ? `<small>Prochaine médaille · ${escapeHtml(nx.medal.name)}</small>` : ''}</span>${ico('chevron-right')}</button>`);
+        const left = nx && nx.words ? `Encore ${_plural(nx.left, nx.words[0], nx.words[1])}` : '';
+        items.push(`<button type="button" class="st-band-i has-coin" data-action="statsPane" data-arg="medals">
+            <span class="st-band-ic is-brass">${nx ? _medalCoinSVG(nx.medal, 34) : ico('shield-check')}</span>
+            <span class="st-band-t"><b>${got > 1 ? `${got} médailles sur ${list.length}` : `${got} médaille sur ${list.length}`}</b>${nx ? `<small><span>${escapeHtml(nx.medal.name)}</span>${left ? `<span> · </span><span>${left}</span>` : ''}</small>` : ''}</span>${ico('chevron-right')}</button>`);
     }
     return items.length ? `<div class="st-band" role="group" aria-label="Régularité et médailles">${items.join('')}</div>` : '';
 }
@@ -560,7 +615,7 @@ function _bandHTML(hasAct, now) {
 const STATS_TAB_UNITS = { medals: 'Médailles gagnées', overview: 'Positions du répertoire', openings: 'Ouvertures', games: 'Parties archivées', regularity: 'Jours actifs sur les 30 derniers' };
 function _tabsHTML(tabs, counts) {
     return `<div class="st-tabs" id="stats-tabs" role="tablist" aria-label="Vues">${tabs.map(([p, l]) =>
-        `<button type="button" role="tab" class="st-tab" aria-selected="${statsPane === p}" data-action="statsPane" data-arg="${p}">${l}<span class="st-tab-n" id="st-tab-n-${p}" title="${STATS_TAB_UNITS[p]}">${counts[p]}</span></button>`).join('')}</div>`;
+        `<button type="button" role="tab" class="st-tab" aria-selected="${statsPane === p}" data-action="statsPane" data-arg="${p}">${l}<span class="count st-tab-n" id="st-tab-n-${p}" title="${STATS_TAB_UNITS[p]}">${counts[p]}</span></button>`).join('')}</div>`;
 }
 
 // Appelé quand les parties arrivent ou sont croisées avec le répertoire : filtres, constats et compteurs.
@@ -620,47 +675,35 @@ function initStats() {
     // Prévision : un total par jour, sans détail par niveau, jamais plus que l'objectif du jour (chantier « Révision du
     // jour »). Le retard (révisions échues qui attendent au-delà de l'objectif, plan.held) est à part, avec son propre chiffre.
     const late = rp.held(inScope), fc = rp.forecast(inScope, STATS_FORECAST_DAYS), cu = late ? rp.catchUp() : null;
-    const fcMax = Math.max(1, ...fc), fcSum = fc.reduce((a, b) => a + b, 0);
-    // Un seul formateur par style : toLocaleDateString en recréait un à chaque appel (80 ms de l'onglet sur téléphone modeste).
-    const wdLong = new Intl.DateTimeFormat(I18n.locale(), { weekday: 'long' }), wdNarrow = new Intl.DateTimeFormat(I18n.locale(), { weekday: 'narrow' });
-    const fcDay = i => i ? wdLong.format(new Date(_dayStart(now, i))) : I18n.t('aujourd\'hui');
+    // Ruban prolongé de l'accueil (audit « Progrès en images », K8) : six jours passés, les 7 prochains, et le retard en
+    // pile hachurée au-dessus d'aujourd'hui, avec sa date de rattrapage en légende.
     const forecastCard = `
         <div class="st-card st-fcard edge-card">
-            <div class="st-h"><h3>Révisions à venir</h3></div>
-            ${late ? `<div class="st-late"><span><small>En retard</small><b>${late}</b></span><span>${cu ? `en attente · à jour vers ${escapeHtml(catchUpLabel(cu, now))}` : 'en attente, au-delà de l’objectif du jour'}</span></div>` : ''}
-            <div class="st-fc-h"><span>${STATS_FORECAST_DAYS} prochains jours</span><b>${_plural(fcSum, 'position')}</b></div>
-            <div class="st-fc" role="img" aria-label="${I18n.pair(I18n.t('Révisions prévues'), fc.map((n, i) => `${fcDay(i)} ${n}`).join(', '))}">${fc.map((n, i) =>
-                `<div title="${I18n.pair(fcDay(i), I18n.t(_plural(n, 'position')))}"><b>${n || ''}</b><i style="height:${n ? 4 + Math.round(56 * n / fcMax) : 2}px"${n ? '' : ' class="zero"'}></i><span>${wdNarrow.format(new Date(_dayStart(now, i)))}</span></div>`).join('')}</div>
+            <div class="st-h"><h3>${STATS_FORECAST_DAYS} prochains jours</h3><span class="count">${fc.reduce((a, b) => a + b, 0)}</span></div>
+            ${WeekRibbon.span(fc, now, readActivity(), { bare: true, held: late, catchUp: cu ? escapeHtml(catchUpLabel(cu, now)) : '' })}
         </div>`;
 
-    // ── Maîtrise ── la barre filtre comme la légende ; la règle de chaque niveau est dans son title.
+    // ── Maîtrise ── le grand chiffre, la barre légendée qui filtre (K9), la courbe seulement quand les états bougent,
+    // l'échelle des réussites d'affilée, puis la réussite en pied. Carte sur la surface du thème (K1).
     const totA = rows.reduce((s, r) => s + r.e.attempts, 0), totF = rows.reduce((s, r) => s + r.e.failures, 0);
     const mastery = knownPct(counts), gcount = groupCounts(counts);
-    // Courbe (lot 4) : dès deux jours de relevés ; elle remplace alors la barre, la légende garde le filtre et dit
-    // l'évolution de chaque niveau depuis le premier relevé (--data-up-ink quand elle va dans le bon sens).
     const series = _masterySeries(now), first = series && series[0].counts;
     const gain = series ? Math.round(mastery - _knownPctOf(first)) : 0;
     const firstG = series ? groupCounts(Object.fromEntries(MasteryLog.ORDER.map((l, i) => [l, first[i]]))) : null;
     const lvDelta = g => {
-        if (!series) return '';
+        if (!series || g === STATS_STATE) return '';
         const d = gcount[g] - firstG[g], good = g === 'learn' ? d < 0 : d > 0;
-        return d ? `<small class="st-lg-d${good ? ' up' : ''}">${d > 0 ? '+' : '−'}${Math.abs(d)}</small>` : '';
+        return d ? `<small class="st-lg-d${good ? ' up' : ''}">${fmtDelta(d, '')}</small>` : '';
     };
-    // Légende en trois états (lot 3 « Chays épuré ») ; « À confirmer » à part. Chacun filtre la liste.
-    const lg = (g, cls) => { const info = levelInfo(g), n = gcount[g];
-        return `<button type="button" class="st-lg ${cls || ''} ${statsFilter === g ? 'active' : ''}" aria-pressed="${statsFilter === g}" data-action="statsLegend" data-arg="${g}" title="${I18n.pair(I18n.t(info.one), I18n.t(info.rule))}" ${n ? '' : 'disabled'}>
-            ${_lvgMark(g)}<span>${info.label}</span><b>${n}</b>${g === STATS_STATE ? '' : lvDelta(g)}</button>`; };
-    const legend = LEVEL_GROUP_ORDER.map(g => lg(g)).join('');
+    const since = series ? I18n.mark(new Date(_logDay(series[0].day)).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'long' })) : '';
+    const moving = series && _masteryMoves(series);
     const masteryCard = `
-        <div class="vel-card vel-light st-mastery edge-card">
+        <div class="st-card st-mastery edge-card">
             <span class="st-eyebrow">Maîtrise · ${_plural(rows.length, 'position')}</span>
-            <div class="st-big"><b>${mastery} %</b><span>sues</span>${series ? `<em class="st-gain${gain > 0 ? ' up' : gain < 0 ? ' down' : ''}">${I18n.mark(`${gain > 0 ? '+' : gain < 0 ? '−' : '±'}${Math.abs(gain)} %`)}</em><small class="st-since">depuis le ${I18n.mark(new Date(_logDay(series[0].day)).toLocaleDateString(I18n.locale(), { day: 'numeric', month: 'long' }))}</small>` : ''}</div>
-            ${series ? _masteryCurveHTML(series, now) : `${levelBarHTML(counts, 'st-mbar', { buttons: true, active: statsFilter })}
-            <span class="st-curve-note">La courbe commence avec ce relevé : un point par jour d'utilisation.</span>`}
-            <div class="st-legend" role="group" aria-label="Filtrer la liste par niveau">${legend}</div>
-            <div class="st-state">${lg(STATS_STATE, 'st-lg-state')}</div>
-            <details class="st-rules"><summary>Comment chaque état est décidé</summary>
-                <dl>${LEVEL_GROUP_ORDER.concat(STATS_STATE).map(g => `<div>${_lvgMark(g)}<dt>${levelInfo(g).one}</dt><dd>${levelInfo(g).rule}</dd></div>`).join('')}</dl></details>
+            <div class="st-big"><b>${mastery} %</b><span>sues</span>${series ? (gain ? `<em class="st-gain ${gain > 0 ? 'up' : 'down'}">${fmtDelta(gain)}</em><small class="st-since">depuis le ${since}</small>` : `<small class="st-since">stable depuis le ${since}</small>`) : ''}</div>
+            ${levelBarHTML(counts, '', { plate: true, active: statsFilter, deltas: lvDelta })}
+            ${moving ? _masteryCurveHTML(series, now) : series ? '' : `<span class="st-curve-note">La courbe commence avec ce relevé : un point par jour d'utilisation.</span>`}
+            ${_ladderHTML(counts)}
             <span class="st-foot">Réussite : ${Math.round(100 * (totA - totF) / totA)} % sur ${_plural(totA, 'essai')}</span>
         </div>`;
 
@@ -674,8 +717,9 @@ function initStats() {
     }
     const weakHTML = !weakest.length ? '' : `
         <section class="st-sec st-card st-weak edge-card">
-            <div class="st-h"><h3>À reprendre</h3><span class="st-sub">${_plural(weakN, 'position')}${relearnN ? ` · dont ${relearnN} ratée${relearnN > 1 ? 's' : ''} récemment` : ''}</span>${weakN > weakest.length ? `<button type="button" class="st-link" data-action="statsWeakAll">Tout voir</button>` : ''}</div>
+            <div class="st-h"><h3>À reprendre</h3><span class="count is-learn">${weakN}</span>${weakN > weakest.length ? `<button type="button" class="st-link" data-action="statsWeakAll">Tout voir</button>` : ''}${relearnN ? `<span class="st-sub st-h-sub">dont ${relearnN} ratée${relearnN > 1 ? 's' : ''} récemment</span>` : ''}</div>
             <div class="st-wcards">${weakest.map(_weakCardHTML).join('')}</div>
+            <p class="st-sub">Flèche : le dernier coup adverse. Crans : vos derniers essais, les ratés en vermillon.</p>
         </section>`;
 
     // ── Par ouverture ── la fiche vit dans l'onglet Ouvertures (lot 3) ; ici, seulement de quoi nourrir le constat « À faire ».
@@ -695,10 +739,10 @@ function initStats() {
         <div class="st-main">
             <section class="st-now" data-pane="overview">${masteryCard}<div class="st-side">${forecastCard}
                 <section class="st-todo" id="stats-todo" aria-label="À faire"></section></div></section>
-            ${_weekCardHTML(now)}
             <div class="st-weak-wrap" data-pane="overview">${weakHTML}</div>
             ${_gamesSection()}
             ${reg}
+            ${_weekCardHTML(now)}
             ${_medalsHTML(now)}
         </div>`;
     _paintTodo();

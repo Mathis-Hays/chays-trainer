@@ -149,7 +149,7 @@ const StatsGames = (function () {
         const inSpeed = GameArchive.tally(inPeriod);
         const acc = inPeriod.filter(g => Number.isFinite(g.accuracy));
         return `<div class="sg-head"><h4>Elo</h4><span class="st-sub">${SITE_NAME[site]} · ${(speeds.find(([s]) => s === speed) || ['', speed])[1]}</span></div>
-            <div class="st-reg-kpis"><div><b>${last.r}</b><span>${deltaLabel}</span></div><div><b>${pct(inSpeed.score)}</b><span>${_plural(inSpeed.n, 'partie')}</span></div></div>
+            <div class="st-reg-kpis"><div><b>${last.r}</b><span class="so-delta ${delta >= 0 ? 'up' : 'down'}">${escapeHtml(deltaLabel)}</span></div><div><b>${pct(inSpeed.score)}</b><span>${I18n.mark(`score · ${_plural(inSpeed.n, 'partie')}`)}</span></div></div>
             ${chart(series)}
             ${acc.length >= 5 ? `<p class="st-sub">Précision moyenne ${pct(Math.round(acc.reduce((a, g) => a + g.accuracy, 0) / acc.length))} sur ${_plural(acc.length, 'partie analysée', 'parties analysées')}</p>` : ''}`;
     }
@@ -171,7 +171,8 @@ const StatsGames = (function () {
             <div class="sg-tiles">${tile('Répertoire suivi', kept)}${tile('Vous êtes sorti du répertoire', left)}</div>
             <div class="sg-head"><h4>Par famille d'ouverture</h4><span class="sg-leg"><i class="sg-w"></i>Gains <i class="sg-d"></i>Nulles <i class="sg-l"></i>Pertes</span></div>
             ${familiesHTML(openings)}
-            ${st.costs.length ? `<div class="sg-head"><h4>Ce qui vous coûte le plus</h4></div>${st.costs.map((c, i) => `<button type="button" class="sg-cost" data-action="statsGameLine" data-arg="${i}"><span><b>${c.family ? escapeHtml(c.family) : 'Autres positions'}</b><small>${_movesLabel(c.path.slice(-6), true) || ''}</small><small>${c.by === 'me' ? 'Votre coup sort du répertoire' : 'Réponse manquante'} · ${_plural(c.t.n, 'partie')} · ${pct(c.t.score)}</small></span>${ico('chevron-right')}</button>${whatIfHTML(c, i)}`).join('')}` : ''}
+            ${st.costs.length ? `<div class="sg-head"><h4>Ce qui vous coûte le plus</h4></div>${st.costs.map((c, i) => `<button type="button" class="sg-cost" data-action="statsGameLine" data-arg="${i}">${costBoard(c)}<span><b>${c.family ? escapeHtml(c.family) : 'Autres positions'}</b><small class="san">${_movesLabel(c.path.slice(-6), true) || ''}</small><small>${c.by === 'me' ? 'Votre coup sort du répertoire' : 'Réponse manquante'} · ${_plural(c.t.n, 'partie')} · ${pct(c.t.score)}</small></span>${ico('chevron-right')}</button>${whatIfHTML(c, i)}`).join('')}
+            ${st.costs.some(c => c.by === 'me') ? `<div class="sg-arrows-k"><span><i class="bad"></i>votre coup</span><span><i class="good"></i>votre répertoire</span></div>` : ''}` : ''}
             <div class="sg-head"><h4>Selon la couleur et l'adversaire</h4></div>
             <div class="sg-tiles">${tile('Blancs', color('w'))}${tile('Noirs', color('b'))}${tile('Adversaire +50 Elo ou plus', gap(d => d > 50))}${tile('Adversaire −50 Elo ou moins', gap(d => d < -50))}</div>`;
     }
@@ -180,6 +181,16 @@ const StatsGames = (function () {
     function rightMove(c) {
         if (c.by !== 'me') return null;
         try { return readDBFor(currentRepertoire, c.color)[Chess.key(Chess.replay(c.path))] || null; } catch (e) { return null; }
+    }
+    // La position de la sortie (audit « Progrès en images ») : votre coup en vermillon, celui du répertoire en laiton.
+    function costBoard(c) {
+        let played = null;
+        try {
+            const pos = Chess.replay(c.path), san = c.list[0] && c.list[0].sans[c.path.length], bare = x => String(x || '').replace(/[+#!?]/g, '');
+            if (san) played = Chess.legalMoves(pos).find(u => bare(Chess.san(pos, u)) === bare(san)) || null;
+        } catch (e) { played = null; }
+        const e = rightMove(c), arrows = [[played, 'bad']].concat(e ? [[e.move, 'good']] : []);
+        return `<span class="sg-cost-b">${_miniBoardHTML({ side: c.color, path: c.path }, true, { arrows, label: `${c.family || 'Position'} : votre coup${e ? ' et celui du répertoire' : ''}` })}</span>`;
     }
     function whatIfHTML(c, i) {
         const e = rightMove(c);

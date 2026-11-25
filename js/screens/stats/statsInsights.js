@@ -29,8 +29,19 @@ const StatsInsights = (function () {
     const signed = v => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v))}`;
     const num1 = v => v.toLocaleString(I18n.locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
     const fair = t => t.n >= MIN;
-    const delta = d => d === null ? '–' : `<span class="so-delta ${d >= 0 ? 'up' : 'down'}"><i aria-hidden="true">${d >= 0 ? '▲' : '▼'}</i>${I18n.mark(`${d >= 0 ? '+' : '−'}${num1(Math.abs(d))} %`)}</span>`;
-    const card = (cls, title, take, inner) => `<div class="so-card ${cls}"><h5>${title}</h5>${take ? `<p class="st-sub">${take}</p>` : ''}${inner}</div>`;
+    const delta = d => d === null ? '–' : `<span class="so-delta ${d >= 0 ? 'up' : 'down'}">${fmtDelta(d)}</span>`;
+    // Carte d'analyse (audit « Progrès en images », K4) : la question en surtitre, la conclusion chiffrée en titre ;
+    // sans conclusion (trop peu de parties), la question reste le titre. « ? » insécable.
+    const nbsp = t => String(t).replace(/ ([?!:;])/g, '\u00a0$1');
+    // Phrases qui ne concluent pas (ce qui manque, le périmètre) : elles restent sous la question.
+    const NOTE = /^(Il faut|Sessions sur|Sur \d|Premier déséquilibre|Structure de pions|Pas encore)/;
+    const card = (cls, title, take, inner) => take && NOTE.test(take)
+        ? `<div class="so-card ${cls}"><h5>${nbsp(title)}</h5><p class="st-sub">${take}</p>${inner}</div>`
+        : take
+        ? `<div class="so-card ${cls}"><span class="st-eyebrow">${nbsp(title)}</span><h5${String(take).length > 90 ? ' class="is-long"' : ''}>${nbsp(take)}</h5>${inner}</div>`
+        : `<div class="so-card ${cls}"><h5>${nbsp(title)}</h5>${inner}</div>`;
+    // État vide d'un graphique : le fantôme pointillé et ce qui manque (audit « Progrès en images »).
+    const ghost = text => `<div class="si-ghost"><svg viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true"><path d="M0,44 L40,38 L80,41 L120,30 L160,27 L200,20"/></svg><p class="st-sub">${text}</p></div>`;
     const legend = items => `<div class="so-leg">${items.map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('')}</div>`;
     const tile = (label, value, sub) => `<div><small>${label}</small><b>${value}</b>${sub ? `<span>${sub}</span>` : ''}</div>`;
     const hbar = (label, v, n) => `<div class="si-hbar"><span>${label}</span><span class="si-track"><i style="width:${Math.max(1, Math.min(100, v))}%"></i></span><b>${pct(v)}</b>${n === undefined ? '' : `<small>${n}</small>`}</div>`;
@@ -61,7 +72,7 @@ const StatsInsights = (function () {
 
     function viewsHTML() {
         if (st.view === 'resume') return '';
-        return `<div class="tr-seg si-views" role="group" aria-label="Vue">${[['resume', 'Résumé'], ['bilan', 'Bilan'], ['temps', 'Temps'], ['qualite', 'Qualité'], ['positions', 'Positions'], ['repertoire', 'Répertoire']].map(([v, l]) => `<button type="button" class="tr-seg-btn${st.view === v ? ' active' : ''}" aria-pressed="${st.view === v}" data-action="statsInView" data-arg="${v}">${l}</button>`).join('')}</div>`;
+        return `<button type="button" class="st-link st-back si-back" data-action="statsInView" data-arg="resume">${ico('chevron-left')}Résumé</button><div class="tr-seg si-views" role="group" aria-label="Vue">${[['bilan', 'Bilan'], ['temps', 'Temps'], ['qualite', 'Qualité'], ['positions', 'Positions'], ['repertoire', 'Répertoire']].map(([v, l]) => `<button type="button" class="tr-seg-btn${st.view === v ? ' active' : ''}" aria-pressed="${st.view === v}" data-action="statsInView" data-arg="${v}">${l}</button>`).join('')}</div>`;
     }
 
     // ─── GRAPHIQUES ──────────────────────────────────────────────────────────
@@ -103,7 +114,7 @@ const StatsInsights = (function () {
         const color = t => t.n < MIN ? '' : `background:color-mix(in oklab, ${t.score >= 50 ? 'var(--data-up)' : 'var(--data-down)'} ${Math.min(100, Math.abs(t.score - 50) * 6)}%, var(--bg-inset))`;
         const text = c => `${days[c.day]}, ${slots[c.slot]} h`;
         const take = h.best && h.worst ? `Meilleur créneau : ${text(h.best)} (${pct(h.best.t.score)}). Le moins bon : ${text(h.worst)} (${pct(h.worst.t.score)}).` : 'Il faut plus de parties par créneau pour comparer.';
-        return card('so-c6', 'Quand jouez-vous le mieux ?', take, `<div class="si-heat" role="img" aria-label="Score par jour et par tranche horaire"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}${h.grid.map((row, d) => `<span class="d">${days[d]}</span>${row.map((t, s) => `<i style="${color(t)}" title="${I18n.mark(`${days[d]}, ${slots[s]} h · ${t.n} · ${t.n ? pct(t.score) : '–'}`)}"></i>`).join('')}`).join('')}</div><div class="si-ramp">Sous 50 % <i></i> Au-dessus</div>`);
+        return card('so-c6', 'Quand jouez-vous le mieux ?', take, `<div class="si-heat" role="img" aria-label="Score par jour et par tranche horaire"><span></span>${slots.map(s => `<span>${s}</span>`).join('')}${h.grid.map((row, d) => `<span class="d">${days[d]}</span>${row.map((t, s) => `<i class="${t.n && t.n < MIN ? 'is-few' : ''}" style="${color(t)}" title="${I18n.mark(`${days[d]}, ${slots[s]} h · ${t.n} · ${t.n ? pct(t.score) : '–'}`)}"></i>`).join('')}`).join('')}</div><div class="si-ramp">Sous 50 % <i></i> Au-dessus <span class="si-few-k"><b aria-hidden="true"></b>moins de ${MIN} parties</span></div>`);
     }
 
     // Courbe du temps restant ; à la sortie du répertoire, l'avance moyenne en étiquette (chantier « Progrès : niveau et temps », carte 4).
@@ -195,7 +206,7 @@ const StatsInsights = (function () {
         const volBig = vol && vol.high !== null ? `<div class="si-duo">${big('Mois chargés', I18n.mark(signed(vol.high)), I18n.mark(`${vol.threshold} ${I18n.t('parties et plus')} · ${_plural(vol.highN, 'mois', 'mois')}`), side(vol.high))}${big('Mois calmes', I18n.mark(signed(vol.low)), I18n.mark(`${I18n.t('moins de')} ${vol.threshold} · ${_plural(vol.lowN, 'mois', 'mois')}`), side(vol.low))}</div>` : '';
         return `${kpisHTML(s)}
             <div class="so-grid">
-                ${card('so-c6 si-above', 'Vos mois au-dessus de votre Elo', aboveTake, above.known >= 2 ? `${aboveChart(above)}<p class="si-cap">Niveau joué moins votre Elo moyen du mois (3 parties au moins)</p>` : '<p class="st-sub">Pas encore assez de mois joués.</p>')}
+                ${card('so-c6 si-above', 'Vos mois au-dessus de votre Elo', aboveTake, above.known >= 2 ? `${aboveChart(above)}<p class="si-cap">Niveau joué moins votre Elo moyen du mois (3 parties au moins)</p>` : ghost('Deux mois joués au moins (trois parties chacun) pour comparer.'))}
                 ${en.wins.n + en.losses.n ? card('so-c6', 'Comment finissent vos parties ?', en.losses.n && en.wins.n ? `${pct(en.losses.time)} de vos défaites et ${pct(en.wins.time)} de vos gains se jouent au temps.` : '', `<div class="si-two"><div><h6>Gains</h6>${endBars(en.wins)}</div><div><h6>Défaites</h6>${endBars(en.losses)}</div></div>`) : ''}
                 ${card('so-c6', 'Savez-vous vous arrêter ?', sessionTake, `${bars(rankNames, se.ranks)}${se.after.some(fair) ? `<p class="si-cap">Juste après des défaites</p>${bars(afterNames, se.after)}` : ''}`)}
                 ${heatHTML(GameInsights.heat(list))}
@@ -221,18 +232,51 @@ const StatsInsights = (function () {
     // ─── RÉSUMÉ (bilan « Chays épuré », lot 4) ───────────────────────────────
     // Les chiffres, puis trois constats déjà écrits par les vues (une phrase chacun, rien de nouveau à lire) ; chacun
     // ouvre sa vue. Le temps passe devant quand il pèse (20 % des défaites ou plus).
+    // Le Résumé en formes (audit « Progrès en images ») : score face à l'attendu en jauge à repère, gains / nulles / pertes
+    // en une barre, Elo moyen et niveau joué sur une seule échelle, les dix dernières parties en cases.
+    function scoreHTML(s, list) {
+        const last = list.slice().sort((a, b) => b.at - a.at).slice(0, 10).reverse();
+        const wdl = `<div class="si-wdl" role="img" aria-label="${escapeHtml(I18n.mark(`${s.w} gains, ${s.d} nulles, ${s.l} pertes`))}"><i class="w" style="flex:${s.w}"></i><i class="d" style="flex:${s.d}"></i><i class="l" style="flex:${s.l}"></i></div>
+            <div class="si-wdl-k"><span><i class="w"></i>${_plural(s.w, 'gain')}</span><span><i class="d"></i>${_plural(s.d, 'nulle')}</span><span><i class="l"></i>${_plural(s.l, 'perte')}</span></div>`;
+        const bullet = `<div class="si-bullet" role="img" aria-label="${escapeHtml(I18n.mark(`Score ${pct(s.score)}${s.expected === null ? '' : `, attendu ${pct(s.expected)}`}`))}"><i style="width:${Math.max(1, Math.min(100, s.score))}%"></i>${s.expected === null ? '' : `<b style="left:${Math.min(100, s.expected)}%"></b>`}</div>
+            <div class="si-bullet-k"><span>0</span>${s.expected === null ? '' : `<span style="left:${Math.min(100, s.expected)}%">attendu ${pct(s.expected)}</span>`}<span>100 %</span></div>`;
+        let scale = '';
+        if (s.perf !== null && s.me !== null) {
+            const lo = Math.min(s.me, s.perf), hi = Math.max(s.me, s.perf), pad = Math.max(60, (hi - lo) * .2), x = v => 4 + 92 * (v - lo + pad) / (hi - lo + 2 * pad);
+            const gap = s.perf - s.me, words = Math.abs(gap) < 15 ? 'vous jouez à votre niveau' : gap > 0 ? `vous jouez ${gap} au-dessus` : `vous jouez ${-gap} en dessous`;
+            scale = `<div class="si-scale"><div class="si-scale-h"><span>Votre Elo moyen</span><span>Niveau joué</span></div>
+                <div class="si-scale-l" role="img" aria-label="${escapeHtml(I18n.mark(`Elo moyen ${s.me}, niveau joué ${s.perf}`))}"><span style="left:${x(lo)}%;width:${x(hi) - x(lo)}%"></span><i class="me" style="left:${x(s.me)}%"></i><i class="perf" style="left:${x(s.perf)}%"></i></div>
+                <div class="si-scale-h"><b>${s.me}</b><span>${words}</span><b>${s.perf}</b></div></div>`;
+        }
+        const ten = last.length >= 5 ? `<div class="si-last"><span>${I18n.t('Dernières parties')}</span><span class="si-last-c" role="img" aria-label="${escapeHtml(I18n.mark(`${last.filter(g => g.result === 'w').length} gains sur ${last.length}`))}">${last.map(g => `<i class="${g.result}"></i>`).join('')}</span></div>` : '';
+        return `<div class="si-sum"><div class="si-sum-h"><b>Score ${pct(s.score)}</b>${s.delta === null ? '' : `${delta(s.delta)}<span class="st-sub">face à l’attendu</span>`}</div>${bullet}${wdl}${scale}${ten}</div>`;
+    }
+    // Micro-visuels des constats : part des défaites au temps, mois au-dessus de l'Elo, écart selon l'adversaire.
+    function factVis(kind, list, en, above, gaps) {
+        if (kind === 'time') return `<span class="si-fv"><span class="st-dbar is-share"><i style="width:${Math.round(en.losses.time)}%"></i></span><span class="st-dbar is-share up"><i style="width:${Math.round(en.wins.time)}%"></i></span></span>`;
+        if (kind === 'above') {
+            const m = above.months.filter(x => x.gap !== null && x.gap !== undefined), lim = Math.max(1, ...m.map(x => Math.abs(x.gap)));
+            return `<svg class="si-fv" viewBox="0 0 52 28" aria-hidden="true"><line x1="0" x2="52" y1="14" y2="14"/>${m.slice(-12).map((x, i, a) => `<rect class="${x.gap >= 0 ? 'up' : 'down'}" x="${(i * 52 / a.length).toFixed(1)}" y="${x.gap >= 0 ? (14 - 13 * x.gap / lim).toFixed(1) : 14}" width="${(52 / a.length - 1).toFixed(1)}" height="${Math.max(1, 13 * Math.abs(x.gap) / lim).toFixed(1)}"/>`).join('')}</svg>`;
+        }
+        const g = gaps.filter(t => t && t.delta !== null), lim = Math.max(1, ...g.map(t => Math.abs(t.delta)));
+        return `<svg class="si-fv" viewBox="0 0 52 28" aria-hidden="true"><line x1="26" x2="26" y1="0" y2="28"/>${gaps.map((t, i) => t && t.delta !== null ? `<rect class="${t.delta >= 0 ? 'up' : 'down'}" x="${t.delta >= 0 ? 26 : (26 - 24 * Math.abs(t.delta) / lim).toFixed(1)}" y="${(i * 28 / gaps.length + 1).toFixed(1)}" width="${Math.max(1, 24 * Math.abs(t.delta) / lim).toFixed(1)}" height="${(28 / gaps.length - 2).toFixed(1)}"/>` : '').join('')}</svg>`;
+    }
+
+    // ─── RÉSUMÉ (bilan « Chays épuré », lot 4 ; audit « Progrès en images ») ─
+    // Les chiffres en formes, puis trois constats déjà écrits par les vues, chacun avec son micro-visuel ; chacun ouvre sa
+    // vue. Le temps passe devant quand il pèse (20 % des défaites ou plus). « Toutes les analyses » est la dernière ligne.
     function resumeHTML(list) {
         if (list.length < MIN) return '<p class="st-sub">Trop peu de parties avec ces filtres.</p>';
         const s = OpeningReport.summarize(list), above = GameInsights.aboveElo(OpeningReport.months(list, st.period || 12, Date.now()));
-        const en = GameInsights.ends(list), facts = [];
+        const en = GameInsights.ends(list), gaps = GameInsights.byGap(list), facts = [];
         const endTake = en.losses.n && en.wins.n ? `${pct(en.losses.time)} de vos défaites et ${pct(en.wins.time)} de vos gains se jouent au temps.` : '';
-        if (endTake && en.losses.time >= 20) facts.push(['temps', 'Comment finissent vos parties ?', endTake]);
-        if (above.known >= 2) facts.push(['bilan', 'Vos mois au-dessus de votre Elo', aboveTakeOf(above)]);
-        facts.push(['bilan', 'Face aux plus forts, face aux plus faibles', gapTakeOf(GameInsights.byGap(list))]);
-        if (endTake && facts.length < 3 && en.losses.time < 20) facts.push(['bilan', 'Comment finissent vos parties ?', endTake]);
-        return `${kpisHTML(s)}<div class="si-facts">${facts.slice(0, 3).map(([v, title, take]) =>
-            `<button type="button" class="si-fact" data-action="statsInView" data-arg="${v}"><b>${title}</b><span>${take}</span>${ico('chevron-right')}</button>`).join('')}</div>
-            <button type="button" class="btn btn-soft si-all" data-action="statsInView" data-arg="bilan">Toutes les analyses ${ico('chevron-right')}</button>`;
+        if (endTake && en.losses.time >= 20) facts.push(['temps', 'time', 'Comment finissent vos parties ?', endTake]);
+        if (above.known >= 2) facts.push(['bilan', 'above', 'Vos mois au-dessus de votre Elo', aboveTakeOf(above)]);
+        facts.push(['bilan', 'gap', 'Face aux plus forts, face aux plus faibles', gapTakeOf(gaps)]);
+        if (endTake && facts.length < 3 && en.losses.time < 20) facts.push(['bilan', 'time', 'Comment finissent vos parties ?', endTake]);
+        return `${scoreHTML(s, list)}<div class="si-facts">${facts.slice(0, 3).map(([v, kind, title, take]) =>
+            `<button type="button" class="si-fact" data-action="statsInView" data-arg="${v}">${factVis(kind, list, en, above, gaps)}<b>${take}</b><span>${title}</span>${ico('chevron-right')}</button>`).join('')}
+            <button type="button" class="si-fact si-all st-all-row" data-action="statsInView" data-arg="bilan"><b>Toutes les analyses</b>${ico('chevron-right')}</button></div>`;
     }
 
     // Parties de la courbe d'Elo affichée : site et cadence du niveau choisi.
@@ -321,7 +365,7 @@ const StatsInsights = (function () {
     // Point 2 : grand chiffre, courbe à échelle fixe (60 à 90 %), ruban des adversaires.
     function accuracyChart(months) {
         const pts = months.filter(m => m.accuracy !== null);
-        if (pts.length < 2) return '<p class="st-sub">Pas encore assez de mois analysés.</p>';
+        if (pts.length < 2) return ghost('Une tendance demande deux mois analysés.');
         const opp = months.filter(m => m.oppAccuracy !== null), vals = pts.map(p => p.accuracy).concat(opp.map(p => p.oppAccuracy));
         const W = 360, H = 130, L = 4, R = 38, T = 8, B = 18, lo = Math.min(60, Math.floor(Math.min(...vals) / 10) * 10), hi = Math.max(90, Math.ceil(Math.max(...vals) / 10) * 10);
         const x = m => L + months.indexOf(m) * (W - L - R) / Math.max(1, months.length - 1), y = v => T + (hi - Math.max(lo, Math.min(hi, v))) * (H - T - B) / (hi - lo), end = pts[pts.length - 1];
@@ -343,7 +387,7 @@ const StatsInsights = (function () {
         const now = new Date(), thisMonth = tr && new Date(tr.at).getMonth() === now.getMonth() && new Date(tr.at).getFullYear() === now.getFullYear();
         const when = !tr ? '' : thisMonth ? 'Ce mois-ci' : `En ${monthLong(tr.at)}`;   // sans tendance (trop peu de mois), pas de date
         const take = tr && tr.vsOpp !== null ? (tr.vsOpp >= 0 ? `${when}, vous jouez ${points(tr.vsOpp)} plus juste que vos adversaires.` : `${when}, vous jouez ${points(tr.vsOpp)} moins juste que vos adversaires.`) : `Sur ${I18n.t(_plural(q.games, 'partie analysée', 'parties analysées'))}.`;
-        const hero = tr ? `<div class="si-hero"><b>${pct(tr.value)}</b>${tr.change === null ? '' : Math.abs(tr.change) < .5 ? `<span class="so-delta">${I18n.t('stable')}</span>` : `<span class="so-delta ${tr.change >= 0 ? 'up' : 'down'}"><i aria-hidden="true">${tr.change >= 0 ? '▲' : '▼'}</i>${I18n.mark(`${signed(tr.change)} pts`)}</span><span>${I18n.mark(`${I18n.t('en')} ${_plural(span, 'mois', 'mois')}`)}</span>`}</div>` : '';
+        const hero = tr ? `<div class="si-hero"><b>${pct(tr.value)}</b>${tr.change === null ? '' : Math.abs(tr.change) < .5 ? `<span class="so-delta">${I18n.t('stable')}</span>` : `<span class="so-delta ${tr.change >= 0 ? 'up' : 'down'}">${fmtDelta(tr.change, ' pts')}</span><span>${I18n.mark(`${I18n.t('en')} ${_plural(span, 'mois', 'mois')}`)}</span>`}</div>` : '';
         return card('so-c6 si-acc', title, take, `${hero}${accuracyChart(months)}<p class="si-cap">Précision du site quand elle existe, sinon calcul Chays ; ruban : vos adversaires</p>`);
     }
 
@@ -458,12 +502,12 @@ const StatsInsights = (function () {
         if (k === 'imb') { const x = IMBALANCES.find(([key]) => key === v); return x && v !== 'even' ? x[1] : ''; }
         return '';
     }
-    // L'écart, dit « vs votre Elo » : votre score moins celui que les Elo prévoient, en points.
-    const vsElo = d => d === null ? '–' : Math.abs(d) < .5 ? I18n.t('comme prévu') : I18n.mark(signed(d));
+    // L'écart, dit « vs votre Elo » : votre score moins celui que les Elo prévoient, en % (arbitrage du 12 novembre, K5).
+    const vsElo = d => d === null ? '–' : Math.abs(d) < .5 ? I18n.t('comme prévu') : fmtDelta(d);
     const vsEloWords = d => {
         if (d === null) return '';
         if (Math.abs(d) < .5) return 'comme vos Elo le prévoient';
-        const pts = I18n.mark(`${Math.abs(Math.round(d))} ${Math.abs(Math.round(d)) >= 2 ? I18n.t('points') : I18n.t('point')}`);
+        const pts = I18n.mark(`${Math.abs(Math.round(d))} %`);
         return d >= 0 ? `${pts} de mieux que vos Elo ne le prévoient` : `${pts} de moins que vos Elo ne le prévoient`;
     };
     const saidOf = (label, d) => I18n.pair(I18n.t(label), I18n.t(vsEloWords(d)));
@@ -483,7 +527,7 @@ const StatsInsights = (function () {
         const col = (cls, title, items, empty) => `<div class="si-ter ${cls}"><h6>${title}</h6>${items.length ? items.map(y => `<div class="si-ter-i" title="${I18n.mark(`${pct(y.t.score)}${y.t.expected === null ? '' : ` / ${pct(y.t.expected)}`} · ${_plural(y.t.n, 'partie')}`)}"><span>${typeName(y.id)}<small>${_plural(y.t.n, 'partie')}</small></span><b>${vsElo(y.t.delta)}</b></div>`).join('') : `<p class="st-sub">${empty}</p>`}</div>`;
         const best = x.best[0], worst = x.worst[0];
         const take = I18n.mark(`${best ? saidOf(typeName(best.id), best.t.delta) : saidOf(typeName(worst.id), worst.t.delta)}.`);
-        return card('so-c12 si-terrains', 'Vos terrains, vos pièges', take, `<div class="si-ters">${col('up', 'Vos terrains', x.best, 'Aucun type de position au-dessus de vos Elo.')}${col('down', 'Vos pièges', x.worst, 'Aucun type de position sous vos Elo.')}</div><p class="si-cap">vs votre Elo : votre score moins celui que vos Elo et ceux de vos adversaires prévoient, en points ; ${MIN} parties au moins</p>`);
+        return card('so-c12 si-terrains', 'Vos terrains, vos pièges', take, `<div class="si-ters">${col('up', 'Vos terrains', x.best, 'Aucun type de position au-dessus de vos Elo.')}${col('down', 'Vos pièges', x.worst, 'Aucun type de position sous vos Elo.')}</div><p class="si-cap">vs votre Elo : votre score moins celui que vos Elo et ceux de vos adversaires prévoient, en % ; ${MIN} parties au moins</p>`);
     }
 
     function positionsHTML(list) {

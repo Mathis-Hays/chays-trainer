@@ -31,7 +31,10 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
         document.querySelector('#stats-games [data-action="statsGamesSync"]').click();
     })()`);
     await tick();
-    const titles = () => $$('#stats-games .so-card h5').map(h => h.textContent);
+    // Audit « Progrès en images » (K4) : la question en surtitre, la conclusion en titre ; sans conclusion, la question en titre.
+    const sp = t => t.replace(/\u00a0/g, ' ');
+    const titles = () => $$('#stats-games .so-card').filter(c => c.querySelector('h5')).map(c => sp((c.querySelector(':scope > .st-eyebrow') || c.querySelector('h5')).textContent));
+    const take = sel => { const c = $(sel); return sp((c.querySelector(':scope > .st-eyebrow') ? c.querySelector('h5') : c.querySelector('.st-sub')).textContent); };
     const view = v => $(`#stats-games [data-action="statsInView"][data-arg="${v}"]`).click();
     const pick = (action, value) => w.eval('UI_ACTIONS')[action](value);
 
@@ -52,14 +55,17 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
 
     await t('Parties s\'ouvre sur le Résumé (Chays épuré, lot 4) : chiffres, trois constats qui ouvrent leur vue, « Toutes les analyses »', () => {
         assert(!$('#stats-games .si-views'), 'pas de segments sur le Résumé');
-        assert.strictEqual($$('#stats-games .so-kpi').length, 4);
-        const facts = $$('#stats-games .si-fact');
+        // Chiffres en formes (audit « Progrès en images ») : jauge à repère, gains / nulles / pertes, Elo moyen et niveau joué.
+        assert($('#stats-games .si-sum .si-bullet') && $('#stats-games .si-sum .si-wdl'), 'jauge et barre G / N / P');
+        assert(!$('#stats-games .so-kpi'), 'plus de tuiles sur le Résumé');
+        const facts = $$('#stats-games .si-fact:not(.si-all)');
         assert(facts.length >= 2 && facts.length <= 3, 'trois constats au plus');
         assert(facts.every(b => b.dataset.action === 'statsInView'));
         assert(/Comment finissent vos parties/.test(facts[0].textContent), 'défaites au temps : le temps passe devant');
+        assert(facts[0].querySelector('.si-fv'), 'chaque constat a son micro-visuel');
         assert(!$('#stats-games .si-rec') && !$('#stats-games .si-heat'), 'les cartes détaillées attendent « Toutes les analyses »');
         $('#stats-games .si-all').click();
-        assert($('#stats-games .si-views') && $('#stats-games .si-views [data-arg="resume"]'), 'les vues, et le retour au Résumé');
+        assert($('#stats-games .si-views') && !$('#stats-games .si-views [data-arg="resume"]') && $('#stats-games .si-back[data-arg="resume"]'), 'les vues, et « ‹ Résumé » en retour (K19)');
     });
 
     await t('Bilan : chiffres, records et cartes attendues', () => {
@@ -70,7 +76,7 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
         // Ordre du chantier « Progrès : niveau et temps » : où vous en êtes, puis ce qui explique les défaites, enfin les comparaisons fines.
         assert.deepStrictEqual(list.slice(0, 4), ['Vos mois au-dessus de votre Elo', 'Comment finissent vos parties ?', 'Savez-vous vous arrêter ?', 'Quand jouez-vous le mieux ?']);
         assert.strictEqual(list[list.length - 1], 'Face aux plus forts, face aux plus faibles', 'l\'écart à l\'attendu passe en bas');
-        assert(/^Vous (perdez des points contre les adversaires|tenez ce que votre Elo prévoit)/.test($('#stats-games .si-gaps .st-sub').textContent));
+        assert(/^Vous (perdez des points contre les adversaires|tenez ce que votre Elo prévoit)/.test(take('#stats-games .si-gaps')));
         assert.strictEqual($$('#stats-games .si-gaps .so-chart text.lab').length, 5, 'cinq forces d\'adversaire, en mots');
         assert.strictEqual($$('#stats-games .si-heat i').length, 42);
         assert(/100 % de vos défaites et .* de vos gains se jouent au temps/.test($('#stats-games').textContent), 'défaites toutes au temps');
@@ -125,7 +131,7 @@ const PGN = `1. e4 ${clk(2, 58)} 1... e5 ${clk(2, 50)} 2. Nf3 ${clk(2, 56)} 2...
         const list = titles();
         assert.deepStrictEqual(list, ['Où dépensez-vous votre temps ?', 'Manquez-vous de temps à la pendule ?', 'L\'avance au coup 20 vous aide-t-elle ?'], 'la préparation fusionnée dans la courbe du temps');
         assert(/Zeitnot : moins de 10 % du temps de départ, soit 18 s en 3 min/.test($('#stats-games .si-zeit .si-chip').textContent), 'zeitnot défini en secondes');
-        assert(/(partie sur|de vos parties|jamais en zeitnot)/.test($('#stats-games .si-zeit .st-sub').textContent));
+        assert(/(partie sur|de vos parties|jamais en zeitnot)/.test(take('#stats-games .si-zeit')));
         assert.deepStrictEqual($$('#stats-games .si-sides text.lab').map(x => x.textContent), ['En retard', 'À égalité', 'En avance']);
         assert($('#stats-games .si-line.me') && $('#stats-games .si-line.opp'));
         assert(!$('#stats-games .so-kpi'), 'pas de chiffres du Bilan ici');

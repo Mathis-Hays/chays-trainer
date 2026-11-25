@@ -420,9 +420,9 @@ Les rois se font face : la Tour blanche menace le mat sur la 8e rangée.
 Le Fou coupe la Tour noire de la 8e rangée (Fe6) et prépare la menace de mat.
 Faites manœuvrer la Tour pour forcer la Tour noire à quitter sa rangée, puis matez.
 Un seul coup gagne : 1.Fe6 !. Le Fou empêche la Tour noire de défendre la 8e rangée et menace Tf8+. La suite (1…Re8 2.Tf2 Th6 3.Ta2 Rf8 4.Tg2…) force la Tour noire à céder : la position de Philidor se gagne toujours, en moins de trente coups.
-Les {0} jouent et font mat
-Les {0} jouent et gagnent
-Les {0} jouent et annulent
+Matez avec les {0}
+Gagnez avec les {0}
+Tenez la nulle avec les {0}
 le joueur n'a pas le trait
 aucun coup légal
 il faut un roi de chaque camp
@@ -617,11 +617,13 @@ bons coups en Survie
 finale à réussir
 finales à réussir
 Apprenti
-maîtrise {0} ({1} pour l’instant)
-au plus {0} positions fragiles
-au plus une position fragile
-aucune position fragile
-toutes les positions confirmées
+Au moins {0} % sues
+Au plus {0} positions à apprendre
+Au plus une position à apprendre
+Aucune position à apprendre
+{0} à apprendre
+Toutes les positions confirmées
+{0} à confirmer
 b|Sicilienne
 Échanger le pion c contre le pion d, puis jouer sur la colonne c et à l’aile dame.
 b|Sicilienne Najdorf
@@ -1476,40 +1478,43 @@ Files
 À corriger
 Mater
 Gagner
+Tenir la nulle
 {0} essai{1}
 Difficulté {0} sur 5
-{0} coups au plus
-tenir {0} coups
-{0} coups pour conclure
-Réussi sans faute
-Réussi
+Difficulté {1} sur 5
+En {0} coups
+Tenir {0} coups
+Conclure en {0} coups
 {0} étoile{1} sur 3
+Pas encore réussie
+{0} réussie{1} sur {2}, {3} étoile{4} sur {5}
 {0}Réponse gardée · exact
 {0}Tables Syzygy · exact
 {0}Moteur · verdict estimé
 {0}Calcul exact
+Toutes
+À faire
+Commencées
+Réussies
 Aperçu
 À suivre
 Choisi
-Réussi · {0}
-{0}, pas encore réussi
-Jamais tenté
+{0}, pas encore réussie
 {0}{1} étape{2} de plan en indice
-Commencer {5}
+Commencer {3}
 Parcours terminé
 Tout est réussi
-{0} sur {1} sans faute. Rejouez au hasard pour garder la main.
+{0} sur {1} à trois étoiles. Rejouez au hasard pour garder la main.
 {2} Au hasard
-Toutes
-À faire
-Réussies
 Catégories
-Étoiles de la catégorie
 Aucune finale réussie
 {0} à faire
+Aucune finale commencée
+Les finales tentées sans succès s’affichent ici.
+Toutes ont été tentées
+{0} sur {1} réussies
 Parcours
-sur {1} réussie{2}
-{3} étoiles sur {4} · {5} sans faute · {6} en cours
+sur {1} réussie{2} · {3} étoiles
 finales : préparation de la base roi + pion
 (min-width: 920px)
 Aperçu :
@@ -1533,39 +1538,37 @@ la défense de Philidor
 la défense de Vancura
 Résistance maximale
 Humain
-{0} — à vous de jouer.
 finales : préparation du calcul
-Gain
-Nulle
-Perte
 class="bad"
 class="{0}"
 à tenir
 pour conclure
 au plus
-class="is-err"
-Coups joués
-Coup <b>{4}</b> / {5} {6}
-<b>{8}</b> erreur{9}
+<b>{0}</b> erreur{1}
 <b>{0}</b> indice{1}
+Coups joués
+Coup
+La {0} devient une {1}
 Verdict : {0} devenue {1}
 {0}Théorie
 {1}Théorie{2}
+{0} erreur{1}
+{0} indice{1}
+Vous : {0} coups ; le plus court : {1}
+Vous
+Le plus court
 · nouveau record
 Trois étoiles.
-Troisième étoile : sans faute ni indice, en {0} coups au plus (le plus court : {1}).
+Troisième étoile : sans faute ni indice, en {0} coups au plus.
 Troisième étoile : sans faute ni indice.
 <b>Exercice réussi{1}</b>
-coup{6}
-erreur{8}
-indice{0}
 Suivant
-{4} Suivant
-{5} Rejouer
-{1}avec les {2}
-{0} Annuler ce coup
-{5} Recommencer
-Adversaire
+{9} Suivant
+{0} Rejouer
+La méthode
+Votre coup
+{0} Reprendre ce coup
+{4} Recommencer
 Échec et mat ! Bien joué.
 Pat ! La partie est nulle : laissez toujours une case libre au roi adverse (hors échec).
 Votre pièce est abandonnée : le roi adverse la prend et le gain disparaît.
@@ -1596,9 +1599,9 @@ Matériel gagné, gain conservé : la position est gagnée.
 Gain conservé pendant {0} coups : la méthode est acquise.
 L'adversaire n'a plus de quoi gagner : nulle !
 Le dernier pion adverse est tombé : nulle !
-{0} — vérification…
+{0} · vérification…
 (verdict estimé)
-— verdict indisponible (hors ligne, moteur absent)
+· verdict indisponible (hors ligne, moteur absent)
 Conseil : {0}
 L'adversaire ne peut pas répondre : connexion et moteur indisponibles. Réessayez plus tard.
 Adversaire indisponible.
@@ -1606,14 +1609,15 @@ Aucun indice disponible hors ligne pour cette position.
 Appuyez encore pour une étape du plan.
 Plan : {0}
 Partie terminée.
-Adversaire : {0} — à vous.
+Adversaire : {0} · à vous.
 Vous êtes mat.
 ✗ Vous êtes mat.
 Pat : la partie est nulle.
 ✗ Pat.
 Nulle par répétition de position.
-Coup annulé — cherchez un autre coup.
+Coup repris : cherchez un autre coup.
 Indice : {0}
+Recommencer
 parties relues au lancement
 Ma couleur dans cette partie
 Aucune partie reconnue : collez le PGN complet (exporté depuis Chess.com ou Lichess).
@@ -1735,7 +1739,7 @@ Gagner, annuler, mater
 Finales réussies seulement
 Mats, pions, tours, Dame, pièces mineures : toucher un exercice ouvre son <strong>aperçu</strong>, et seul « Commencer » lance la séance.
 L’adversaire répond tout seul ; <strong>chaque coup est jugé</strong> par les tables de finales, sinon par le moteur (verdict « estimé »).
-Un coup qui laisse échapper le gain ou la nulle est signalé (« Nulle → Perte ») : « Annuler ce coup » le reprend. La théorie se déplie pendant la séance.
+Un coup qui laisse échapper le gain ou la nulle est signalé (« ½ → 1-0 ») et fléché : votre coup en vermillon, la méthode en laiton ; « Reprendre ce coup » le reprend. La théorie se déplie pendant la séance.
 Adversaire « Résistance maximale » ou « Humain » : Paramètres › Jeu et entraînement.
 Comparer ses parties au répertoire
 Erreur comptée une fois par partie
@@ -1945,7 +1949,6 @@ Entrée
 Flèches du répertoire
 Annuler le coup enregistré, sinon Corriger
 Maj
-Recommencer
 Changer de camp
 Révision du jour (hors séance)
 Revoir les erreurs du bilan (hors séance)
@@ -2257,9 +2260,13 @@ Langue indisponible pour le moment.
 i18n:lang
 Rang : {2}
 Filtrer la liste par niveau
+Positions par réussites d’affilée
+Les positions à confirmer (moins de trois essais) restent à part.
+Réussites d’affilée depuis la dernière erreur.
 Blancs et Noirs
 Position
 Position avant votre coup
+, vue rapprochée de {0} à {1}
 joker : la série continue
 Réussite par semaine sur {3} semaines, {4} % cette semaine
 Réussite par semaine
@@ -2274,30 +2281,32 @@ jours actifs
 Peu <i></i>
 </i> Beaucoup
 Positions par état
+{0} {1} sur {2}
+class="x"
 Coup à retrouver
 Blancs ·
 Noirs ·
 Voir la position {2}, {3}
-Trouver le coup des {0}
-· dont {0} ratée{1} récemment
+, coup {0}
+Trouver le coup des {0}{1} · {2}
+Position avant le coup des {0}
+dont {0} ratée{1} récemment
 Afficher les {0} autres positions
 {0}Progrès
 À reprendre
-Ouverture · Score face à l'attendu
+Avec les Blancs
+Avec les Noirs
 openings|
-Voir la fiche
 <em>{0} %</em> de vos défaites se jouent au temps
+Fins de partie
 games|temps
-Voir le temps
 Score <em>{0}</em> face à l'attendu
 games|bilan
-Voir le bilan
-Répertoire · Ce qu'il rapporte
-Le suivre vous fait marquer <em>+{0} %</em>
-Score face à l’attendu, suivi contre quitté · {0} parties relues sur un an
+Le suivre vous fait marquer
+Suivi contre quitté, sur un an
 games|repertoire
-Voir le répertoire
-st-todo n-{0}
+st-todo st-card edge-card n-{0}
+À regarder
 class="zero"
 Votre semaine
 La semaine dernière
@@ -2317,8 +2326,7 @@ Prochaine médaille
 {0} médailles sur {1}
 {0} médaille sur {1}
 Vitrine
-<b>{0} jour{1} d’affilée</b>
-Prochaine médaille · {0}
+<b>{0} jours d’affilée</b>
 Régularité et médailles
 Médailles gagnées
 Positions du répertoire
@@ -2334,18 +2342,14 @@ Ouvrir l'Entraînement {0}
 Les Blancs et les Noirs n'ont
 Les {0} n'ont
 {0} aucune position dans « {1} ».
-en attente · à jour vers {0}
-en attente, au-delà de l’objectif du jour
-En retard
-Révisions prévues
-Révisions à venir
-{1} prochains jours
+{0} prochains jours
 depuis le {2}
+stable depuis le {0}
 La courbe commence avec ce relevé : un point par jour d'utilisation.
 Maîtrise · {0}
-Comment chaque état est décidé
-Réussite : {7} % sur {8}
+Réussite : {6} % sur {7}
 Tout voir
+Flèche : le dernier coup adverse. Crans : vos derniers essais, les ratés en vermillon.
 Aperçu · {0}
 {0} · maîtrise {1} / 100 ({2} err. / {3})
 Cette position
@@ -2369,6 +2373,7 @@ Pseudo {4}
 gains →
 {0} sur {1} mois
 {0} sur tout l'historique
+score · {0}
 partie analysée
 parties analysées
 Précision moyenne {0} sur {1}
@@ -2378,6 +2383,8 @@ Répertoire suivi
 Vous êtes sorti du répertoire
 Votre coup sort du répertoire
 Réponse manquante
+</i>votre coup
+</i>votre répertoire
 Ce qui vous coûte le plus
 Adversaire +50 Elo ou plus
 Adversaire −50 Elo ou moins
@@ -2387,6 +2394,8 @@ Par famille d'ouverture
 </i>Nulles
 </i>Pertes
 Selon la couleur et l'adversaire
+et celui du répertoire
+{0} : votre coup{1}
 Et si vous aviez joué {2} ? Rejouer contre le moteur
 Mettre à jour
 Chargement…
@@ -2395,6 +2404,7 @@ Récupération des parties… {0}
 Charger tout l'historique
 Saisissez un pseudo.
 {0}px
+class="is-long"
 dd-sm {0}
 Période
 3 mois
@@ -2403,11 +2413,11 @@ Période
 Tout
 Tous les sites
 Toutes les cadences
-Résumé
 Bilan
 Qualité
 Positions
 Vue
+{0}Résumé
 Score par tranche
 background:color-mix(in oklab, {0} {1}%, var(--bg-inset))
 Meilleur créneau : {0} ({1}). Le moins bon : {2} ({3}).
@@ -2415,8 +2425,9 @@ Il faut plus de parties par créneau pour comparer.
 Quand jouez-vous le mieux ?
 Score par jour et par tranche horaire
 Sous 50 % <i></i> Au-dessus
+</b>moins de {2} parties
 Sortie du répertoire
-Vous
+Adversaire
 à la sortie
 Temps restant par coup
 votre Elo
@@ -2464,7 +2475,7 @@ Mois calmes
 moins de
 Vos mois au-dessus de votre Elo
 Niveau joué moins votre Elo moyen du mois (3 parties au moins)
-Pas encore assez de mois joués.
+Deux mois joués au moins (trois parties chacun) pour comparer.
 Comment finissent vos parties ?
 {0} de vos défaites et {1} de vos gains se jouent au temps.
 Gains
@@ -2483,7 +2494,20 @@ Elo d'après vos résultats
 Vous tenez ce que votre Elo prévoit, quel que soit l'adversaire.
 Meilleur : {0}, {1}.
 {0} mois sur {1}, vous avez joué mieux que votre classement.{2}
-Toutes les analyses {2}
+{0} gains, {1} nulles, {2} pertes
+, attendu {0}
+Score {0}{1}
+attendu {1}
+vous jouez à votre niveau
+vous jouez {0} au-dessus
+vous jouez {0} en dessous
+Elo moyen {0}, niveau joué {1}
+Votre Elo moyen
+Dernières parties
+{0} gains sur {1}
+face à l’attendu
+<b>Score {0}</b>{1}
+<b>Toutes les analyses</b>{2}
 Meilleur Elo
 Plus longue série
 gains d'affilée
@@ -2496,6 +2520,7 @@ depuis un sommet
 Avec zeitnot
 Sans zeitnot
 Score avec et sans zeitnot
+En retard
 À égalité
 En avance
 Score selon votre pendule au coup 20
@@ -2532,7 +2557,7 @@ Analyse prête à reprendre
 Mettre en pause
 <b>Analyse Stockfish</b> · {0} · {1}
 Profondeur {4}, puis {5} sur les coups qui coûtent ; la période affichée d'abord, en arrière-plan après le lancement.
-Pas encore assez de mois analysés.
+Une tendance demande deux mois analysés.
 Vos adversaires
 Précision par mois et ruban des adversaires
 Votre précision progresse-t-elle ?
@@ -2544,7 +2569,6 @@ En {0}
 {0}, vous jouez {1} plus juste que vos adversaires.
 {0}, vous jouez {1} moins juste que vos adversaires.
 Sur {0}.
-{0} pts
 Précision du site quand elle existe, sinon calcul Chays ; ruban : vos adversaires
 Milieu
 Finale
@@ -2637,7 +2661,7 @@ Vos terrains
 Aucun type de position au-dessus de vos Elo.
 Vos pièges
 Aucun type de position sous vos Elo.
-vs votre Elo : votre score moins celui que vos Elo et ceux de vos adversaires prévoient, en points ; {2} parties au moins
+vs votre Elo : votre score moins celui que vos Elo et ceux de vos adversaires prévoient, en % ; {2} parties au moins
 Lecture des positions de vos parties…
 Préférez-vous jouer avec ou sans dames ?
 Où êtes-vous à l'aise pour roquer ?
@@ -2653,34 +2677,36 @@ Comment jouez-vous les déséquilibres ?
 Premier déséquilibre matériel tenu au moins trois coups
 Le moteur ne répond pas. Réessayez plus tard.
 analyse des parties en arrière-plan
-Maîtrise de {0} sur 100, et {1} points de moins que prévu. Apprendre ses positions fragiles est le gain le plus direct.
+{0} % sues, et {1} points de moins que prévu. Apprendre ses positions fragiles est le gain le plus direct.
 À remplacer ?
-Vous la connaissez ({0} sur 100), mais vous sortez de l'ouverture à {1} et perdez {2} points. La ligne elle-même mérite un examen.
+Vous la connaissez ({0} % sues), mais vous sortez de l'ouverture à {1} et perdez {2} points. La ligne elle-même mérite un examen.
 À jouer en entier
 L'ouverture se passe bien ({0} à la sortie), puis {1} points partent. Le travail est dans le milieu de partie typique.
 Sue mais perdante
-Vous la connaissez ({0} sur 100), mais elle rapporte {1} points de moins que prévu. Regardez où les parties tournent après l'ouverture.
+Vous la connaissez ({0} % sues), mais elle rapporte {1} points de moins que prévu. Regardez où les parties tournent après l'ouverture.
 À consolider
-Elle rapporte plus que prévu sans être bien sue ({0} sur 100). Ces points restent fragiles face à de meilleurs joueurs.
+Elle rapporte plus que prévu sans être bien sue ({0} % sues). Ces points restent fragiles face à de meilleurs joueurs.
 À garder
 Bien sue et rentable. Une révision régulière suffit.
-{0} · maîtrise {1} / 100
+{0} · {1} % sues
 {0} · hors répertoire
+{0}{1} à confirmer
 {0}{1} Elo
 Vous y jouez comme un {0}, à votre niveau.
 Vous y jouez comme un {0}, {1} sous votre Elo.
 Vous y jouez comme un {0}, {1} au-dessus de votre Elo.
 Perd des points
-coup à revoir
-coups à revoir
 {0} à réviser
-Sue · à jour
 points="{0},{1} {2},{3} {4},{5}"
 Hors de votre répertoire : aucune position travaillée pour cette ouverture.
-Aucune de vos parties récentes ne passe par cette ouverture.
-Trop peu de parties pour juger ({0}).
+Aucune partie récente
+{0} : trop peu pour juger
+{0} · {1} · choisir une autre ouverture
 Maître de cette ouverture : elle le reste tant qu’elle est révisée.
-Vers {0}
+condition à remplir
+conditions à remplir
+Rang suivant à la prochaine séance
+à remplir
 {1}Écrire l’idée de la ligne
 Idée suggérée
 Idée de la famille {0}
@@ -2689,12 +2715,13 @@ translate="no"
 {1}Garder
 Écrire la mienne
 {1}Échiquier libre
-Réviser · {0}
-Réviser les points faibles
+Réviser
 Réviser la ligne entière
-Confirmer les nouvelles
+à réviser
+à apprendre
+à confirmer
 Ligne entière
-Autres façons {3}
+Autres façons {4}
 Explorer
 En partie
 Mes coups
@@ -2702,19 +2729,22 @@ Sections de la fiche
 Position de l’oubli
 {1}Réviser ce coup
 Voir la position
-Coup {3} · {4} · {5}
+Coup {3} · {4}
 joué
 prévu
 Vos oublis en partie
 {1}Ajouter une réponse
-Votre coup
 Pas de réponse enregistrée ici
+Pas encore jouée en partie
 Réponses adverses
 Aucun coup adverse connu ici : ni dans le répertoire, ni dans vos parties.
-· {0} ici
-Réponses adverses{0}
+</i>au répertoire
+</i>repéré ou joué
+</i>sans réponse
 Repéré
 Dans le répertoire
+· {0} ici
+Réponses adverses{0}
 Joué {0} fois contre vous
 {1} · sans réponse
 Votre réponse : {4}
@@ -2731,11 +2761,12 @@ Explorateur
 ici {9}
 vous {1}
 des points
-Le niveau en Elo demande {1} parties classées.
+Le niveau en Elo viendra à {0} parties classées.
 Votre niveau dans cette ouverture
 {2} · {3} des points
 · niveau {0}
 {0} sur {1} au-dessus de votre niveau
+Mois par mois : {2}
 Mois par mois
 Aucune sortie du répertoire dans vos parties de la période.
 coup imprévu
@@ -2746,8 +2777,8 @@ Sorties du répertoire par numéro de coup
 </i>Vous avez oublié
 </i>Coup imprévu
 Sortie moyenne : coup {4}
-Score en le suivant
-Score en le quittant
+En le suivant
+En le quittant
 Réponses couvertes
 Évaluation à la sortie
 Score après une bonne sortie
@@ -2759,9 +2790,9 @@ Reliez un compte dans l'onglet Parties pour voir vos résultats réels.
 Aucune partie sur cette période.
 Premier coup de la partie
 Après
-Voir {3}
+Voir {4}
 S'entraîner sur cette position (compte comme un essai)
-S'entraîner sur {0}
+S'entraîner sur {1}
 Réduire
 Afficher les {0} autres coups
 Mes coups, du plus fragile au plus sûr
@@ -2771,7 +2802,12 @@ Carte
 Aucune position à ce niveau.
 Précédente à travailler
 Suivante à travailler
-Hors répertoire <b>{1}</b>{2}
+, {0} à confirmer
+· {0} à apprendre, {1} en cours, {2} sues{3}
+· {0} % sues
+{0} % sues
+{0} · {1} à apprendre
+À reprendre d’abord
 Il faut au moins {0} parties dans une ouverture travaillée pour la placer sur la carte.
 Maîtrise à l'entraînement
 Points face à l'attendu
@@ -2783,6 +2819,16 @@ Nom ou coups : Najdorf, Cf3…
 Chercher une ouverture
 L’idée de la ligne · {0}
 ex : pousser c5 et attaquer d4
+manqué
+à faire
+à venir
+Jours actifs cette semaine
+Deux semaines
+Six derniers jours
+Révisions prévues sur les 7 prochains jours
+, {0} en retard
+en attente · à jour vers {0}
+en attente, au-delà de l’objectif du jour
 à votre niveau sur Lichess
 une branche de votre répertoire
 Adversaire du club
@@ -3006,7 +3052,6 @@ Coups joués sur Lichess à ~{0}
 Coups joués sur Lichess
 {0} · {1} · Jusqu’à la sortie du répertoire
 Aucune réponse au premier coup
-{0} à confirmer
 {0} position{1}
 La plus en retard
 Point faible
@@ -3030,13 +3075,6 @@ Objectif du jour : {1} sur {2} positions
 Ouvertures du jour
 Joker de la semaine libre : un jour manqué ne casse pas la série.
 Joker de la semaine utilisé : le prochain arrive lundi.
-manqué
-à faire
-à venir
-Jours actifs cette semaine
-Six derniers jours
-Révisions prévues sur les 7 prochains jours
-Deux semaines
 Léger
 Normal
 Soutenu
@@ -3060,7 +3098,6 @@ révisions attendent
 {0} les jours suivants
 pour reprendre la main
 pour aujourd’hui
-à réviser
 Environ {1} min{2}
 Révisions <em>à jour</em>.
 Prochaine révision <b>{0}</b>
@@ -3076,9 +3113,9 @@ Des réponses à trouver
 Une réponse à trouver
 Une finale
 faite aujourd’hui
-Coup des {1} · {2}
 {0} jour{1} d’affilée
 À relever
+Réussi
 Un nouveau demain
 aria-disabled="true"
 <b>Défi du jour</b>
@@ -3112,7 +3149,6 @@ Renommer
 Choisissez un nom différent.
 Ce nom est déjà utilisé.
 (max-width: 599px)
-Réviser
 Revoir
 Au hasard
 Une finale au hasard
@@ -3133,7 +3169,6 @@ Essais
 Auj.
 Adverse
 Connue
-Coup
 cubic-bezier(.72, 0, .18, 1)
 translateY(-12px) scale(.92)
 translate(0px, 0px) scale(1)
@@ -3256,7 +3291,6 @@ Initialisation...
 Aucun coup joué
 Données
 Répertoire :
-Dernières parties
 J'avais les
 Si votre pseudo figure dans la partie, sa couleur est prise automatiquement.
 Analyser la partie

@@ -697,7 +697,7 @@ const StatsOpenings = (function () {
         if (!st.ctx) return null;
         build();
         const g = st.list.filter(x => x.stats.n >= MIN_MAP && x.stats.delta !== null && x.stats.delta <= -3).sort((a, b) => lostOf(b) - lostOf(a))[0];
-        return g ? { key: g.key, html: g.html, delta: g.stats.delta } : null;
+        return g ? { key: g.key, html: g.html, name: g.name, side: g.side, path: g.path, delta: g.stats.delta } : null;
     }
     function step(dir) {
         const i = st.list.findIndex(g => g.key === st.cur);

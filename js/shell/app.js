@@ -155,35 +155,9 @@ function _homeJokerHTML(st) {
     return `<span class="hp-joker${st.jokerFree ? '' : ' is-used'}" title="${escapeHtml(tip)}" role="img" aria-label="${escapeHtml(tip)}"></span>`;
 }
 
-// Case d'un jour du ruban (Habits.week) : pleine et cochée (fait), laiton (joker), vide (manqué), cerclée (aujourd'hui
-// à faire), en pointillés (à venir : la règle des pointillés, emplacement à remplir).
-const HP_DAY_STATE = { done: 'fait', joker: 'joker', missed: 'manqué', today: 'à faire', future: 'à venir' };
-const _hpDayTip = (t, state) => I18n.pair(_hpDayName(t), I18n.t(HP_DAY_STATE[state]));
-const _hpDayLetter = t => new Date(t).toLocaleDateString(I18n.locale(), { weekday: 'narrow' });
-const _hpDayName = t => new Date(t).toLocaleDateString(I18n.locale(), { weekday: 'long' });
-
-// Ruban de la semaine (lundi → dimanche) dans le surtitre : série, joker et jours à venir d'un coup d'œil.
-function _homeWeekHTML(act, now, st) {
-    const days = Habits.week(act, now), done = days.filter(d => d.state === 'done').length, past = days.filter(d => d.state !== 'future').length;
-    const label = I18n.pair(I18n.t('Jours actifs cette semaine'), `${done} / ${past}`);
-    return `<span class="hp-week" role="img" aria-label="${escapeHtml(label)}">${days.map(d =>
-        `<span class="hp-wk is-${d.state}" title="${escapeHtml(_hpDayTip(d.t, d.state))}"><i></i><span>${escapeHtml(I18n.mark(_hpDayLetter(d.t)))}</span></span>`).join('')}</span>`;
-}
-
-// Journée faite ou à jour : le ruban prolongé, les six jours passés puis la prévision des 7 prochains (aujourd'hui
-// compris, programme du répertoire, reviewPlan) avec le nombre de révisions au-dessus de chaque case.
-function _homeForecastHTML(fc, now, act = {}) {
-    const d0 = new Date(now), at = i => new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + i).getTime();
-    const played = t => { const d = act[dayStamp(t)]; return !!d && ((d.a || 0) > 0 || (d.p || 0) > 0); };
-    const past = [-6, -5, -4, -3, -2, -1].map(i => { const t = at(i), on = played(t);
-        return `<li class="hp-wk is-${on ? 'done' : 'missed'}" aria-label="${escapeHtml(_hpDayTip(t, on ? 'done' : 'missed'))}"><b></b><i></i><span aria-hidden="true">${escapeHtml(I18n.mark(_hpDayLetter(t)))}</span></li>`; }).join('');
-    const day = i => i === 0 ? 'auj.' : new Date(at(i)).toLocaleDateString(I18n.locale(), { weekday: 'short' });
-    return `<div class="hp-plan hp-fc-wrap"><div class="hp-h"><h3>Deux semaines</h3><span class="hp-n">${fc.reduce((a, b) => a + b, 0)}</span></div>
-        <div class="hp-span"><ol class="hp-past" aria-label="Six derniers jours">${past}</ol>
-        <ol class="hp-fc" aria-label="Révisions prévues sur les 7 prochains jours">${fc.map((v, i) =>
-            `<li class="hp-wk is-${i === 0 ? (played(now) ? 'done' : 'today') : 'future'}" aria-label="${escapeHtml(day(i))} : ${v} ${v > 1 ? 'positions' : 'position'}"><b class="hp-fc-n">${v}</b>`
-            + `<i></i><span aria-hidden="true">${escapeHtml(I18n.mark(_hpDayLetter(at(i))))}</span></li>`).join('')}</ol></div></div>`;
-}
+// Ruban de la semaine et ruban prolongé : composant partagé avec Progrès (WeekRibbon, js/screens/stats/weekRibbon.js).
+const _homeWeekHTML = (act, now) => WeekRibbon.week(act, now);
+const _homeForecastHTML = (fc, now, act = {}) => WeekRibbon.span(fc, now, act);
 
 // Rythme du jour (objectif quotidien dailyGoal, chantier « Révision du jour ») : Léger, Normal, Soutenu, réglé sur place.
 const HOME_PACES = [[15, 'Léger'], [30, 'Normal'], [60, 'Soutenu']];

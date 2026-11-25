@@ -74,8 +74,9 @@ t('comparaisons : --data-me, --data-them, --data-neutral en clair, en sombre, en
             assert(m && !blueOrOrange(m[1]), `--${k} : ${m && m[1]}`);
         }
     assert.strictEqual((sup.match(/--data-(me|them|neutral):\s+oklch\(\d/g) || []).length, 6, 'bloc oklch() : trois jetons × deux thèmes');
-    const screens = fs.readFileSync(path.join(ROOT, 'css/screens.css'), 'utf8'), vel = screens.slice(screens.indexOf('[data-theme="dark"] .vel-light {'));
-    assert(/--data-me:[^;]+;[^}]*--data-them:/.test(vel.slice(0, vel.indexOf('}'))), 'carte claire .vel-light');
+    // La carte Maîtrise est sur la surface du thème (audit « Progrès en images », K1) : plus de carte claire en sombre.
+    const screens = fs.readFileSync(path.join(ROOT, 'css/screens.css'), 'utf8');
+    assert(!screens.includes('[data-theme="dark"] .vel-light {'), 'plus de carte claire .vel-light en sombre');
     // L'adversaire ne dépend pas de la seule couleur : courbe en pointillé.
     assert(/\.so-chart \.si-line\.opp \{[^}]*var\(--data-them\)[^}]*stroke-dasharray/.test(screens), 'courbe adverse en pointillé');
 });

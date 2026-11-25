@@ -6,7 +6,7 @@ let n = 0;
 const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
 
 // Ce qui reste légitimement tel quel : marques, lettres seules, coups, noms donnés par l'utilisateur, jeux de pièces.
-const TOLERATED = [/^.$/, /^(Chays|Trainer|Chays Trainer|Lichess|Chess\.com|OK|li|c|⌘F|Ctrl F)$/, /^Général$|^test$|^Mathis$/, /^[\d.… ]*([KQRBNO][\w+#=x-]*|[a-h][\w+#=x-]*)( |$)/, /^\d+\. /, /^Italienne/];
+const TOLERATED = [/^.$/, /^(Chays|Trainer|Chays Trainer|Lichess|Chess\.com|OK|li|c|⌘F|Ctrl F)$/, /^Général$|^test$|^Mathis$/, /^[\d.… ]*([KQRBNO][\w+#=x-]*|[a-h][\w+#=x-]*)( |$)/, /^\d+\. /, /^Italienne/, /^Variante [a-h]\d$/];
 const pack = l => JSON.parse(fs.readFileSync(`lang/${l}.json`, 'utf8'));
 
 async function boot(lang) {

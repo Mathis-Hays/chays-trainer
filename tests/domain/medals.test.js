@@ -84,10 +84,10 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         assert.strictEqual(ev(`WeekCard.line({ tries: 30, sure: 0, rate: 70, active: 2 }, { tries: 20 })`), 'Plus active que la semaine d’avant.');
     });
 
-    await t('Progrès : la carte de la semaine dans Maîtrise, les semaines d\'avant repliées', () => {
+    await t('Progrès : la carte de la semaine dans Régularité (fondue hors du Répertoire), les semaines d\'avant repliées', () => {
         ev(`(() => { const a = readActivity(); const d = new Date(); d.setDate(d.getDate() - 8); a[dayStamp(d.getTime())] = { a: 12, f: 2 }; dataStore.setJSON('chessTrainer_activity', a); })()`);
         ev(`statsPane = 'overview'; initStats()`);
-        const card = w.document.querySelector('.st-week[data-pane="overview"]');
+        const card = w.document.querySelector('.st-week[data-pane="regularity"]');
         assert(card && card.querySelector('.st-wk-line') && card.querySelectorAll('.st-wk-days > div').length === 7);
         assert.strictEqual(card.querySelectorAll('.st-wk-hist li').length, 8);
     });

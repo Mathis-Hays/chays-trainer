@@ -119,7 +119,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         ev(`currentRepertoire = 'Rangs2'; switchHomeTab('play'); window._a = StatsGames.analysed; StatsGames.analysed = () => ${JSON.stringify(rows.concat(lose))}; renderHomeSummary()`);
         assert(!w.document.querySelector('#hp-today .hp-gain'), 'plus sur Aujourd\'hui');
         const card = w.eval('_todoPayoffCard()');
-        assert(/rapporte/.test(card) && /\+100 %/.test(card), card);
+        assert(/repertoire/.test(card) && /\+100 %/.test(card), card);
         ev(`StatsGames.analysed = () => ${JSON.stringify(rows.map(r => Object.assign({}, r, { a: { dev: { by: 'me' } } })).concat(lose.map(r => Object.assign({}, r, { a: { dev: null } }))))}`);
         assert.strictEqual(w.eval('_todoPayoffCard()'), '', 'aucun reproche quand il ne rapporte pas');
         ev(`StatsGames.analysed = window._a; renderHomeSummary()`);

@@ -22,6 +22,12 @@ function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => _ESC_MAP[c]);
 // survolé (le survol tombait jusqu'au prochain mouvement de souris). On compare au dernier HTML source écrit ici, pas à
 // innerHTML (la traduction réécrit la page après coup) ; un premier enfant remplacé ailleurs force la réécriture.
 // Renvoie vrai si le contenu a été remplacé.
+// Écart signé (audit « Progrès en images », K5) : entier, signe typographique + / −, « % » par défaut ; 0 s'écrit sans signe.
+function fmtDelta(v, unit = ' %') {
+    const n = Math.round(v), txt = `${n > 0 ? '+' : n < 0 ? '−' : ''}${Math.abs(n)}${unit}`;
+    return typeof I18n !== 'undefined' ? I18n.mark(txt) : txt;
+}
+
 function patchHTML(el, html) {
     if (!el) return false;
     if (el._patchSrc === html && el._patchFirst === el.firstChild) return false;
