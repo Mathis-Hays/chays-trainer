@@ -10,7 +10,9 @@
  *   En partie (.board-controls) : Retourner · ‹ · centre · › · Plus.
  *     Centre selon le mode : Sauter (mise en situation), Annuler (reçu d'un coup enregistré), Indice, sinon
  *     Arbre (Jouer), Passer (Entraînement), Recommencer (Finales) ; S'entraîner (aperçu) ; Ajouter (N) ou Brouillon (Analyse) ;
- *     un mode peut choisir son centre (fiche GameModes dockCenter : Analyser dans l'éditeur de position).
+ *     un mode peut choisir son centre (fiche GameModes dockCenter : Analyser dans l'éditeur de position) ; l'action du milieu
+ *     de la barre unique (#btn-act, fiche center()) passe avant l'Indice.
+ *     Cinq places fixes dans tous les modes (R4) : ‹ et › restent, grisés quand il n'y a rien à revoir.
  *     Les boutons du mode cachés sur téléphone passent dans « Plus » (toggleToolbarMore, mobile.js) ; Quitter
  *     devient le ✕ de la barre du haut (#topnav-exit, Dock.exit).
  * Le centre agit en touchant le bouton d'origine (proxy) : les règles de chaque action restent là où elles sont.
@@ -101,6 +103,12 @@ const Dock = (function () {
         if (gameMode === 'training' && /^Encore \d+$/.test(k)) return proxy(act, { icon: 'play', label: k, title: act.title || k });   // pause entre deux bouchées
         if (gameMode === 'training' && (k === 'Rester ici' || k === 'Annuler')) return proxy(act, { icon: k === 'Annuler' ? 'x' : 'chevron-left', label: k, tone: 'soft', title: act.title || k });
         if (gameMode === 'play' && (k === 'Annuler' || k === 'Rétablir')) return proxy(act, { icon: 'rotate-ccw', label: k, tone: 'soft', title: act.title || k });
+        // Action du milieu de la barre unique (Suivant, Séance, Corriger, Ajouter…) : la même au centre du dock.
+        const actBtn = document.getElementById('btn-act');
+        if (actBtn && !actBtn.hidden) {
+            const c = centerAction();
+            if (c) return proxy(actBtn, { icon: c.icon || 'play', label: c.label, tone: c.soft ? 'soft' : '', title: c.title || c.label });
+        }
         const hint = modeBtn('.tb-hint');
         if (hint && !hint.disabled) {
             const sol = hint.dataset.sol === 'sol';
@@ -139,7 +147,7 @@ const Dock = (function () {
     // « Plus » : les boutons du mode que le dock cache, sauf celui que porte le centre et Quitter (✕ du haut).
     function moreItems(moreBtn) {
         const inMode = el => { for (let n = el; n && !n.classList.contains('board-controls'); n = n.parentElement) if (n.style.display === 'none') return false; return true; };
-        return [...document.querySelectorAll('.board-controls button')].filter(b => b !== moreBtn && b !== gameTarget && inMode(b) && !b.disabled
+        return [...document.querySelectorAll('.board-controls button')].filter(b => b !== moreBtn && b !== gameTarget && inMode(b) && !b.disabled && !b.hidden && !b.classList.contains('is-swapped')
             && !b.classList.contains('is-exit') && !b.classList.contains('dock-center') && b.querySelector('.btn-label') && getComputedStyle(b).display === 'none');
     }
 

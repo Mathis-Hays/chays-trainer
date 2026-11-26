@@ -237,6 +237,37 @@ function setStatusAction(opts) {
     Bus.emit('ui:refresh');
 }
 
+// ─── ACTION DU MILIEU (barre unique, R3) ──────────────────────────────────────
+// La fiche du mode peut remplacer l'Indice par une autre action, au même endroit (GameModes center()) :
+// Suivant en fin d'exercice, Séance en revue, Corriger après un coup refusé en Finales, Ajouter (N) en Analyse.
+// Espace la déclenche aussi ; le dock du téléphone la porte au centre.
+function centerAction() {
+    const f = GameModes.current().center;
+    try { return f ? f() : null; } catch (e) { return null; }
+}
+function runCenter() {
+    const c = centerAction();
+    if (!c) return false;
+    if (!c.disabled && typeof c.run === 'function') c.run();
+    return true;
+}
+function refreshCenter() {
+    const btn = document.getElementById('btn-act');
+    if (!btn) return;
+    const c = centerAction();
+    btn.hidden = !c;
+    document.querySelectorAll('.tb-hint').forEach(b => b.classList.toggle('is-swapped', !!c));
+    if (!c) return;
+    const html = `${typeof ico === 'function' ? ico(c.icon || 'play') : ''}<span class="btn-label">${escapeHtml(c.label)}</span>${c.count != null ? `<span class="ab-count">${escapeHtml(String(c.count))}</span>` : ''}`;
+    if (btn.dataset.html !== html) { btn.innerHTML = html; btn.dataset.html = html; }
+    btn.dataset.act = c.label;
+    btn.title = c.title || c.label;
+    btn.disabled = !!c.disabled;
+    btn.classList.toggle('is-soft', !!c.soft);
+}
+document.getElementById('btn-act')?.addEventListener('click', runCenter);
+Bus.on('ui:refresh', refreshCenter);
+
 // Rafraîchit l'action « au repos » (Focus basculé, palier d'indice) sans toucher à une action posée par le mode.
 function refreshIdleAction() {
     const bar = document.getElementById('status-bar'), cur = bar && bar.querySelector('.status-act');
@@ -277,13 +308,16 @@ function updateNavButtons() {
     const prevBtn = document.getElementById('btn-prev');
     const nextBtn = document.getElementById('btn-next');
     if (!prevBtn || !nextBtn) return;
-    // Séance occupée (mise en situation, réponse adverse, pause) : ◀ ▶ grisés avec leur raison, plus gelés sans signe.
+    const firstBtn = document.getElementById('btn-first'), lastBtn = document.getElementById('btn-last');
+    // Animation en cours (mise en situation, réponse adverse) : ◀ ▶ grisés avec leur raison ; jamais en pause (R2).
     const mode = GameModes.current(), held = mode.navBlocked();
     prevBtn.disabled = held || (moveHistory.length === 0 || _navPos() <= -1);
     prevBtn.style.opacity = prevBtn.disabled ? '0.4' : '';
     nextBtn.disabled = held || (navCursor === -1);
     nextBtn.style.opacity = nextBtn.disabled ? '0.4' : '';
-    [prevBtn, nextBtn].forEach(b => {
+    if (firstBtn) { firstBtn.disabled = prevBtn.disabled; firstBtn.style.opacity = prevBtn.style.opacity; }
+    if (lastBtn) { lastBtn.disabled = nextBtn.disabled; lastBtn.style.opacity = nextBtn.style.opacity; }
+    [prevBtn, nextBtn, firstBtn, lastBtn].filter(Boolean).forEach(b => {
         if (!b.dataset.title) b.dataset.title = b.title;
         b.title = held && mode.navBlockedNote ? mode.navBlockedNote : b.dataset.title;
         b.classList.toggle('is-held', held);
@@ -291,8 +325,26 @@ function updateNavButtons() {
 }
 
 // Affiche la position après le coup d'indice p (p = -1 : position initiale).
+// Message de la position actuelle, gardé quand on part revoir le passé : il revient au retour (un mode sans consigne
+// propre, comme les Finales ou Jouer, ne perd plus son message pour « Retour à la position actuelle »).
+let _liveStatusSaved = null;
+function _saveLiveStatus() {
+    const bar = document.getElementById('status-bar');
+    if (!bar || navCursor !== -1) return;
+    const t = bar.querySelector('.status-title'), d = bar.querySelector('.status-detail');
+    _liveStatusSaved = { title: t ? t.textContent : '', detail: d ? d.textContent : '', type: bar.dataset.type || 'info', key: positionKey() };
+}
+function _restoreLiveStatus() {
+    const live = GameModes.current().liveStatus;
+    if (live && live()) return;
+    const s = _liveStatusSaved;
+    if (s && s.key === positionKey() && s.title) setStatus(s.title, s.type, s.detail);
+    else setStatus('Retour à la position actuelle.', 'info');
+}
+
 function navGo(p) {
     const len = moveHistory.length, was = _navPos();
+    if (p < len - 1) _saveLiveStatus();
     // Un pas en avant rejoue le coup, un pas en arrière le défait : animés comme un coup joué.
     if (p === was + 1 && moveHistory[p]) animateNextMove(moveHistory[p].from, moveHistory[p].to);
     else if (p === was - 1 && moveHistory[was]) animateNextMove(moveHistory[was].to, moveHistory[was].from);
@@ -300,8 +352,7 @@ function navGo(p) {
         navCursor = -1;
         renderBoard();
         renderMoves();
-        const live = GameModes.current().liveStatus;
-        if (!(live && live())) setStatus('Retour à la position actuelle.', 'info');
+        _restoreLiveStatus();
     } else {
         navCursor = (p < 0) ? NAV_START : p;
         renderNavBoard();
@@ -321,6 +372,16 @@ function navPrev() {
 function navNext() {
     if (navCursor === -1 || GameModes.current().navBlocked()) return;
     navGo(_navPos() + 1);
+}
+
+// ⏮ ⏭ (barre unique) et ↑ ↓, Origine / Fin : début de la ligne, position actuelle.
+function navFirst() {
+    if (!moveHistory.length || GameModes.current().navBlocked() || GameModes.current().movesLocked || _navPos() <= -1) return;
+    navGo(-1);
+}
+function navLast() {
+    if (navCursor === -1 || GameModes.current().navBlocked() || GameModes.current().movesLocked) return;
+    navGo(moveHistory.length - 1);
 }
 
 function renderNavBoard() {
@@ -379,8 +440,24 @@ function renderNavBoard() {
 
     // Barre de coups avec surbrillance du coup courant
     _paintMovesBar(navCursor);
+    // Jouer (Q6) : toucher l'échiquier ramène au présent ; repartir d'ici est un choix explicite, confirmé.
+    const here = gameMode === 'play' ? { action: 'Repartir d’ici', icon: 'git-branch', title: 'Jouer depuis cette position (la suite de la ligne quitte l’écran, le répertoire ne change pas)', run: restartFromHere } : null;
     setStatus(atStart ? 'Navigation — position initiale.'
-                      : `Navigation — coup ${navCursor + 1}/${moveHistory.length} : ${formatSanText(snap.san, snap.turnBefore)}`, 'info');
+                      : `Navigation — coup ${navCursor + 1}/${moveHistory.length} : ${formatSanText(snap.san, snap.turnBefore)}`, 'info', '', here);
+}
+
+// « Repartir d'ici » (Jouer) : la position affichée devient la position de jeu, la suite de la ligne quitte l'écran.
+function restartFromHere() {
+    if (navCursor === -1 || gameMode !== 'play') return;
+    const cut = moveHistory.length - 1 - _navPos();
+    const go = () => {
+        if (navCursor === -1) return;
+        _syncEngineToNavCursor();
+        renderBoard();
+        setStatus('Repartez d’ici', 'info', 'Le répertoire n’a pas changé : seule la suite affichée a été retirée.');
+    };
+    if (typeof askConfirm === 'function' && cut > 0) askConfirm(`Repartir d’ici ? ${cut} coup${cut > 1 ? 's' : ''} de la ligne quitte${cut > 1 ? 'nt' : ''} l’écran ; le répertoire ne change pas.`, go);
+    else go();
 }
 
 function resetNavCursor() {
@@ -503,8 +580,9 @@ function goToMove(i) {
         navCursor = -1;
         renderBoard();
         renderMoves();
-        setStatus('Retour à la position actuelle.', 'info');
+        _restoreLiveStatus();
     } else {
+        _saveLiveStatus();
         navCursor = i;
         renderNavBoard();
     }
@@ -690,11 +768,15 @@ document.addEventListener('keydown', e => {
         case 'ArrowRight':
             if (GameModes.current().movesLocked) return;
             e.preventDefault(); navNext(); break;
+        case 'Home':
+            e.preventDefault(); navFirst(); break;
+        case 'End':
+            e.preventDefault(); navLast(); break;
         case ' ':
             if (e.repeat) return;
             e.preventDefault();
             if (e.target && e.target.tagName === 'BUTTON') e.target.blur();   // évite le clic fantôme au keyup
-            showHint(); break;
+            if (!runCenter()) showHint(); break;
         case 'f': case 'F':
             if (e.repeat) return;
             flipBoard(); break;

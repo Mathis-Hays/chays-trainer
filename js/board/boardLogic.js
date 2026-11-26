@@ -40,7 +40,7 @@ function loadPositionFromPath(moves, opts) {
 
 function handleClick(idx) {
     const mode = GameModes.current();
-    if (mode.inputBlocked() || mode.backToLive()) return;       // aperçu, cinématique ; séance : toucher ramène au présent
+    if (mode.backToLive() || mode.inputBlocked()) return;       // séance, Jouer, Finales : toucher ramène d'abord au présent ; aperçu, cinématique
     if (mode.onSquare) { mode.onSquare(idx); return; }            // éditeur de position : poser, retirer, déplacer
 
     // Si on visualise une position passée (navigation Précédent/Suivant),
@@ -290,7 +290,7 @@ function showHint() {
     if (mode.onHint) { mode.onHint(); return; }
     if (mode.inputBlocked()) return;
     if (mode.sessionCursor) mode.backToLive();                    // séance : l'indice porte sur la position en cours
-    else if (navCursor !== -1) _syncEngineToNavCursor();
+    else if (navCursor !== -1 && !mode.backToLive()) _syncEngineToNavCursor();   // Jouer : l'indice porte sur le présent
     if (turn !== playerColor) {
         setStatus("L'indice n'est disponible que pour vos propres coups.", 'info');
         return;

@@ -50,13 +50,17 @@ const tick = (ms = 450) => new Promise(r => setTimeout(r, ms));
         assert(run('JSON.stringify(loadTrash())').includes('e2e4'), 'l\'ancien coup est dans la corbeille');
     });
 
-    await t('Analyser : l\'Analyse s\'ouvre, Quitter reprend l\'entraînement', async () => {
+    await t('Analyser : l\'Analyse s\'ouvre, Quitter revient à la position analysée, en pause (I6)', async () => {
         run('trainingAnalyse()');
         assert.strictEqual(run('gameMode'), 'analysis');
         run('quitAnalysis()');
         await tick();
         assert.strictEqual(run('gameMode'), 'training');
-        assert.strictEqual(run('trainingState.pause'), null, 'exercice suivant posé');
+        assert(run('trainingState.pause'), 'toujours en pause sur la position analysée');
+        assert.strictEqual(act(), 'Suivant');
+        run('nextDrill()');
+        await tick();
+        assert.strictEqual(run('trainingState.pause'), null, 'Suivant : exercice suivant posé');
     });
 
     await t('Entrée à l\'arrêt : exercice suivant', async () => {

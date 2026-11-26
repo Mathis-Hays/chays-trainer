@@ -376,6 +376,7 @@ function renderAnalysisPanel() {
     box.innerHTML = `${wi ? WhatIf.cardHTML() : '<div class="ab-card ab-engine" id="an-engine"></div>'}${_anDraftHTML()}`;
     _anPaintEngine();
     _anRevealInPanel(box.querySelector('.ab-mv.is-cur'));
+    Bus.emit('ui:refresh');                                         // l'action du milieu suit « Ajouter (N) »
 }
 
 // Amène un élément à l'écran dans le panneau qui défile, jamais la page : sur téléphone, le brouillon est sous
@@ -801,5 +802,12 @@ GameModes.register('analysis', {
     inputBlocked: () => typeof WhatIf !== 'undefined' && WhatIf.thinking(),   // « Et si » : le moteur joue
     onMove: (from, to, promo) => analysisMove(from, to, promo),      // brouillon : rien n'est vérifié ni enregistré
     onNavigate: () => analysisPositionChanged(),
-    engineArrows: () => analysisArrowList()
+    engineArrows: () => analysisArrowList(),
+    // Barre unique (R3) : au milieu, « Ajouter au répertoire » du brouillon (grisé quand rien n'est à ajouter).
+    center: () => {
+        const add = document.querySelector('#analysis-panel .ab-add');
+        if (!add) return null;
+        const c = add.querySelector('.ab-count');
+        return { icon: 'git-merge', label: c ? `Ajouter (${c.textContent})` : 'Ajouter', soft: true, title: add.title || 'Ajouter au répertoire', disabled: add.disabled, run: () => add.click() };
+    }
 });

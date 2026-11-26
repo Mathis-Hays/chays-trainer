@@ -1195,3 +1195,42 @@ html[data-piece="blindfold"] .ed-tool img { opacity: 1; }
     .ed-palette { gap: 4px; margin: 6px 0 0; padding: 0 4px; }
     .ed-check { padding: 6px 10px; font-size: 13px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ─── BARRE UNIQUE ET PELLICULE (chantier « L'échiquier de Chays », 26 novembre 2026) ───
+   ⏮ ‹ [ action ] › ⏭ dans tous les modes ; l'action du milieu (#btn-act) remplace l'Indice au même endroit
+   (refreshCenter, boardView.js). ⏮ ⏭ s'effacent quand la rangée est étroite ; jamais sur téléphone (dock de cinq cases).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.board-controls { container: bctl / inline-size; }
+.btn.tb-hint.is-swapped { display: none !important; }
+.controls-main .btn-nav.tb-first, .controls-main .btn-nav.tb-last { flex-basis: 40px; }
+@container bctl (max-width: 640px) { .board-controls .tb-first, .board-controls .tb-last { display: none !important; } }
+.btn.tb-act.is-soft { background: var(--surface); color: var(--text); border-color: var(--border-strong); }
+/* Pellicule de séance (R7) : les segments de la barre deviennent des cases ; une case close est un bouton (revue). */
+.tr-prog-bar.tr-tape { height: 8px; gap: 2px; }
+.tr-prog-bar.tr-tape > button { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; border-radius: 2px; background: var(--border-strong); cursor: pointer; position: relative; }
+.tr-prog-bar.tr-tape > button::before { content: ""; position: absolute; inset: -8px 0; }        /* zone de toucher plus haute que la case */
+.tr-prog-bar.tr-tape > :is(i, button).ok   { background: var(--accent); }
+.tr-prog-bar.tr-tape > :is(i, button).help { background: var(--tape-brass); }
+.tr-prog-bar.tr-tape > :is(i, button).ko   { background: var(--err); }
+.tr-prog-bar.tr-tape > :is(i, button).edit { background: transparent; box-shadow: inset 0 0 0 1.5px var(--tape-brass); }
+.tr-prog-bar.tr-tape > :is(i, button).seen { outline: 2px solid var(--tape-brass); outline-offset: 1px; z-index: 1; }
+.tr-prog-bar.tr-tape > :is(i, button).cur  { background: var(--text-dim); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.tr-prog-bar.tr-tape > button:focus-visible { outline: 2px solid var(--focus-ring, var(--accent)); outline-offset: 2px; }
+@media (hover: hover) { .tr-prog-bar.tr-tape > button:hover { filter: brightness(1.15); outline: 1px solid var(--text-muted); } }
+html.train-focus .tr-prog-bar.tr-tape { height: 4px; }
+/* Téléphone (Q5) : la pellicule reste sous la carte, au-dessus de l'échiquier, même quand l'anneau dit « 7 sur 30 ». */
+@media (max-width: 599px) {
+    .tr-prog-bar.tr-tape { height: 14px; gap: 3px; }
+    .tr-prog-bar.tr-tape.dense { gap: 1px; }
+}
+@media (max-width: 599px) and (min-height: 701px) {
+    #game-screen:has(.side-panel:not(.open) .gc-ring:not([hidden])) .tr-progress:has(.tr-tape) { display: flex; margin-bottom: 6px; }
+    #game-screen:has(.side-panel:not(.open) .gc-ring:not([hidden])) .tr-progress .tr-prog-l { display: none; }
+}
+/* Bandeau « Séance interrompue » de l'Entraînement (R11) */
+.trr-resume { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--accent-line, var(--border)); border-radius: var(--r-card, 14px); background: var(--surface); }
+.trr-resume .trr-t { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.trr-resume small { color: var(--text-muted); font-size: 12.5px; }
+#game-screen { --tape-brass: var(--brand-brass-deep); }
+[data-theme="dark"] #game-screen { --tape-brass: var(--brand-brass); }

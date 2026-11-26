@@ -65,7 +65,8 @@ const confirmOpen = $ => !$('#confirm-overlay').classList.contains('hidden');
         play(w, 'e2', 'e4');
         assert($('#status-bar .status-act'));
         w.eval('navPrev()');
-        assert(!$('#status-bar .status-act'), 'navigation : reçu toujours affiché');
+        const nav = $('#status-bar .status-act');
+        assert(!nav || nav.dataset.act === 'Repartir d’ici', 'navigation : reçu toujours affiché');   // en revue : « Repartir d'ici » (Q6), plus le reçu
         w.eval('navNext()');
         assert(!$('#status-bar .status-act'), 'retour : le reçu ne revient pas');
         w.eval('undoRecordedMove()');

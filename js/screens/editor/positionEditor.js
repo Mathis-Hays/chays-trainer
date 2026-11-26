@@ -153,6 +153,7 @@ const PositionEditor = (function () {
                 <button type="button" class="btn ed-play" data-action="edPlay"${ok ? '' : ' disabled'} title="Jouer le camp au trait contre le moteur, bridé à votre niveau">${ico('swords')}<span>Jouer contre le moteur</span></button>
                 <button type="button" class="btn btn-primary ed-analyse" data-action="edAnalyse"${ok ? '' : ' disabled'} title="Analyser cette position avec le moteur">${ico('microscope')}<span>Analyser</span></button></div></div>`;
         if (focusFen) { const f = document.getElementById('ed-fen'); if (f) { f.focus(); f.setSelectionRange(f.value.length, f.value.length); } }
+        Bus.emit('ui:refresh');                                     // l'action du milieu suit « Analyser »
     }
 
     // ─── OUVERTURE / SORTIE ───────────────────────────────────────────────────
@@ -372,6 +373,11 @@ const PositionEditor = (function () {
         onSquare,
         onDrop,
         squareClass: idx => (st.doubt.has(idx) ? 'ed-doubt' : ''),
+        // Barre unique (R3) : au milieu, « Analyser » la position posée (grisé tant qu'elle est impossible).
+        center: () => {
+            const b = document.querySelector('#editor-panel .ed-analyse');
+            return b ? { icon: 'microscope', label: 'Analyser', soft: true, title: b.title || 'Analyser la position', disabled: b.disabled, run: () => b.click() } : null;
+        },
         dockCenter: () => {
             const b = document.querySelector('#editor-panel .ed-analyse');
             return b && !b.disabled ? { icon: 'microscope', label: 'Analyser', target: b, title: b.title }

@@ -12,13 +12,13 @@
 // Raccourcis clavier (aussi affichés dans l'Aide, helpUI.js).
 const KEYBOARD_SHORTCUTS = [
     ['Partout', [['Rechercher partout', ['⌘F · Ctrl F']], ['Onglets Jouer, Statistiques, Entraînement, Finales', ['1 · 2 · 3 · 4']], ['Mode clair ou sombre', ['D']], ['Couper ou remettre les sons', ['M']]]],
-    ['Échiquier', [['Retourner l’échiquier', ['F']], ['Indice, puis solution', ['Espace']], ['Coup précédent / suivant', ['←', '→']], ['Début de la ligne / position actuelle', ['↑', '↓']],
+    ['Échiquier', [['Retourner l’échiquier', ['F']], ['Action du milieu : Indice, puis Solution ; Suivant à l’arrêt', ['Espace']], ['Coup précédent / suivant', ['←', '→']], ['Début de la ligne / position actuelle', ['↑', '↓']], ['Début / position actuelle', ['Origine', 'Fin']],
                    ['Copier la partie en PGN', ['C']], ['Effacer les annotations', ['X']], ['Déplacer le curseur sur l’échiquier', ['Tab', 'puis ← ↑ → ↓']], ['Jouer la case sous le curseur', ['Entrée']]]],
     ['Jouer', [['Flèches du répertoire', ['R']], ['Annuler le coup enregistré, sinon Corriger', ['Z']], ['Rétablir', ['Maj', 'Z']], ['Recommencer', ['N']], ['Changer de camp', ['V']]]],
-    ['Entraînement', [['Révision du jour (hors séance)', ['L']], ['Revoir les erreurs du bilan (hors séance)', ['E']], ['Solution', ['S']], ['Passer la position', ['P']], ['Passer la mise en situation ; exercice suivant à l’arrêt', ['Entrée']], ['Mode Focus', ['Z']], ['Quitter la séance', ['Q']]]],
+    ['Entraînement', [['Révision du jour (hors séance)', ['L']], ['Revoir les erreurs du bilan (hors séance)', ['E']], ['Solution', ['S']], ['Passer la position', ['P']], ['Passer la mise en situation ; exercice suivant à l’arrêt', ['Entrée']], ['Revoir une position de la séance', ['Toucher sa case']], ['Mode Focus', ['Z']], ['Quitter la séance', ['Q']]]],
     ['Analyse', [['Lancer ou arrêter le moteur', ['A']], ['Jouer le meilleur coup', ['B']], ['Une ligne de plus / de moins', ['+', '−']], ['Ajouter au répertoire', ['Maj', 'S']], ['Quitter', ['Q']]]],
     ['Finales', [['Recommencer', ['N']], ['Exercice suivant', ['P']], ['Théorie', ['T']], ['Quitter', ['Q']]]],
-    ['Annotations', [['Flèche', ['Clic droit glissé']], ['Cercle', ['Clic droit']], ['Rouge · bleu · or', ['Maj', 'Alt', 'Ctrl']], ['Tout effacer', ['Clic gauche']]]],
+    ['Annotations', [['Flèche', ['Clic droit glissé']], ['Cercle', ['Clic droit']], ['Rouge · bleu · or', ['Maj', 'Alt', 'Ctrl']], ['Tout effacer', ['Clic gauche']], ['Au doigt : flèche, cercle', ['Appui long', 'puis glisser']]]],
     ['Fenêtres', [['Paramètres', [',']], ['Aide', ['?']], ['Chercher dans la fenêtre', ['/']], ['Fermer', ['Échap']]]]
 ];
 

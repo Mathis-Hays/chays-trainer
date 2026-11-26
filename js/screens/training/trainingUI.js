@@ -223,6 +223,18 @@ function _trSummaryHTML(s, primary, next) {
         </section>`;
 }
 
+// Séance interrompue (rechargement, logo) : reprendre là où on en était, pendant 12 h (R11, Q3).
+function _trResumeHTML() {
+    const L = typeof savedSession === 'function' ? savedSession() : null;
+    if (!L) return '';
+    const done = L.items.length - L.left;
+    return `<section class="trr-resume edge-card" aria-label="Séance interrompue">
+        <span class="trr-t"><b>Séance interrompue</b><small>${escapeHtml(L.label)} · ${done} sur ${L.items.length} · ${L.left} restante${L.left > 1 ? 's' : ''}</small></span>
+        <button type="button" class="btn btn-primary" data-action="trainingResume">${ico('play')}<span>Reprendre</span></button>
+        <button type="button" class="icon-btn" data-action="trainingForget" aria-label="Oublier cette séance" title="Oublier cette séance">${ico('x')}</button>
+    </section>`;
+}
+
 // ─── PLATEAU (APERÇU) ──────────────────────────────────────────────────────────
 // La position par laquelle commence chaque exercice, dessinée en grand à gauche du menu (920 px et plus).
 // Survoler ou focaliser un exercice change l'aperçu ; rien n'est lancé.
@@ -284,6 +296,7 @@ function _trStep(name, dir) {
 }
 
 function initTraining() {
+    if (typeof _restoreSummary === 'function') _restoreSummary();      // bilan gardé au rechargement (B8)
     if (typeof Suite !== 'undefined') Suite.refresh();
     const panel = document.getElementById('training-panel');
     if (!panel) return;
@@ -448,7 +461,7 @@ function initTraining() {
     _trPreviewKind = shown;
     const stage = `<section class="trr-stage" id="trr-stage" aria-label="Aperçu de la position">${_trStageHTML(shown)}</section>`;
 
-    panel.innerHTML = `<div class="trr${s ? ' has-bilan' : ''}">${stage}${_trSummaryHTML(s, primary === 'retry', { due: due.length, minutes, news: _trNews(), held, more: Math.min(goal, held), when: cu ? catchUpLabel(cu, now) : '' })}${hero}${exercises}${mast}</div>`;
+    panel.innerHTML = `<div class="trr${s ? ' has-bilan' : ''}">${stage}${_trResumeHTML()}${_trSummaryHTML(s, primary === 'retry', { due: due.length, minutes, news: _trNews(), held, more: Math.min(goal, held), when: cu ? catchUpLabel(cu, now) : '' })}${hero}${exercises}${mast}</div>`;
     panel.querySelectorAll('[data-focus]').forEach(el => el.classList.toggle('is-preview', el.dataset.focus === shown));
     _trBindPreview(panel);
 }
@@ -561,7 +574,9 @@ registerActions({
             if (!startSession({ kind: 'frame', label: 'Position du bilan', items: [{ color, key }], keep: s })) initTraining();
         });
     },
-    trainingCloseSummary: () => { trainingState.lastSummary = null; initTraining(); },
+    trainingCloseSummary: () => { forgetSummary(); initTraining(); },
+    trainingResume: (a, el) => _trLaunch(el, () => { if (!resumeSession()) initTraining(); }),
+    trainingForget: () => { _forgetLiveSession(); initTraining(); },
     trainingSeen: () => { setPref('trainSeen', !appSettings.trainSeen); initTraining(); },
     trainingAllOpenings: () => { _trOpening = null; _trFocus = null; initTraining(); },
     trainingAddLine: () => { if (_trColor === 'w' || _trColor === 'b') startGame(_trColor); else switchHomeTab('play'); },

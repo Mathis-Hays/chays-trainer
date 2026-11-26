@@ -279,7 +279,7 @@ function renderAnnotations(afterBoardRender) {
     _syncBookBtn();
 
     b.addEventListener('pointerdown', e => {
-        if (e.pointerType !== 'mouse') return;
+        if (e.pointerType !== 'mouse') { _touchDown(e); return; }
         if (e.button === 0) { clearAnnotations(); return; }
         if (e.button !== 2) return;
         const sq = _squareAt(e.clientX, e.clientY);
@@ -289,12 +289,17 @@ function renderAnnotations(afterBoardRender) {
     });
 
     b.addEventListener('pointermove', e => {
+        if (_touchHold && e.pointerId === _touchHold.id && !_touchHold.armed) {
+            if (Math.hypot(e.clientX - _touchHold.x, e.clientY - _touchHold.y) >= DRAG_THRESHOLD) _touchCancel();   // c'est un glisser de pièce
+            return;
+        }
         if (!_annotDraw) return;
         const sq = _squareAt(e.clientX, e.clientY);
         if (sq !== null && sq !== _annotDraw.to) { _annotDraw.to = sq; renderAnnotations(); }
     });
 
     b.addEventListener('pointerup', e => {
+        if (_touchHold && e.pointerId === _touchHold.id) { _touchUp(e); return; }
         const d = _annotDraw;
         if (!d || e.button !== 2) return;
         _annotDraw = null;
@@ -303,5 +308,45 @@ function renderAnnotations(afterBoardRender) {
         renderAnnotations();
     });
 
-    b.addEventListener('pointercancel', () => { if (_annotDraw) { _annotDraw = null; renderAnnotations(); } });
+    b.addEventListener('pointercancel', () => { _touchCancel(); if (_annotDraw) { _annotDraw = null; renderAnnotations(); } });
 })();
+
+// ─── DOIGT (chantier « L'échiquier de Chays », R5) ────────────────────────────
+// Appui long sur une case (ANNOT_HOLD_MS sans bouger) : la flèche part de là ; glisser puis relâcher la pose, relâcher
+// sur place pose un cercle. Toucher sans appui long efface, comme le clic gauche. Le glisser de pièce et le toucher
+// qui joue restent tels quels : bouger avant le délai annule l'appui long.
+const ANNOT_HOLD_MS = 450;
+let _touchHold = null;
+function _touchDown(e) {
+    _touchCancel();
+    if (!e.isPrimary) return;
+    const sq = _squareAt(e.clientX, e.clientY);
+    if (sq === null) return;
+    const hold = { id: e.pointerId, x: e.clientX, y: e.clientY, sq, armed: false };
+    hold.timer = setTimeout(() => {
+        if (_touchHold !== hold) return;
+        hold.armed = true;
+        if (typeof _drag !== 'undefined' && _drag && !_drag.active) _drag = null;        // la pièce ne part pas
+        if (typeof selected !== 'undefined' && selected !== null) { selected = null; legalMoves = []; renderBoard(); }
+        _annotDraw = { from: sq, to: sq, color: 'accent' };
+        try { navigator.vibrate && navigator.vibrate(8); } catch (err) { /* sans vibreur */ }
+        renderAnnotations();
+    }, ANNOT_HOLD_MS);
+    _touchHold = hold;
+}
+function _touchUp(e) {
+    const hold = _touchHold;
+    _touchCancel();
+    if (!hold.armed) { clearAnnotations(); return; }                                    // un simple toucher efface
+    const d = _annotDraw, to = _squareAt(e.clientX, e.clientY);
+    _annotDraw = null;
+    if (d && to !== null) _toggleAnnotation(d.from, to, d.color);
+    if (typeof _lastDragEnd !== 'undefined') _lastDragEnd = performance.now();         // le clic qui suit ne joue pas
+    renderAnnotations();
+}
+function _touchCancel() {
+    if (!_touchHold) return;
+    clearTimeout(_touchHold.timer);
+    if (_touchHold.armed && _annotDraw) { _annotDraw = null; renderAnnotations(); }
+    _touchHold = null;
+}

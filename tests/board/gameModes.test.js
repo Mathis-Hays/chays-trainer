@@ -36,7 +36,7 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         const click = () => { run(`handleClick(${E2})`); return run('selected'); };
         mode('preview');                      assert.strictEqual(click(), null);
         mode('endgame', { busy: true });      assert.strictEqual(click(), null);
-        mode('training', { busy: true });     assert.strictEqual(click(), null); assert.deepStrictEqual(names(), []);
+        mode('training', { busy: true });     assert.strictEqual(click(), null); assert.deepStrictEqual(names(), ['back'], 'le retour au présent est demandé d\'abord ; rien à revenir, le clic est ignoré');
         mode('training', { live: true });     assert.strictEqual(click(), null); assert.deepStrictEqual(names(), ['back']);
         mode('training');                     assert.strictEqual(click(), E2);
         mode('endgame');                      assert.strictEqual(click(), E2);
@@ -70,13 +70,14 @@ const t = async (name, fn) => { await fn(); n++; console.log('ok  ', name); };
         mode('training');                 run('showHint()'); assert.deepStrictEqual(names(), ['back']);
     });
 
-    await t('navigation : gelée pendant une cinématique, barre figée en Finales, Analyse prévenue', () => {
+    await t('navigation : gelée pendant une cinématique, ouverte en Finales, Analyse prévenue', () => {
         mode('play');
         run(`loadPositionFromPath(['e2e4', 'e7e5', 'g1f3'])`);
         const cursor = () => run('navCursor');
         mode('training', { busy: true }); run('navPrev()');   assert.strictEqual(cursor(), -1);
         run('goToMove(0)');                                   assert.strictEqual(cursor(), -1);
-        mode('endgame');                  run('goToMove(0)'); assert.strictEqual(cursor(), -1);
+        mode('endgame');                  run('goToMove(0)'); assert.strictEqual(cursor(), 0, 'Finales : la partie se revoit (R16)');
+        run('navGo(moveHistory.length - 1)');                 assert.strictEqual(cursor(), -1);
         mode('training');                 run('goToMove(0)'); assert.strictEqual(cursor(), 0);
         run('navNext(); navNext()');                          assert.strictEqual(cursor(), -1);
         mode('analysis');                 run('navPrev()');   assert.deepStrictEqual(names(), ['analysisPositionChanged']);

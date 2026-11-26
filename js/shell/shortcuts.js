@@ -73,11 +73,10 @@ const Shortcuts = (function () {
     };
 
     function inGame(e, k) {
-        // ↑ début de la ligne, ↓ position actuelle : comme ← →, sauf en Finales et pendant un coup de séance.
+        // ↑ début de la ligne, ↓ position actuelle : comme ⏮ ⏭ (navFirst, navLast), qui savent quand la navigation est gelée.
         if (k === 'arrowup' || k === 'arrowdown') {
-            if (gameMode === 'endgame' || (gameMode === 'training' && trainingState.busy)) return false;
             if (!moveHistory.length) return false;
-            navGo(k === 'arrowup' ? -1 : moveHistory.length - 1);
+            if (k === 'arrowup') navFirst(); else navLast();
             return true;
         }
         if (e.repeat) return false;

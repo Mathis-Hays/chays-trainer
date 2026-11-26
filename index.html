@@ -409,35 +409,38 @@
                     <div class="cap-row cap-bot" id="cap-bot" role="img"></div>
 
                     <!--
-                        Barre de contrôle (commune à tous les modes) ; chaque bouton choisit ses modes avec
-                        data-modes (cf. applyModeUI dans app.js).
-                          Ordinateur (920 px+) : une seule rangée de 48 px, ‹ [ action ] › puis les outils en icônes,
-                                       après un filet (hauteur comptée dans --board-chrome-h).
-                          Tablette   : rangée principale ‹ [ action ] › puis actions secondaires discrètes.
-                          Mobile     : dock de cinq cases fixé en bas : retourner · ‹ · centre · › · Plus (dock.js) ;
-                                       les autres boutons du mode passent dans « Plus » (« TÉLÉPHONE SOUS LE POUCE » de style.css).
+                        Barre unique (chantier « L'échiquier de Chays », R1 à R4) : ⏮ ‹ [ action ] › ⏭ dans tous les modes,
+                        aux mêmes places ; l'action du milieu est l'Indice, ou celle que la fiche du mode donne (GameModes center() :
+                        Suivant, Séance, Corriger, Ajouter, Analyser), au même endroit (#btn-act, refreshCenter). Les outils suivent par mode
+                        (data-modes, cf. applyModeUI dans app.js).
+                          Ordinateur (920 px+) : une seule rangée de 48 px, puis les outils en icônes après un filet
+                                       (hauteur comptée dans --board-chrome-h) ; ⏮ ⏭ s'effacent quand la rangée est étroite.
+                          Tablette   : rangée principale puis actions secondaires discrètes.
+                          Mobile     : dock de cinq cases fixé en bas, identique dans tous les modes : retourner · ‹ · centre · › · Plus
+                                       (dock.js) ; les autres boutons du mode passent dans « Plus » (« TÉLÉPHONE SOUS LE POUCE »).
                     -->
                     <div class="board-controls">
                         <div class="controls controls-main">
-                            <button class="btn btn-nav tb-prev" id="btn-prev" data-modes="play,preview,analysis,training" onclick="navPrev()" title="Coup précédent (←)" aria-label="Coup précédent">
+                            <button class="btn btn-nav tb-first" id="btn-first" onclick="navFirst()" title="Début de la ligne (↑, Origine)" aria-label="Début de la ligne">
+                                <svg class="ico"><use href="#i-chevrons-left"/></svg>
+                            </button>
+                            <button class="btn btn-nav tb-prev" id="btn-prev" onclick="navPrev()" title="Coup précédent (←)" aria-label="Coup précédent">
                                 <svg class="ico"><use href="#i-chevron-left"/></svg><span class="btn-label mobile-only">Préc.</span>
                             </button>
                             <button class="btn btn-primary btn-grow tb-hint" data-modes="play,training,endgame" onclick="showHint()" title="Indice (Espace)">
                                 <svg class="ico"><use href="#i-lightbulb"/></svg><span class="btn-label">Indice</span>
                             </button>
-                            <button class="btn btn-grow" data-modes="training" onclick="nextDrill()" title="Passer à la position suivante (P)">
-                                <svg class="ico"><use href="#i-skip-forward"/></svg><span class="btn-label">Passer</span>
-                            </button>
-                            <button class="btn btn-grow" data-modes="endgame" onclick="retryEndgame()" title="Recommencer l'exercice (N)">
-                                <svg class="ico"><use href="#i-rotate-ccw"/></svg><span class="btn-label">Recommencer</span>
-                            </button>
+                            <button type="button" class="btn btn-primary btn-grow tb-act" id="btn-act" hidden></button>
                             <button class="btn btn-primary btn-grow" data-modes="preview" onclick="trainStatsPreview()" title="Jouer le coup de cette position (compte comme un essai)">
                                 <svg class="ico"><use href="#i-play"/></svg><span class="btn-label">S'entraîner</span>
                             </button>
-                            <button class="btn btn-nav tb-next" id="btn-next" data-modes="play,preview,analysis,training" onclick="navNext()" title="Coup suivant (→)" aria-label="Coup suivant">
+                            <button class="btn btn-nav tb-next" id="btn-next" onclick="navNext()" title="Coup suivant (→)" aria-label="Coup suivant">
                                 <svg class="ico"><use href="#i-chevron-right"/></svg><span class="btn-label mobile-only">Suiv.</span>
                             </button>
-                            <!-- Téléphone : centre du dock (prochaine action du mode) et « Plus » (boutons du mode cachés sur téléphone) -->
+                            <button class="btn btn-nav tb-last" id="btn-last" onclick="navLast()" title="Position actuelle (↓, Fin)" aria-label="Position actuelle">
+                                <svg class="ico"><use href="#i-chevrons-right"/></svg>
+                            </button>
+                        <!-- Téléphone : centre du dock (prochaine action du mode) et « Plus » (boutons du mode cachés sur téléphone) -->
                             <button type="button" class="btn dock-center" id="dock-center" onclick="Dock.runGame()"></button>
                             <button type="button" class="btn btn-tool dock-more" onclick="toggleToolbarMore(this)" title="Plus d'actions" aria-haspopup="true" aria-expanded="false">
                                 <svg class="ico"><use href="#i-more-horizontal"/></svg><span class="btn-label">Plus</span>
@@ -466,11 +469,14 @@
                             </button>
                         </div>
                         <div class="controls controls-tools" data-modes="training">
-                            <button class="btn btn-tool tr-after" onclick="trainingAnalyse()" title="Analyser la position avec le moteur ; Quitter reprend l'entraînement" disabled>
+                            <button class="btn btn-tool tr-skip" onclick="nextDrill()" title="Passer à la position suivante (P)">
+                                <svg class="ico"><use href="#i-skip-forward"/></svg><span class="btn-label">Passer</span>
+                            </button>
+                            <button class="btn btn-tool tr-after" onclick="trainingAnalyse()" title="Analyser la position avec le moteur ; Quitter revient à la séance" disabled>
                                 <svg class="ico"><use href="#i-microscope"/></svg><span class="btn-label">Analyser</span>
                             </button>
-                            <button class="btn btn-tool tr-after" onclick="trainingEditMove()" title="Remplacer le coup enregistré : jouez le nouveau coup (l'ancien part à la corbeille 30 jours)" disabled>
-                                <svg class="ico"><use href="#i-pencil"/></svg><span class="btn-label">Modifier le coup</span>
+                            <button class="btn btn-tool tr-after" onclick="trainingEditMove()" title="Corriger ma réponse : jouez le nouveau coup (l'ancien part à la corbeille 30 jours)" disabled>
+                                <svg class="ico"><use href="#i-pencil"/></svg><span class="btn-label">Corriger</span>
                             </button>
                             <button class="btn btn-tool tb-flip" onclick="flipBoard()" title="Retourner l'échiquier (F)">
                                 <svg class="ico"><use href="#i-arrow-up-down"/></svg><span class="btn-label"><span class="desktop-only">Retourner</span><span class="mobile-only">Tourner</span></span>
@@ -483,6 +489,9 @@
                             </button>
                         </div>
                         <div class="controls controls-tools" data-modes="endgame">
+                            <button class="btn btn-tool" onclick="retryEndgame()" title="Recommencer l'exercice (N)">
+                                <svg class="ico"><use href="#i-rotate-ccw"/></svg><span class="btn-label">Recommencer</span>
+                            </button>
                             <button class="btn btn-tool tb-flip" onclick="flipBoard()" title="Retourner l'échiquier (F)">
                                 <svg class="ico"><use href="#i-arrow-up-down"/></svg><span class="btn-label"><span class="desktop-only">Retourner</span><span class="mobile-only">Tourner</span></span>
                             </button>

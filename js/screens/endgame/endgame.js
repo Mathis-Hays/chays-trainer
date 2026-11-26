@@ -480,7 +480,7 @@ function _egLoadPosition() {
     boardFlipped = appSettings.autoFlip && ex.player === 'b';
     resetNavCursor();
     clearErrorFx();
-    s.busy = false; s.over = false; s.failed = null; s.verdict = null; s.theory = false; s.arrows = null;
+    s.busy = false; s.over = false; s.failed = null; s.verdict = null; s.theory = false; s.arrows = null; s.refused = []; s.navArrow = null;
     s.moves = 0; s.hintLevel = 0; s.seen = {}; s.planStep = 0; s.par = 0; s.stars = 0;
     s.token++;
     _egFindPar(s, ex);
@@ -955,6 +955,8 @@ function _egFinish(msg) {
 function undoEndgameMove() {
     const s = endgameState;
     if (!s.failed || !s.failed.undoable || !moveHistory.length) return;
+    const last = moveHistory[moveHistory.length - 1];         // le coup refusé reste visible en revue de la partie (R16)
+    (s.refused = s.refused || []).push({ at: moveHistory.length - 1, from: last.from, to: last.to });
     performUndo();                                           // boardLogic.js : restaure position, trait, surbrillance
     s.moves = Math.max(0, s.moves - 1);
     s.failed = null; s.verdict = null; s.arrows = null; s.busy = false; s.hintLevel = 0;
@@ -1024,9 +1026,47 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = { _egPhilidorCheck, _egVancuraCheck, _egJudgedOutcome };
 }
 
+// ─── REVOIR LA PARTIE (chantier « L'échiquier de Chays », R16) ─────────────────
+// ◀ ▶ et la barre de coups parcourent la finale jouée ; toucher l'échiquier ramène au présent. Sur une position
+// passée à mon trait : mon coup refusé (vermillon) et, la finale finie, le coup le plus court des tables (laiton).
+function _egNavArrows() {
+    const s = endgameState;
+    if (navCursor === -1) return [];
+    const at = _navPos(), out = [];
+    (s.refused || []).filter(r => r.at - 1 === at).forEach(r => out.push({ from: r.from, to: r.to, color: 'red' }));
+    if (s.navArrow && s.navArrow.at === at) out.push({ from: s.navArrow.from, to: s.navArrow.to, color: 'gold' });
+    return out;
+}
+function _egOnNavigate() {
+    const s = endgameState, ex = s.ex;
+    if (!ex || !s.over || navCursor === -1 || typeof EndgameJudge === 'undefined') return;
+    const at = _navPos(), fen = displayedFen(), token = s.token;
+    if (fen.split(' ')[1] !== ex.player || (s.navArrow && s.navArrow.at === at)) return;
+    EndgameJudge.probe(fen).then(p => {
+        const best = p && p.moves && p.moves[0];
+        if (token !== s.token || !best || navCursor === -1 || _navPos() !== at) return;
+        const m = _egParseUci(best.uci), played = moveHistory[at + 1];
+        if (played && played.from === EG.mFrom(m) && played.to === EG.mTo(m)) return;      // j'ai joué le plus court
+        s.navArrow = { at, from: EG.mFrom(m), to: EG.mTo(m) };
+        if (typeof renderAnnotations === 'function') renderAnnotations(false);
+    }, () => {});
+}
+
 GameModes.register('endgame', {
     inputBlocked: () => endgameState.busy,
-    engineArrows: () => (endgameState.failed && endgameState.arrows) || [],
+    navBlocked: () => endgameState.busy && !endgameState.over && !endgameState.failed,     // le temps de la réponse adverse
+    navBlockedNote: 'Patientez : l’adversaire répond',
+    backToLive: () => { if (navCursor === -1) return false; navGo(moveHistory.length - 1); return true; },
+    onNavigate: () => _egOnNavigate(),
+    // Barre unique (R3) : Indice pendant mon tour ; après un coup refusé, Corriger (ou Recommencer) ; à la fin, Suivant.
+    center: () => {
+        const s = endgameState;
+        if (s.over) return { icon: 'skip-forward', label: 'Suivant', soft: true, title: 'Exercice suivant (P)', run: nextEndgame };
+        if (s.failed) return s.failed.undoable ? { icon: 'rotate-ccw', label: 'Corriger', soft: true, title: 'Reprendre ce coup et en chercher un autre', run: undoEndgameMove }
+                                               : { icon: 'rotate-ccw', label: 'Recommencer', soft: true, title: 'Recommencer l’exercice (N)', run: retryEndgame };
+        return null;
+    },
+    engineArrows: () => navCursor !== -1 ? _egNavArrows() : (endgameState.failed && endgameState.arrows) || [],
     // Téléphone : après une erreur ou une réussite, le centre du dock porte l'action pleine de la carte (C14).
     dockCenter: () => {
         const b = document.querySelector('#endgame-card .eg-actions .btn-primary');
@@ -1034,7 +1074,6 @@ GameModes.register('endgame', {
         const a = b.dataset.action;
         return { target: b, icon: a === 'nextEndgame' ? 'skip-forward' : 'rotate-ccw', label: a === 'nextEndgame' ? 'Suivant' : a === 'undoEndgameMove' ? 'Reprendre' : 'Recommencer', tone: a === 'nextEndgame' ? '' : 'err', title: b.textContent.trim() };
     },
-    movesLocked: true,
     onMove: (from, to, promo) => answerEndgameMove(from, to, promo),
-    onHint: () => endgameHint()
+    onHint: () => { if (navCursor !== -1) navGo(moveHistory.length - 1); endgameHint(); }
 });

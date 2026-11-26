@@ -76,8 +76,13 @@ translate(0, 0)
 cubic-bezier(.22,.8,.3,1)
 Copier la partie en PGN
 Retour à la position actuelle.
+Repartir d’ici
+Jouer depuis cette position (la suite de la ligne quitte l’écran, le répertoire ne change pas)
 Navigation — position initiale.
 Navigation — coup {0}/{1} : {2}
+Repartez d’ici
+Le répertoire n’a pas changé : seule la suite affichée a été retirée.
+Repartir d’ici ? {0} coup{1} de la ligne quitte{2} l’écran ; le répertoire ne change pas.
 translate({0}px, {1}px) scale(1.12)
 BUTTON
 Fou
@@ -536,26 +541,27 @@ Fusionne un fichier .json avec vos données
 Protéger
 stockage presque plein
 Le stockage du navigateur est rempli à {0} % : bientôt, plus rien ne pourra s'enregistrer. Exportez une sauvegarde, puis videz la corbeille ou supprimez les répertoires inutiles.
-À retravailler
-dernier essai raté
-Fragiles
-Fragile
-1 réussite d’affilée depuis la dernière erreur
-En progrès
-2 réussites d’affilée
+À réapprendre
+ratée deux fois d’affilée
+Palier 1
+retrouvée une fois, revue le lendemain
+Palier 2
+revue dans 3 jours
 Solides
 Solide
-{0} ou {1} réussites d’affilée
-À confirmer
-moins de {0} essais, sans erreur
+paliers {0} et {1} (7 et 16 jours)
+À découvrir
+jamais retrouvée de mémoire
 Maîtrisées
 Maîtrisée
-{0} réussites d’affilée ou plus
+palier {0} et plus (35 jours et plus)
 À apprendre
-dernier essai raté, ou une seule réussite depuis
+ratée deux fois d’affilée : à réapprendre
 En cours
+paliers 1 et 2 (revue dans 1 ou 3 jours)
 Sues
 Sue
+palier {0} et plus (7 jours et plus)
 Maîtrise
 Rangs d’ouverture
 Régularité
@@ -622,8 +628,8 @@ Au plus {0} positions à apprendre
 Au plus une position à apprendre
 Aucune position à apprendre
 {0} à apprendre
-Toutes les positions confirmées
-{0} à confirmer
+Toutes les positions découvertes
+{0} à découvrir
 b|Sicilienne
 Échanger le pion c contre le pion d, puis jouer sur la colonne c et à l’aile dame.
 b|Sicilienne Najdorf
@@ -1391,6 +1397,8 @@ Annulation impossible ici
 Un coup a été remplacé : restaurez-le depuis la corbeille.
 Ajout annulé
 Le répertoire est revenu à son état précédent ; le brouillon est conservé.
+Ajouter ({0})
+Ajouter
 Et si…
 Vous jouez les Blancs ; le moteur répond à ~{0} Elo.
 Vous jouez les Noirs ; le moteur répond à ~{0} Elo.
@@ -1475,6 +1483,7 @@ FEN collée : vérifiez la position, puis Analyser.
 FEN copiée
 Copie impossible
 Files
+Analyser la position
 À corriger
 Mater
 Gagner
@@ -1617,7 +1626,13 @@ Pat : la partie est nulle.
 Nulle par répétition de position.
 Coup repris : cherchez un autre coup.
 Indice : {0}
+Patientez : l’adversaire répond
+Exercice suivant (P)
+Corriger
+Reprendre ce coup et en chercher un autre
 Recommencer
+Recommencer l’exercice (N)
+erreurs de premier coup
 parties relues au lancement
 Ma couleur dans cette partie
 Aucune partie reconnue : collez le PGN complet (exporté depuis Chess.com ou Lichess).
@@ -1634,9 +1649,11 @@ Votre répertoire n'avait pas encore de réponse ici.
 Vous avez ajouté {0} depuis : rien n'est compté.{1}
 ✗ Erreur d'ouverture : {0}
 Partie déjà analysée.
-{0}Erreur non recomptée.
-Erreur comptée.
+{0}Déjà notée.
+À vérifier à la prochaine révision : elle ne coûte que si vous la ratez aussi.
 ◀ pour retrouver le bon coup.{0}
+Autre ouverture : {0}
+{0}Vous avez ouvert autrement : c'est un choix, rien n'est compté.{1}
 Hors répertoire : {0}
 {0}Votre répertoire n'a pas encore de réponse ici.{1}
 Nouveauté adverse : {0}
@@ -1645,6 +1662,7 @@ Réponse déjà repérée, toujours non couverte.
 Coup absent de votre répertoire.
 Aucune erreur comptée.{0}
 Erreur d'ouverture
+Autre ouverture
 Hors répertoire
 Nouveauté adverse
 Sans réponse
@@ -1654,7 +1672,7 @@ Erreurs
 Nouveautés
 Traitées
 Théoriques
-comptée
+à vérifier
 déjà
 pseudo {0}
 Pseudo {0}
@@ -1692,8 +1710,8 @@ Aucun coup n'est sorti du répertoire.
 affichée
 déjà analysée masquée
 déjà analysées masquées
-erreur comptée
-erreurs comptées
+erreur à vérifier
+erreurs à vérifier
 · {0} l'étai{1} déjà
 {0} analysée{1}
 Filtrer par verdict
@@ -1726,12 +1744,12 @@ Position connue : retrouvez votre réponse. <kbd>Espace</kbd> montre la pièce, 
 Onglets <strong>Coups</strong>, <strong>Arbre</strong> (remplacer ou supprimer une réponse) et <strong>Adversaire</strong>. Ici, rien n’est compté : statistiques et révisions n’évoluent qu’à l’Entraînement.
 Réviser au bon moment
 Chaque position a une <strong>date de révision</strong> : elle s’éloigne à chaque réussite et revient vite après une erreur.
-<strong>Révision du jour</strong> (aussi « Commencer la révision » sur l’accueil), Points faibles, Ligne complète, À confirmer, Contre-la-montre et Mode libre.
+<strong>Révision du jour</strong> (aussi « Commencer la révision » sur l’accueil), Points faibles, Ligne complète, À découvrir, Contre-la-montre et Mode libre.
 Chaque séance finit par un <strong>bilan</strong> ; une position ratée revient une fois en fin de séance.
 C’est le seul endroit qui fait évoluer <strong>statistiques et révisions</strong>.
 Voir ce qui tient et ce qui flanche
 Observe
-Cinq niveaux de maîtrise par position ; « À confirmer » (moins de 3 essais) est montré à part. Toucher la barre ou la légende filtre la liste.
+Trois états par position : À apprendre, En cours, Sues, d’après son palier (une réussite fait monter d’un palier, une erreur fait descendre d’un seul) ; « À découvrir » (jamais retrouvée de mémoire) est montré à part. Toucher la barre ou la légende filtre la liste.
 Positions regroupées par <strong>ouverture nommée</strong> ; la régularité (série, calendrier) couvre tous les répertoires.
 Les boutons ouvrent l’exercice d’<strong>Entraînement</strong> déjà filtré, sans lancer de séance : Progrès observe, l’Entraînement agit.
 Aperçu d’une position : « S’entraîner » lance sa révision, « ‹ Progrès » ramène au même endroit.
@@ -1937,10 +1955,13 @@ Onglets Jouer, Statistiques, Entraînement, Finales
 Mode clair ou sombre
 Couper ou remettre les sons
 Retourner l’échiquier
-Indice, puis solution
+Action du milieu : Indice, puis Solution ; Suivant à l’arrêt
 Espace
 Coup précédent / suivant
 Début de la ligne / position actuelle
+Début / position actuelle
+Origine
+Fin
 Effacer les annotations
 Déplacer le curseur sur l’échiquier
 puis ← ↑ → ↓
@@ -1954,6 +1975,8 @@ Révision du jour (hors séance)
 Revoir les erreurs du bilan (hors séance)
 Passer la position
 Passer la mise en situation ; exercice suivant à l’arrêt
+Revoir une position de la séance
+Toucher sa case
 Mode Focus
 Quitter la séance
 Lancer ou arrêter le moteur
@@ -1970,6 +1993,9 @@ Clic droit
 Rouge · bleu · or
 Tout effacer
 Clic gauche
+Au doigt : flèche, cercle
+Appui long
+puis glisser
 Fenêtres
 Chercher dans la fenêtre
 Échap
@@ -2072,7 +2098,7 @@ Standard
 Intensif
 Positions vues en partie
 parties réelles jouées filtre lichess chess.com
-Points faibles, À confirmer, Ligne complète, Contre-la-montre et Mode libre ne tirent que les positions atteintes dans vos parties archivées. La Révision du jour reste entière. Sans assez de parties (moins de 5 positions), tout le répertoire.
+Points faibles, À découvrir, Ligne complète, Contre-la-montre et Mode libre ne tirent que les positions atteintes dans vos parties archivées. La Révision du jour reste entière. Sans assez de parties (moins de 5 positions), tout le répertoire.
 enchaîner automatiquement passage suivant pause
 Après une erreur : une réussite nette enchaîne seule, une erreur, un indice ou la solution laissent le temps d’analyser. Le contre-la-montre enchaîne toujours.
 Après une erreur
@@ -2260,9 +2286,9 @@ Langue indisponible pour le moment.
 i18n:lang
 Rang : {2}
 Filtrer la liste par niveau
-Positions par réussites d’affilée
-Les positions à confirmer (moins de trois essais) restent à part.
-Réussites d’affilée depuis la dernière erreur.
+Positions par palier
+Les positions à découvrir (jamais retrouvées de mémoire) restent à part.
+Paliers : une réussite fait monter d’un palier, une erreur fait descendre d’un seul.
 Blancs et Noirs
 Position
 Position avant votre coup
@@ -2302,7 +2328,7 @@ Fins de partie
 games|temps
 Score <em>{0}</em> face à l'attendu
 games|bilan
-Le suivre vous fait marquer
+Le suivre vous fait marquer <em>{0}</em>
 Suivi contre quitté, sur un an
 games|repertoire
 st-todo st-card edge-card n-{0}
@@ -2353,6 +2379,7 @@ Flèche : le dernier coup adverse. Crans : vos derniers essais, les ratés en ve
 Aperçu · {0}
 {0} · maîtrise {1} / 100 ({2} err. / {3})
 Cette position
+à réapprendre
 {3} err. / {4}
 État
 Révision
@@ -2690,7 +2717,7 @@ Elle rapporte plus que prévu sans être bien sue ({0} % sues). Ces points reste
 Bien sue et rentable. Une révision régulière suffit.
 {0} · {1} % sues
 {0} · hors répertoire
-{0}{1} à confirmer
+{0}{1} à découvrir
 {0}{1} Elo
 Vous y jouez comme un {0}, à votre niveau.
 Vous y jouez comme un {0}, {1} sous votre Elo.
@@ -2719,7 +2746,7 @@ Réviser
 Réviser la ligne entière
 à réviser
 à apprendre
-à confirmer
+à découvrir
 Ligne entière
 Autres façons {4}
 Explorer
@@ -2802,7 +2829,7 @@ Carte
 Aucune position à ce niveau.
 Précédente à travailler
 Suivante à travailler
-, {0} à confirmer
+, {0} à découvrir
 · {0} à apprendre, {1} en cours, {2} sues{3}
 · {0} % sues
 {0} % sues
@@ -2882,16 +2909,24 @@ Temps restant
 Adversaire du club{0}
 Ligne complète · <b>{0}</b>
 {1}</b> {2} · {3} du premier coup
+, deuxième passage
+réponse remplacée
+trouvée avec aide
+ratée
+Position {0}{1} : {2}
+{2} · revoir
+{3}, revoir
 ×{0} sans faute</b> ·
 · {0} à revoir à la fin
-{0}{1} du premier coup{2}
+{1} · position {2} sur {3}
+{8}{9} du premier coup{0}
 non revu depuis longtemps
 revu il y a {0} min
 revu il y a {0} h
 non revu depuis {0} jour{1}
 non revu depuis {0} semaine{1}
 Deuxième passage : erreur plus tôt dans la séance
-À revoir · {0} / {1}
+Rattrapage après une erreur
 Entretien · 100% de réussite · {0}
 Position critique · maîtrise {0} / 100
 À réviser · {0}
@@ -2901,55 +2936,96 @@ Mise en situation…
 Sauter
 Passer la mise en situation
 · coup {0}{1}
+Nouveau coup : {0}
+Découverte : jouez-le. Rien n’est compté, il reviendra demain, de mémoire.
 À vous de jouer{0}
 · {0} réussi{1}
 Deuxième passage
+Position introuvable
+Elle n’est plus dans le répertoire.
+Rejouer
+Trouvez votre coup. Rien n’est compté.
+Revue
+Revenir à la revue de cette position
+Vous avez joué {0} (vermillon).
+Solution montrée.
+Trouvé avec l’indice.
+Trouvé du premier coup.
+Réponse : {0} (laiton).
+Position {0}
+Revue · {0}
+{0}{1}{2}Rien ne compte ici.
+Rejouer cette position sans rien compter
+Retrouvée
+Rien n’est compté.
+Revoir cette position
+Pas encore
+Rien n’est compté. Réessayez, ou revenez à la séance.
+Séance
+Revenir à la séance (Espace)
+Garder
+Garder la réponse actuelle
+Exercice suivant (Entrée)
+Mauvais clic
+Ce n’était pas mon coup : retirer l’erreur (une fois par séance)
+Erreur retirée
+Cette position revient en fin de séance, où elle sera notée. « Mauvais clic » ne sert qu’une fois par séance.
+Séance reprise · {0} sur {1}
 Ligne complète
 Ligne complète · l'adversaire commence…
 Fin de la variante.
 Rester ici
 Ne pas enchaîner : rester sur cette position
-Exercice suivant (Entrée)
 Enchaîner
 Passer seul à l’exercice suivant, même après une erreur ou un indice
-Modifier le coup
+Corriger ma réponse
 Jouez le coup qui remplacera {0}.
 Garder le coup actuel
+Réponse gardée.
 Coup gardé
 {0} reste votre réponse.
 Remplacer {0} par {1} ? L'ancien coup est conservé 30 jours dans la corbeille.
-Coup remplacé
 {0} coup(s) orphelin(s) mis à la corbeille.
-{0} est votre nouvelle réponse ; elle passe en « À confirmer ».{1}
+{0} est votre nouvelle réponse ; elle passe en « À découvrir ».{1}
+Coup remplacé
 ✓ Fin de la variante.
 Aucune solution connue pour cette position.
 Jouez-le pour continuer (aucune réussite comptée).
-Acquise : elle sort des positions à reprendre.
-À revoir : {0} / {1} · trop tôt pour avancer
-À revoir : {0} / {1} · {2}
-{0} réussite{1} d’affilée · {2}
+revue {0}
+revue demain
+Rattrapage réussi : palier {0} gardé · {1}
+Palier {0} · {1}
+Découverte · {0}
+Jouez le coup montré
+Découverte : rien n’est compté.
+✓ Coup découvert
+Il reviendra demain : à retrouver de mémoire.
 ✓ Bien joué !
 Deuxième passage : rien de plus n’est compté.
 Hors révision : rien n’est noté.
 Aucune réussite comptée.
 ✓ Bon coup
 L’erreur est déjà comptée pour ce passage.
-Avec la pièce montrée : série gardée, revue demain.
+Avec la pièce montrée : palier gardé, revue demain.
 Avec l’indice : {0}
 ✓ Trouvé avec l’indice
 ✓ Maîtrisée
 Plus que {0} vie{1}.
 Troisième erreur : la survie s’arrête après cette position.
-Elle passe dans « À reprendre ».
-{0}Réessayez, ou appuyez sur Indice.
+Deuxième erreur d’affilée : à réapprendre, revue demain.
+Un palier de moins, rattrapage demain.
+Découverte : rien n’est compté, elle revient demain.
+Elle revient en fin de séance.
+{0}{1}Réessayez, ou appuyez sur Indice.
 ✗ Ce n'est pas le coup de la solution
 Réessayez.
 Patientez : la position se met en place
-— gain de maîtrise réduit
-— maîtrise gardée, revue demain
+— palier gardé
+— palier gardé, revue demain
 — compte une erreur
-Trouvé ainsi : maîtrise gardée, revue demain.
-Trouvé ainsi : gain de maîtrise réduit.
+L’erreur est déjà comptée.
+Trouvé ainsi : palier gardé, revue demain.
+Trouvé ainsi : palier gardé.
 Voir la solution compte comme une erreur.
 Voir la solution (Espace) — compte une erreur
 Montrer la pièce (Espace) — maîtrise gardée, revue demain
@@ -2985,7 +3061,6 @@ Séance utile
 {0}{1} maîtrisée{2}
 {0}{1} niveau{2} monté{3}
 {0}{1} descendu{2}
-Rejouer
 Rejouer la ligne
 Réussie
 Ratée
@@ -2999,6 +3074,9 @@ Toucher une position pour la rejouer
 Bilan de la dernière séance
 Fermer le bilan
 {1}{2} · {3} min
+Oublier cette séance
+<b>Séance interrompue</b>
+{0} · {1} sur {2} · {3} restante{4}
 Retirer le filtre d'ouverture
 Toutes les ouvertures
 Aucune position de cette ouverture
@@ -3037,11 +3115,11 @@ Réglages du mode libre
 Partir du début de partie
 Contre-la-montre
 · {0} position{1}
-Ratées récemment, d’abord · {0} à revoir à intervalles
-Prochaine ratée à revoir {0}
+Ratées récemment, d’abord · {0} en rattrapage
+Prochain rattrapage {0}
 Rien à reprendre pour l’instant
 Aucune ouverture reconnue
-Aucune position à confirmer
+Rien à découvrir
 record {0}
 pas encore de record
 3 min · {0}
@@ -3153,8 +3231,6 @@ Revoir
 Au hasard
 Une finale au hasard
 Commencer la finale à suivre
-Ajouter
-Ajouter ({0})
 Brouillon
 Toutes les branches du brouillon
 Arbre
@@ -3265,7 +3341,6 @@ nouveauté
 nouveautés
 Objectif du jour atteint
 Objectif atteint
-Séance
 Suite
 , {0} sans faute
 Séance : position {0} sur {1}{2}
@@ -3281,7 +3356,6 @@ Données (import / export)
 Moteur et brouillon, rien n’est écrit
 Préc.
 Suiv.
-Corriger
 Retourner
 Tourner
 Focus
@@ -3313,14 +3387,16 @@ Exercice au hasard
 Quitter le mode Focus (Z, Échap)
 Quitter le mode Focus
 Échiquier — flèches pour se déplacer, Entrée pour jouer
+Début de la ligne (↑, Origine)
+Début de la ligne
 Coup précédent (←)
 Coup précédent
 Indice (Espace)
-Passer à la position suivante (P)
-Recommencer l'exercice (N)
 Jouer le coup de cette position (compte comme un essai)
 Coup suivant (→)
 Coup suivant
+Position actuelle (↓, Fin)
+Position actuelle
 Plus d'actions
 Corriger le dernier coup : il est retiré de l'échiquier pour en jouer un autre (votre coup enregistré peut ainsi être remplacé)
 Recommencer la partie depuis la position de départ (rien n'est retiré du répertoire)
@@ -3328,10 +3404,12 @@ Retourner l'échiquier (F)
 Afficher le répertoire en flèches sur l'échiquier (R)
 Analyser mes parties (Chess.com, Lichess ou PGN) : où sortent-elles du répertoire ?
 Analyser la position avec le moteur : brouillon séparé, ajout au répertoire à la fin
-Analyser la position avec le moteur ; Quitter reprend l'entraînement
-Remplacer le coup enregistré : jouez le nouveau coup (l'ancien part à la corbeille 30 jours)
+Passer à la position suivante (P)
+Analyser la position avec le moteur ; Quitter revient à la séance
+Corriger ma réponse : jouez le nouveau coup (l'ancien part à la corbeille 30 jours)
 Mode Focus : seulement l'échiquier et la consigne (Z)
 Quitter l'entraînement (Q)
+Recommencer l'exercice (N)
 Quitter l'exercice (Q)
 Analyser la position avec le moteur
 Ouvrir la position sur Lichess (nouvel onglet)
