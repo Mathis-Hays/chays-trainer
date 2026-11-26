@@ -1396,9 +1396,6 @@ remplace {0}
 Rien de nouveau : vos coups de ces lignes sont déjà au répertoire.
 {1} ira à la corbeille (30 jours).
 Un coup gardé arrête la ligne : recochez « Remplacer » pour l’enregistrer.
-coup qui n’est plus jouable
-coups qui ne sont plus jouables
-Avec sa suite : {1}
 aria-busy="true"
 title="Rien à ajouter"
 Aperçu de fusion
@@ -1408,6 +1405,7 @@ Ajouter au répertoire
 Ligne affichée
 Toutes les branches
 Rien n’est écrit avant la confirmation.
+Remplacer ce coup seulement
 remplacé depuis l’Analyse
 Fusion impossible
 La corbeille n’a pas pu accueillir les coups remplacés : rien n’a été modifié.

@@ -1,6 +1,6 @@
 // Lancer : node tests/screens/analysisSingle.test.js   — chantier « L'échiquier de Chays », suite (26 novembre 2026) :
 // dans l'Analyse, une seule réponse à moi par position (jouer un autre coup remplace le mien, dans le brouillon puis au
-// répertoire, avec sa suite à la corbeille si on le coche), bouton du milieu qui confirme dans l'aperçu, « Dans le répertoire » /
+// répertoire ; coups devenus orphelins : la question de Jouer, corbeille ou gardés), bouton du milieu qui confirme dans l'aperçu, « Dans le répertoire » /
 // « Hors répertoire depuis… », flèche laiton de mon coup, « Corriger » au crayon et « Poser » à la palette.
 const { bootApp } = require('../_app.js');
 const assert = require('assert');
@@ -62,11 +62,15 @@ const tick = (ms = 30) => new Promise(r => setTimeout(r, ms));
         await tick();
         assert.deepStrictEqual(center(), { label: 'Remplacer (1)', disabled: false }, 'la confirmation, pas l\'ancien « Ajouter »');
         assert.strictEqual($('#btn-act').hidden, false);
-        assert.match($('#analysis-panel .ab-preview').textContent, /Avec sa suite : 1 coup/);
-        assert.strictEqual(run('analysis.merge.cascade'), false, 'la suite n\'est jamais jetée sans le demander');
-        $('#analysis-panel .ab-cascade input').click();
+        // Annuler : rien n'est écrit ; « Remplacer ce coup seulement » : la suite est gardée ; « Supprimer aussi » : corbeille.
+        run(`window.__choice = null; window.askConfirmChoice = (msg, labels, cascade, solo) => { window.__asked = { msg, labels }; window.__choice && (window.__choice === 'cascade' ? cascade : solo)(); }`);
+        $('#btn-act').click();
         await tick();
-        assert.strictEqual(run('analysis.merge.cascade'), true);
+        assert.match(run('__asked.msg'), /remplacement de ce coup rendra 1 coup/);
+        assert.deepStrictEqual(JSON.parse(run('JSON.stringify(__asked.labels)')), { cascade: 'Supprimer aussi les 1 coup(s) orphelin(s)', solo: 'Remplacer ce coup seulement' });
+        assert(run('!!analysis.merge'), 'Annuler : aperçu toujours ouvert');
+        assert.strictEqual(run(`openingDB['${k(['e2e4', 'e7e5'])}'].move`), 'g1f3', 'Annuler : rien n\'est écrit');
+        run(`window.__choice = 'cascade'`);
         $('#btn-act').click();
         await tick();
         assert.strictEqual(run('analysis.merge'), null, 'aperçu fermé');

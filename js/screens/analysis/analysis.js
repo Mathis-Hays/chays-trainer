@@ -23,8 +23,8 @@
  *   Évaluation Lichess (cloud-eval) : affichée tout de suite pour une position connue, jusqu'à ce que
  *       le moteur local la dépasse en profondeur.
  *   Fusion (analysisMergePlan, fonction pure) : mon coup créé s'il n'existe pas, identique ignoré, différent =
- *       remplacement (l'ancien part à la corbeille, avec la suite devenue inaccessible si « Avec sa suite » est
- *       cochée), sauf « Remplacer » décoché dans l'aperçu (conflit : mon coup est gardé et la ligne s'arrête) ; les
+ *       remplacement (l'ancien part à la corbeille ; s'il rend des coups injouables, la question de « Corriger » dans
+ *       Jouer : les mettre aussi à la corbeille ou les garder), sauf « Remplacer » décoché dans l'aperçu (conflit : mon coup est gardé et la ligne s'arrête) ; les
  *       coups adverses sont notés comme réponses connues.
  */
 
@@ -42,7 +42,7 @@ const analysis = {
     paused: false,        // « Arrêter » : calcul suspendu sur la position affichée seulement ; la suivante le relance
     retries: 0,           // nouveaux essais d'un calcul annulé par le moteur (Worker mort, erreur), sur la même position
     bar: null,            // dernière ligne montrée par la barre d'évaluation, gardée le temps du calcul suivant
-    merge: null,          // aperçu ouvert : { all, keep: Set(clés où mon coup enregistré est gardé), cascade, focus }
+    merge: null,          // aperçu ouvert : { all, keep: Set(clés où mon coup enregistré est gardé), focus }
     intro: false,         // consigne d'ouverture gardée en sous-titre jusqu'au premier coup ou déplacement
     merging: false,       // fusion confirmée, écriture en cours (aria-busy)
     lastMerge: null,      // dernière fusion : { added: [clés], opp: [[clé, uci]], noUndo, replacedSans }
@@ -774,9 +774,8 @@ function analysisMergePlan(lines, color, db, keep = new Set()) {
 const _anPlan = () => analysisMergePlan(analysis.merge && !analysis.merge.all ? [_anLine()] : _anLeaves(), analysis.color, openingDB,
                                         analysis.merge ? analysis.merge.keep : new Set());
 
-// Coups du répertoire devenus inaccessibles une fois le plan écrit (suite d'un coup remplacé) : mis à la corbeille avec
-// lui seulement si « Avec sa suite » est coché (décoché par défaut : elle peut compter des centaines de coups ; Jouer
-// pose la même question).
+// Coups du répertoire devenus inaccessibles une fois le plan écrit (suite d'un coup remplacé) : à la confirmation, la
+// question de Jouer décide s'ils vont aussi à la corbeille ou restent (injouables).
 function _anOrphans(plan) {
     const todo = plan.items.filter(i => i.status === 'new' || i.status === 'replace');
     if (!todo.some(i => i.status === 'replace') || typeof _reachableKeys !== 'function') return [];
@@ -815,7 +814,6 @@ function _anPreviewHTML() {
     };
     const rows = plan.items.filter(i => i.status !== 'same');
     const gone = plan.items.filter(i => i.status === 'replace').map(i => formatSan(i.keptSan, analysis.color));
-    const orphans = _anOrphans(plan);
     const cell = (n, label, cls = '') => `<div><b class="${cls}">${n}</b><small>${label}</small></div>`;
     const busy = analysis.merging;
     return `<div class="ab-card ab-preview" role="region" aria-label="Aperçu de fusion">
@@ -828,7 +826,6 @@ function _anPreviewHTML() {
         <ul class="ab-plan">${rows.map(row).join('') || '<li class="ab-plan-empty">Rien de nouveau : vos coups de ces lignes sont déjà au répertoire.</li>'}</ul>
         <p class="ab-note">${gone.length ? `${ico('trash')}<span>${gone.join(', ')} ira à la corbeille (30 jours).</span>`
                                          : s.conflict ? '<span>Un coup gardé arrête la ligne : recochez « Remplacer » pour l’enregistrer.</span>' : ''}</p>
-        ${orphans.length ? `<label class="ab-switch ab-cascade"><input type="checkbox" role="switch" data-action="analysisToggleCascade"${m.cascade ? ' checked' : ''}><span class="ab-sw" aria-hidden="true"></span>Avec sa suite : ${_pl(orphans.length, 'coup qui n’est plus jouable', 'coups qui ne sont plus jouables')}</label>` : ''}
         <div class="ab-actions">
             <button type="button" class="btn" data-action="analysisCloseMerge">Retour</button>
             <button type="button" class="btn btn-primary ab-confirm" id="an-confirm" data-action="analysisConfirmMerge"${s.writes && !busy ? '' : ' disabled'}${busy ? ' aria-busy="true"' : ''}${s.writes ? '' : ' title="Rien à ajouter"'}>${ico('check')}<span>${_anVerb(s)} ${_pl(s.writes, 'coup', 'coups')}</span></button></div></div>`;
@@ -846,7 +843,7 @@ function _anFocusConflict(box) {
 }
 
 function analysisOpenMerge(focus) {
-    analysis.merge = { all: true, keep: new Set(), cascade: false, focus: focus || null };
+    analysis.merge = { all: true, keep: new Set(), focus: focus || null };
     if (typeof setSheetOpen === 'function') setSheetOpen(true);
     setStatus('Aperçu de fusion', 'new', 'Rien n’est écrit avant la confirmation.');
     renderAnalysisPanel();
@@ -859,17 +856,28 @@ function analysisCloseMerge() {
     renderAnalysisPanel();
 }
 
+// Confirmation : si un remplacement rend des coups injouables, la même question que « Corriger » dans Jouer
+// (_orphanMessage) : les mettre aussi à la corbeille, ou remplacer ce coup seulement et les garder ; Annuler ne fait rien.
 function analysisConfirmMerge() {
     if (analysis.merging || !analysis.merge) return;
     const plan = _anPlan();
     if (!plan.items.some(i => i.status === 'new' || i.status === 'replace')) return;
+    const orphans = _anOrphans(plan);
+    if (!orphans.length || typeof askConfirmChoice !== 'function') { _anCommit(plan, []); return; }
+    const n = orphans.length;
+    askConfirmChoice(_orphanMessage('remplacement', n),
+        { cascade: `Supprimer aussi les ${n} coup(s) orphelin(s)`, solo: 'Remplacer ce coup seulement' },
+        () => _anCommit(plan, orphans), () => _anCommit(plan, []));
+}
+
+function _anCommit(plan, orphans) {
+    if (analysis.merging || !analysis.merge) return;
     // Fusion en cours : bouton occupé le temps d'une image, puis écriture.
     analysis.merging = true;
     const btn = document.getElementById('an-confirm');
     if (btn) { btn.setAttribute('aria-busy', 'true'); btn.disabled = true; }
     const box = document.getElementById('analysis-panel');
     if (box) box.setAttribute('aria-busy', 'true');
-    const orphans = analysis.merge.cascade ? _anOrphans(plan) : [];
     setTimeout(() => { analysis.merging = false; _anWrite(plan, orphans); }, 0);
 }
 
@@ -927,7 +935,6 @@ registerActions({
         analysis.merge.focus = key;
         renderAnalysisPanel();
     },
-    analysisToggleCascade: () => { if (analysis.merge) { analysis.merge.cascade = !analysis.merge.cascade; renderAnalysisPanel(); } },
     analysisEngineSettings: () => { if (typeof showSettings === 'function') showSettings('moteur'); },
     analysisRetryEngine: () => { if (typeof Engine.reload === 'function') Engine.reload(); analysisSettingsChanged(); },
     analysisShowTrash: () => { if (typeof showTrash === 'function') showTrash(); }
