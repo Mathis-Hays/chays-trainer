@@ -10,15 +10,22 @@
  *       et la position affichée. Depuis une position posée, « Ajouter au répertoire » est remplacé par une note.
  *   Brouillon : arbre { uci, san, kids } depuis la position de départ (analysis.start) ; la ligne affichée est
  *       moveHistory (navigation ◀ ▶ habituelle). Gardé pour la session (sessionStorage) et proposé à
- *       la prochaine ouverture sur le même répertoire et la même couleur.
+ *       la prochaine ouverture sur le même répertoire et la même couleur. Une seule réponse à moi par position
+ *       (comme le répertoire, chantier « L'échiquier de Chays ») : jouer un autre coup à mon trait le remplace dans
+ *       le brouillon, sa suite comprise, transpositions comprises (_anInsert, _anUnique) ; seuls les coups adverses
+ *       ouvrent des branches.
+ *   Répertoire : le titre de la barre d'état et le badge du brouillon disent si la position affichée est encore dans
+ *       le répertoire (_anRepState) ; dans l'arbre, les coups hors répertoire sont en pointillé, le premier marqué ;
+ *       à mon trait, mon coup enregistré est fléché en laiton.
  *   Lignes du moteur : un clic joue le coup (animé), « + » recopie la variante dans le brouillon.
  *   Marques du brouillon (analysisMarks, fonction pure sur le plan de fusion) : mes coups seulement, nouveau (point),
  *       déjà connu (cercle), conflit gardé (losange ambre, ouvre l'aperçu sur ce conflit), à remplacer (losange rouge).
  *   Évaluation Lichess (cloud-eval) : affichée tout de suite pour une position connue, jusqu'à ce que
  *       le moteur local la dépasse en profondeur.
- *   Fusion (analysisMergePlan, fonction pure) : mêmes règles que l'import PGN — mon coup créé s'il
- *       n'existe pas, identique ignoré, différent = conflit (gardé, sauf « Remplacer » coché : l'ancien
- *       part à la corbeille) ; les coups adverses sont notés comme réponses connues.
+ *   Fusion (analysisMergePlan, fonction pure) : mon coup créé s'il n'existe pas, identique ignoré, différent =
+ *       remplacement (l'ancien part à la corbeille, avec la suite devenue inaccessible si « Avec sa suite » est
+ *       cochée), sauf « Remplacer » décoché dans l'aperçu (conflit : mon coup est gardé et la ligne s'arrête) ; les
+ *       coups adverses sont notés comme réponses connues.
  */
 
 'use strict';
@@ -35,7 +42,8 @@ const analysis = {
     paused: false,        // « Arrêter » : calcul suspendu sur la position affichée seulement ; la suivante le relance
     retries: 0,           // nouveaux essais d'un calcul annulé par le moteur (Worker mort, erreur), sur la même position
     bar: null,            // dernière ligne montrée par la barre d'évaluation, gardée le temps du calcul suivant
-    merge: null,          // aperçu ouvert : { all, replace: Set(clés), focus: clé du conflit choisi dans l'arbre }
+    merge: null,          // aperçu ouvert : { all, keep: Set(clés où mon coup enregistré est gardé), cascade, focus }
+    intro: false,         // consigne d'ouverture gardée en sous-titre jusqu'au premier coup ou déplacement
     merging: false,       // fusion confirmée, écriture en cours (aria-busy)
     lastMerge: null,      // dernière fusion : { added: [clés], opp: [[clé, uci]], noUndo, replacedSans }
     resumed: false,       // brouillon de la session repris à l'ouverture (bandeau jusqu'au premier coup)
@@ -49,14 +57,36 @@ const _anRoot = () => analysis.start ? Chess.fromFen(analysis.start) : Chess.sta
 // Demi-coups avant le premier coup du brouillon (1 quand les Noirs ont le trait au départ) : numérotation des coups.
 const _anPly0 = () => analysis.start && analysis.start.split(/\s+/)[1] === 'b' ? 1 : 0;
 
+// Ajoute une ligne au brouillon. À mon trait, le coup de la ligne devient la seule réponse de la position, ici et
+// partout où elle revient (transposition) : les autres partent avec leur suite. Renvoie les coups remplacés (SAN).
 function _anInsert(path) {
     let node = analysis.tree, pos = _anRoot();
+    const mine = new Map(), gone = [];
     path.forEach(uci => {
+        if (pos.turn === analysis.color) mine.set(Chess.key(pos), uci);
         let kid = node.kids.find(k => k.uci === uci);
         if (!kid) { kid = { uci, san: Chess.san(pos, uci), kids: [] }; node.kids.push(kid); }
         pos = Chess.play(pos, uci);
         node = kid;
     });
+    _anUnique(mine, gone);
+    return gone;
+}
+
+// Un seul coup à moi par position dans tout l'arbre : celui de `mine` (clé → uci) s'il est donné, sinon le premier
+// rencontré (brouillon repris d'avant la règle). Les coups retirés vont dans `gone` (SAN).
+function _anUnique(mine = new Map(), gone = []) {
+    (function walk(node, pos) {
+        if (pos.turn === analysis.color && node.kids.length) {
+            const k = Chess.key(pos);
+            if (!mine.has(k)) mine.set(k, node.kids[0].uci);
+            const keep = node.kids.filter(c => c.uci === mine.get(k));
+            node.kids.forEach(c => { if (!keep.includes(c)) gone.push(c.san); });
+            node.kids = keep;
+        }
+        node.kids.forEach(c => walk(c, Chess.play(pos, c.uci)));
+    })(analysis.tree, _anRoot());
+    return gone;
 }
 
 // Toutes les lignes complètes du brouillon (de la racine à chaque feuille).
@@ -106,10 +136,12 @@ function openAnalysis(path, displayPly, back, fen) {
         && draft.tree && draft.tree.kids.length;
     if (resume) {
         analysis.tree = draft.tree;
+        _anUnique();
         if (!path.length && Array.isArray(draft.line)) { path = draft.line; displayPly = path.length - 1; }
     }
     analysis.dirty = !!resume;
     analysis.resumed = !!resume;
+    analysis.intro = true;
     _anInsert(path);
     gameMode = 'analysis';
     loadDB();
@@ -119,9 +151,6 @@ function openAnalysis(path, displayPly, back, fen) {
     analysis.running = appSettings.engineAuto;
     analysis.paused = false;
     _anScreenClass(true);
-    setStatus('Analyse', 'info', analysis.back ? 'Jouez librement : rien n’est enregistré sans « Ajouter au répertoire ». Quitter (Q) reprend l’entraînement.'
-        : resume ? 'Brouillon de cette session repris. Rien n’est enregistré tant que vous n’ajoutez pas au répertoire.'
-        : 'Jouez librement les deux camps : rien n’est enregistré tant que vous n’ajoutez pas au répertoire.');
     analysisPositionChanged();
 }
 
@@ -172,9 +201,11 @@ function discardAnalysis() {
 
 // Appelé par executePlayerMove (boardLogic.js) : les deux camps sont libres, rien n'est vérifié.
 function analysisMove(from, to, promo) {
-    const san = toAlgebraic(from, to, promo);
+    const san = toAlgebraic(from, to, promo), side = turn;
     _commitMove(from, to, promo, null, `Analyse : ${formatSanText(san, turn)}`, 'info', '');
-    _anInsert(_anLine());
+    const gone = _anInsert(_anLine());
+    analysis.swap = gone.length ? { san, side, gone, at: _anLine().join(',') } : null;
+    analysis.intro = false;
     analysis.dirty = true;
     analysis.lastMerge = null;
     analysis.resumed = false;
@@ -185,6 +216,7 @@ function analysisMove(from, to, promo) {
 
 function analysisGo(arg) {
     const path = arg ? arg.split(',') : [];
+    analysis.intro = false;
     loadPositionFromPath(path, { fen: analysis.start });
     analysisPositionChanged();
 }
@@ -194,13 +226,28 @@ function analysisUseLine(i) {
     const l = analysis.lines[Number(i)];
     if (!l) return;
     const base = _displayedPath();
-    _anInsert(base.concat(l.pv.slice(0, 12)));
+    const gone = _anInsert(base.concat(l.pv.slice(0, 12)));
     analysis.dirty = true;
     analysis.resumed = false;
     analysis.lastMerge = null;
     _anSaveDraft();
     renderAnalysisPanel();
-    setStatus('Ligne ajoutée au brouillon', 'info', 'Elle apparaît dans l’arbre de l’analyse ; rien n’est encore au répertoire.');
+    setStatus('Ligne ajoutée au brouillon', 'info', gone.length
+        ? `Elle remplace ${gone.map(x => formatSanText(x, analysis.color)).join(', ')} dans le brouillon : une seule réponse par position.`
+        : 'Elle apparaît dans l’arbre de l’analyse ; rien n’est encore au répertoire.');
+}
+
+// « Corriger » (crayon, comme dans Jouer et en séance) : retour à la position d'avant mon dernier coup affiché ;
+// le prochain coup joué le remplace (dans le brouillon, puis au répertoire par « Ajouter »).
+function analysisEditMove() {
+    const path = _displayedPath();
+    let pos = _anRoot(), last = -1;
+    path.forEach((u, i) => { if (pos.turn === analysis.color) last = i; pos = Chess.play(pos, u); });
+    if (last < 0) { setStatus('Aucun de vos coups à corriger', 'info', 'Jouez d’abord un coup de votre camp sur l’échiquier.'); return; }
+    const before = Chess.replay(path.slice(0, last), analysis.start ? Chess.fromFen(analysis.start) : undefined);
+    const san = Chess.san(before, path[last]);
+    analysisGo(path.slice(0, last).join(','));
+    setStatus(`Corriger ${formatSanText(san, analysis.color)}`, 'new', 'Jouez le coup qui le remplacera : sa suite quitte le brouillon, « Ajouter » l’enregistre au répertoire.');
 }
 
 function analysisPlayLine(i) {
@@ -274,6 +321,7 @@ function analysisPositionChanged() {
         if (analysis.running) analysis.wait = setTimeout(() => _anLaunch(fen), AN_SETTLE_MS);
         _anCloud(fen);
     }
+    _anRepStatus();
     renderAnalysisPanel();
 }
 
@@ -352,11 +400,70 @@ function _anPvText(pv, max = 10, html = false) {
 }
 
 // Flèches des meilleurs coups (annotations.js), sur la position affichée.
+// Flèches : à mon trait, mon coup enregistré en laiton (on voit ce que l'on remplacerait) ; puis les meilleurs coups
+// du moteur, sans celui qui recouvrirait la flèche laiton.
 function analysisArrowList() {
-    if (gameMode !== 'analysis' || !appSettings.engineArrows) return [];
+    if (gameMode !== 'analysis') return [];
+    const out = [], mine = _anStoredHere();
+    if (mine) out.push({ from: squareToIdx(mine.slice(0, 2)), to: squareToIdx(mine.slice(2, 4)), color: 'gold' });
+    if (!appSettings.engineArrows) return out;
     const { lines } = _anShownLines();
-    return lines.slice(0, appSettings.engineArrows).filter(l => l.pv && l.pv[0])
-        .map((l, i) => ({ from: squareToIdx(l.pv[0].slice(0, 2)), to: squareToIdx(l.pv[0].slice(2, 4)), color: i ? 'blue' : 'accent' }));
+    lines.slice(0, appSettings.engineArrows).filter(l => l.pv && l.pv[0] && l.pv[0].slice(0, 4) !== (mine || '').slice(0, 4))
+        .forEach((l, i) => out.push({ from: squareToIdx(l.pv[0].slice(0, 2)), to: squareToIdx(l.pv[0].slice(2, 4)), color: i ? 'blue' : 'accent' }));
+    return out;
+}
+
+// Mon coup enregistré dans la position affichée (UCI), à mon trait et depuis le début seulement.
+function _anStoredHere() {
+    if (analysis.start || typeof openingDB === 'undefined' || (typeof WhatIf !== 'undefined' && WhatIf.active())) return null;   // « Et si » : rien ne souffle
+    const pos = Chess.replay(_displayedPath());
+    if (pos.turn !== analysis.color) return null;
+    const e = openingDB[Chess.key(pos)];
+    return e ? e.move : null;
+}
+
+// ─── DANS LE RÉPERTOIRE OU HORS ───────────────────────────────────────────────
+// Une ligne est dans le répertoire tant que chacun de mes coups est ma réponse enregistrée et que chaque coup adverse
+// est connu (il mène à une position où j'ai une réponse, ou il est repéré dans oppSeen). Fonction pure sur db / opp.
+// Renvoie { out: indice du premier coup hors répertoire, ou -1 }.
+function analysisRepState(path, color, db, opp = {}) {
+    let pos = Chess.start();
+    for (let i = 0; i < path.length; i++) {
+        const k = Chess.key(pos), uci = path[i];
+        if (pos.turn === color) {
+            if (!db[k] || db[k].move !== uci) return { out: i };
+            pos = Chess.play(pos, uci);
+        } else {
+            const next = Chess.play(pos, uci);
+            if (!db[Chess.key(next)] && !(opp[k] || []).includes(uci)) return { out: i };
+            pos = next;
+        }
+    }
+    return { out: -1 };
+}
+
+const _anRepState = path => analysisRepState(path, analysis.color, openingDB, typeof oppSeen !== 'undefined' ? oppSeen : {});
+
+// « 6. Fc4 » / « 6… e5 » : numéro et coup d'un demi-coup de la ligne.
+function _anPlyText(path, i) {
+    const san = _pathToSans(path.slice(0, i + 1))[i], side = i % 2 ? 'b' : 'w', n = Math.floor(i / 2) + 1;
+    return `${n}${side === 'w' ? '.' : '…'} ${formatSanText(san, side)}`;
+}
+
+// Titre de la barre d'état : dans le répertoire ou hors répertoire depuis tel coup ; en sous-titre, la consigne
+// d'ouverture, le coup remplacé dans le brouillon, ou mon coup enregistré ici.
+function _anRepStatus() {
+    if (gameMode !== 'analysis' || analysis.merge || analysis.start || (typeof WhatIf !== 'undefined' && WhatIf.active())) return;
+    const path = _displayedPath(), st = _anRepState(path), mine = _anStoredHere();
+    const sw = analysis.swap && analysis.swap.at === path.join(',') ? analysis.swap : null;   // seulement sur le coup joué
+    const title = st.out < 0 ? 'Dans le répertoire' : `Hors répertoire depuis ${_anPlyText(path, st.out)}`;
+    const detail = analysis.intro ? (analysis.back ? 'Jouez librement : rien n’est enregistré sans « Ajouter au répertoire ». Quitter (Q) reprend l’entraînement.'
+                                    : 'Jouez librement les deux camps : rien n’est enregistré tant que vous n’ajoutez pas au répertoire.')
+        : sw ? `${formatSanText(sw.san, sw.side)} remplace ${sw.gone.map(x => formatSanText(x, sw.side)).join(', ')} dans le brouillon : une seule réponse par position.`
+        : mine && st.out < 0 ? `Votre coup ici : ${formatSanText(Chess.san(Chess.replay(path), mine), analysis.color)} (flèche laiton).`
+        : mine ? `Votre coup enregistré ici : ${formatSanText(Chess.san(Chess.replay(path), mine), analysis.color)} (flèche laiton) ; en jouer un autre le remplacera.`
+        : st.out >= 0 ? '« Ajouter au répertoire » enregistre vos coups de cette ligne.' : '';
+    setStatus(title, st.out < 0 ? 'info' : 'new', detail);
 }
 
 // ─── PANNEAU ──────────────────────────────────────────────────────────────────
@@ -370,6 +477,7 @@ function renderAnalysisPanel() {
     if (analysis.merge) {
         box.innerHTML = _anPreviewHTML();
         _anFocusConflict(box);
+        Bus.emit('ui:refresh');                                     // l'action du milieu devient la confirmation
         return;
     }
     const wi = typeof WhatIf !== 'undefined' && WhatIf.active();
@@ -481,15 +589,15 @@ function _anPaintEvalBar(l) {
 
 // ─── BROUILLON ANNOTÉ ─────────────────────────────────────────────────────────
 
-const AN_MARK_LABELS = { new: 'nouveau', same: 'déjà connu', conflict: 'conflit', replace: 'remplace' };
+const AN_MARK_LABELS = { new: 'nouveau', same: 'déjà connu', replace: 'remplace', conflict: 'gardé' };
 const AN_MARK_HINTS  = { new: 'nouveau coup, ajouté à la fusion', same: 'déjà au répertoire, identique',
-                         conflict: 'conflit : votre coup enregistré est gardé', replace: 'conflit : remplacera votre coup enregistré' };
+                         conflict: 'votre coup enregistré est gardé, ce coup ne sera pas ajouté', replace: 'remplacera votre coup enregistré' };
 
 // Marques du brouillon (fonction pure, sur le plan de fusion) : chemin UCI joint par « , » → 'new' | 'same' |
-// 'conflict' | 'replace'. Seuls mes coups sont marqués : les coups adverses n'ouvrent que des branches. Un coup
+// 'replace' | 'conflict' (remplacement refusé dans l'aperçu). Seuls mes coups sont marqués : les coups adverses n'ouvrent que des branches. Un coup
 // au-delà d'un conflit gardé, ou différent de celui retenu pour sa position, n'est pas fusionné : il n'a pas de marque.
-function analysisMarks(lines, color, db, replace = new Set()) {
-    const byKey = new Map(analysisMergePlan(lines, color, db, replace).items.map(i => [i.key, i])), marks = {};
+function analysisMarks(lines, color, db, keep = new Set()) {
+    const byKey = new Map(analysisMergePlan(lines, color, db, keep).items.map(i => [i.key, i])), marks = {};
     lines.forEach(path => {
         let pos = Chess.start();
         for (let i = 0; i < path.length; i++) {
@@ -519,7 +627,7 @@ const _pl = (n, one, many) => `${n} ${n > 1 ? many : one}`;
 function _anFuseHTML(s) {
     const part = (n, mk, one, many, hint) => n ? `<span title="${hint}"><i class="ab-mk is-${mk}" aria-hidden="true"></i>${_pl(n, one, many)}</span>` : '';
     const html = [part(s.fresh, 'new', 'nouveau', 'nouveaux', 'Coups ajoutés'), part(s.replace, 'replace', 'remplacement', 'remplacements', 'Coups qui remplaceront les vôtres'),
-                  part(s.conflict, 'conflict', 'conflit', 'conflits', 'Conflits gardés'), part(s.same, 'same', 'connu', 'connus', 'Déjà au répertoire')].filter(Boolean).join('<span class="ab-sep" aria-hidden="true">·</span>');
+                  part(s.conflict, 'conflict', 'gardé', 'gardés', 'Vos coups enregistrés gardés : ces coups ne seront pas ajoutés'), part(s.same, 'same', 'connu', 'connus', 'Déjà au répertoire')].filter(Boolean).join('<span class="ab-sep" aria-hidden="true">·</span>');
     return `<p class="ab-fuse" aria-live="polite">${html || '<span>Aucun de vos coups à ajouter</span>'}${s.opp ? `<span class="ab-fuse-opp">+ ${_pl(s.opp, 'réponse adverse', 'réponses adverses')}</span>` : ''}</p>`;
 }
 
@@ -527,9 +635,12 @@ function _anFuseHTML(s) {
 // conflit à examiner.
 function _anAddHTML(s) {
     const empty = !s.writes && !s.conflict;
-    const title = empty ? 'Rien à ajouter' : s.writes ? `Voir l’aperçu : ${_pl(s.writes, 'coup', 'coups')} à ajouter` : `Voir l’aperçu : ${_pl(s.conflict, 'conflit', 'conflits')} à examiner`;
-    return `<button type="button" class="btn btn-primary ab-add" data-action="analysisOpenMerge" title="${title}"${empty ? ' disabled' : ''}>${ico('git-merge')}<span>Ajouter au répertoire</span>${s.writes ? `<span class="ab-count" aria-label="${_pl(s.writes, 'coup', 'coups')}">${s.writes}</span>` : ''}</button>`;
+    const title = empty ? 'Rien à ajouter' : s.writes ? `Voir l’aperçu : ${_pl(s.writes, 'coup', 'coups')} à enregistrer` : `Voir l’aperçu : ${_pl(s.conflict, 'coup gardé', 'coups gardés')}`;
+    return `<button type="button" class="btn btn-primary ab-add" data-action="analysisOpenMerge" title="${title}"${empty ? ' disabled' : ''}>${ico('git-merge')}<span>${_anVerb(s)} au répertoire</span>${s.writes ? `<span class="ab-count" aria-label="${_pl(s.writes, 'coup', 'coups')}">${s.writes}</span>` : ''}</button>`;
 }
+
+// Verbe des boutons : « Remplacer » quand le plan ne fait que remplacer, sinon « Ajouter ».
+const _anVerb = s => s.replace && !s.fresh ? 'Remplacer' : 'Ajouter';
 
 const _anLegendHTML = () => `<div class="ab-legend" aria-hidden="true">${Object.entries(AN_MARK_LABELS).map(([k, v]) => `<span><i class="ab-mk is-${k}"></i>${v}</span>`).join('')}</div>`;
 
@@ -538,12 +649,15 @@ function _anDraftHTML() {
     const leaves = _anLeaves(), n = _anCount();
     const marks = analysisMarks(leaves, analysis.color, openingDB);
     const sum = analysisPlanSummary(analysisMergePlan(leaves, analysis.color, openingDB), typeof oppSeen !== 'undefined' ? oppSeen : {});
-    const tree = _anTreeHTML(marks);
+    const tree = _anTreeHTML(marks, _anOutMap());
+    const here = _displayedPath(), st = _anRepState(here);
+    const badge = st.out < 0 ? '<span class="vbadge is-brass">Dans le répertoire</span>'
+                             : `<span class="vbadge is-muted is-dashed" title="Hors répertoire depuis ${escapeHtml(_anPlyText(here, st.out))}">Hors répertoire · ${escapeHtml(_anPlyText(here, st.out))}</span>`;
     // Les coups déjà dessinés ne repassent pas en fondu.
     const paths = []; (function walk(nd, p) { nd.kids.forEach(k => { const q = p.concat(k.uci); paths.push(q.join(',')); walk(k, q); }); })(analysis.tree, []);
     analysis.seen = new Set(paths);
     return `${_anToastHTML()}<div class="ab-card ab-draft">
-        <div class="ab-h"><b>Brouillon</b><span class="vbadge is-muted is-dashed">hors répertoire</span><small>${_pl(n, 'coup', 'coups')}</small>
+        <div class="ab-h"><b>Brouillon</b>${badge}<small>${_pl(n, 'coup', 'coups')}</small>
             ${n ? `<button type="button" class="ab-ghost" data-action="discardAnalysis" title="Effacer le brouillon et revenir à Jouer">${ico('trash')}<span>Abandonner</span></button>` : ''}</div>
         <div class="ab-tree" id="an-moves">${tree}</div>
         ${n ? `${_anFuseHTML(sum)}${_anLegendHTML()}` : '<p class="ab-empty">Jouez les deux camps sur l’échiquier, ou recopiez une ligne du moteur avec « + ».</p>'}
@@ -558,7 +672,7 @@ function _anSetupDraftHTML() {
     return `<div class="ab-card ab-draft">
         <div class="ab-h"><b>Brouillon</b><span class="vbadge is-muted is-dashed">position posée</span><small>${_pl(n, 'coup', 'coups')}</small>
             ${n ? `<button type="button" class="ab-ghost" data-action="discardAnalysis" title="Effacer le brouillon">${ico('trash')}<span>Abandonner</span></button>` : ''}</div>
-        <div class="ab-tree" id="an-moves">${_anTreeHTML({})}</div>
+        <div class="ab-tree" id="an-moves">${_anTreeHTML({}, new Map())}</div>
         <p class="ab-empty ab-setup-note">Ligne jouée depuis une position posée : elle ne peut pas rejoindre le répertoire, qui part du début.</p>
         <button type="button" class="btn btn-soft ab-setup-edit" data-action="analysisEditSetup">${ico('pencil')}<span>Modifier la position</span></button></div>`;
 }
@@ -578,17 +692,33 @@ function _anToastHTML() {
     return '';
 }
 
-// Arbre du brouillon en notation : ligne principale, variantes entre parenthèses ; position affichée surlignée.
-function _anTreeHTML(marks = {}) {
+// Coups du brouillon hors répertoire : chemin joint par « , » → 'exit' (le premier de sa ligne) ou 'out'.
+function _anOutMap() {
+    const out = new Map(), db = openingDB, opp = typeof oppSeen !== 'undefined' ? oppSeen : {};
+    (function walk(node, pos, path, gone) {
+        node.kids.forEach(c => {
+            const p = path.concat(c.uci), k = Chess.key(pos), next = Chess.play(pos, c.uci);
+            const inside = !gone && (pos.turn === analysis.color ? !!db[k] && db[k].move === c.uci
+                                                                  : !!db[Chess.key(next)] || (opp[k] || []).includes(c.uci));
+            if (!inside) out.set(p.join(','), gone ? 'out' : 'exit');
+            walk(c, next, p, gone || !inside);
+        });
+    })(analysis.tree, Chess.start(), [], false);
+    return out;
+}
+
+// Arbre du brouillon en notation : ligne principale, branches adverses entre parenthèses ; position affichée surlignée ;
+// coups hors répertoire en pointillé (outs : _anOutMap).
+function _anTreeHTML(marks = {}, outs = new Map()) {
     const cur = _displayedPath().join(','), out = [];
     function line(node, path, ply, forceNum) {
         let kids = node.kids, first = true;
         while (kids.length) {
             const [main, ...alts] = kids;
-            out.push(_anMoveHTML(main, path.concat(main.uci), ply, first || forceNum, cur, marks));
+            out.push(_anMoveHTML(main, path.concat(main.uci), ply, first || forceNum, cur, marks, outs));
             alts.forEach(a => {
                 out.push('<span class="ab-var">(');
-                out.push(_anMoveHTML(a, path.concat(a.uci), ply, true, cur, marks));
+                out.push(_anMoveHTML(a, path.concat(a.uci), ply, true, cur, marks, outs));
                 line(a, path.concat(a.uci), ply + 1, false);
                 out.push(')</span>');
             });
@@ -601,26 +731,28 @@ function _anTreeHTML(marks = {}) {
     return out.join(' ').replace(/\( </g, '(<').replace(/ \)<\/span>/g, ')</span>') || '<span class="ab-empty">Aucun coup</span>';
 }
 
-function _anMoveHTML(node, path, ply, num, cur, marks = {}) {
+function _anMoveHTML(node, path, ply, num, cur, marks = {}, outs = new Map()) {
     const side = ply % 2 === 0 ? 'w' : 'b', n = Math.floor(ply / 2) + 1;
     const pre = side === 'w' ? `${n}.` : num ? `${n}…` : '';
     const p = path.join(','), mk = marks[p];
     const fresh = analysis.seen && !analysis.seen.has(p);
-    const cls = `ab-mv${p === cur ? ' is-cur' : ''}${side === analysis.color ? '' : ' is-opp'}${fresh ? ' is-fresh' : ''}`;
-    const label = `${pre ? pre + ' ' : ''}${formatSanText(node.san, side)}${mk ? `, ${AN_MARK_HINTS[mk]}` : ''}`;
-    const btn = `<button type="button" class="${cls}" data-action="analysisGo" data-arg="${p}" aria-label="${escapeHtml(label)}"${p === cur ? ' aria-current="true"' : ''}>${pre ? `<span class="ab-n">${pre}</span>` : ''}${formatSan(node.san, side)}${mk && mk !== 'conflict' ? `<i class="ab-mk is-${mk}" aria-hidden="true"></i>` : ''}</button>`;
-    if (mk !== 'conflict') return btn;
-    // Losange ambre : un toucher ouvre l'aperçu de fusion sur ce conflit.
+    const o = outs.get(p);
+    const cls = `ab-mv${p === cur ? ' is-cur' : ''}${side === analysis.color ? '' : ' is-opp'}${fresh ? ' is-fresh' : ''}${o ? ' is-out' : ''}${o === 'exit' ? ' is-exit' : ''}`;
+    const label = `${pre ? pre + ' ' : ''}${formatSanText(node.san, side)}${mk ? `, ${AN_MARK_HINTS[mk]}` : ''}${o === 'exit' ? ', sortie du répertoire' : ''}`;
+    const btn = `<button type="button" class="${cls}" data-action="analysisGo" data-arg="${p}" aria-label="${escapeHtml(label)}"${p === cur ? ' aria-current="true"' : ''}>${pre ? `<span class="ab-n">${pre}</span>` : ''}${formatSan(node.san, side)}${mk && mk !== 'conflict' && mk !== 'replace' ? `<i class="ab-mk is-${mk}" aria-hidden="true"></i>` : ''}</button>`;
+    if (mk !== 'conflict' && mk !== 'replace') return btn;
+    // Losange (rouge : remplace, ambre : gardé) : un toucher ouvre l'aperçu de fusion sur ce coup.
     const key = Chess.key(Chess.replay(path.slice(0, -1)));
-    return `<span class="ab-mvw">${btn}<button type="button" class="ab-mk-btn" data-action="analysisOpenConflict" data-arg="${escapeHtml(key)}" title="Conflit avec votre coup enregistré : voir l’aperçu" aria-label="Conflit sur ${escapeHtml(formatSanText(node.san, side))} : ouvrir l’aperçu de fusion"><i class="ab-mk is-conflict" aria-hidden="true"></i></button></span>`;
+    const what = mk === 'replace' ? 'Remplace votre coup enregistré' : 'Votre coup enregistré est gardé';
+    return `<span class="ab-mvw">${btn}<button type="button" class="ab-mk-btn" data-action="analysisOpenConflict" data-arg="${escapeHtml(key)}" title="${what} : voir l’aperçu" aria-label="${what} (${escapeHtml(formatSanText(node.san, side))}) : ouvrir l’aperçu de fusion"><i class="ab-mk is-${mk}" aria-hidden="true"></i></button></span>`;
 }
 
 // ─── FUSION DANS LE RÉPERTOIRE ────────────────────────────────────────────────
 
 // Plan de fusion (fonction pure) : lignes = chemins UCI depuis le début ; color = mon camp ; db = base visée.
-// replace : Set des positions où un conflit doit remplacer l'ancien coup.
+// keep : Set des positions où mon coup enregistré est gardé (« Remplacer » décoché) ; ailleurs, un coup différent le remplace.
 // Renvoie { items: [{ key, uci, san, path, status: 'new' | 'same' | 'conflict' | 'replace', keptSan }], opp: [[clé, uci]] }.
-function analysisMergePlan(lines, color, db, replace = new Set()) {
+function analysisMergePlan(lines, color, db, keep = new Set()) {
     const items = new Map(), opp = new Map();
     lines.forEach(path => {
         let pos = Chess.start();
@@ -628,7 +760,7 @@ function analysisMergePlan(lines, color, db, replace = new Set()) {
             const uci = path[i], key = Chess.key(pos);
             if (pos.turn === color) {
                 const e = db[key], san = Chess.san(pos, uci);
-                const status = !e ? 'new' : e.move === uci ? 'same' : replace.has(key) ? 'replace' : 'conflict';
+                const status = !e ? 'new' : e.move === uci ? 'same' : keep.has(key) ? 'conflict' : 'replace';
                 if (!items.has(key)) items.set(key, { key, uci, san, path: path.slice(0, i + 1), status, keptSan: e ? e.san : null });
                 const planned = items.get(key);
                 if (planned.uci !== uci || status === 'conflict') break;     // la suite dépend d'un autre coup que celui retenu
@@ -640,7 +772,19 @@ function analysisMergePlan(lines, color, db, replace = new Set()) {
 }
 
 const _anPlan = () => analysisMergePlan(analysis.merge && !analysis.merge.all ? [_anLine()] : _anLeaves(), analysis.color, openingDB,
-                                        analysis.merge ? analysis.merge.replace : new Set());
+                                        analysis.merge ? analysis.merge.keep : new Set());
+
+// Coups du répertoire devenus inaccessibles une fois le plan écrit (suite d'un coup remplacé) : mis à la corbeille avec
+// lui seulement si « Avec sa suite » est coché (décoché par défaut : elle peut compter des centaines de coups ; Jouer
+// pose la même question).
+function _anOrphans(plan) {
+    const todo = plan.items.filter(i => i.status === 'new' || i.status === 'replace');
+    if (!todo.some(i => i.status === 'replace') || typeof _reachableKeys !== 'function') return [];
+    const ctx = { cache: new Map(), roots: null }, before = _reachableKeys(ctx, openingDB), hypo = Object.assign({}, openingDB);
+    todo.forEach(i => { hypo[i.key] = Object.assign({}, openingDB[i.key] || {}, { move: i.uci }); });
+    const after = _reachableKeys(ctx, hypo), mine = new Set(todo.map(i => i.key));
+    return [...before].filter(k => !after.has(k) && !mine.has(k));
+}
 
 // Fin d'une ligne en notation (HTML) : « … 6. Fe3 e5 7. Cb3 <b>Fe6</b> », mon coup en gras.
 function _anTailHTML(path, keep = 4) {
@@ -671,6 +815,7 @@ function _anPreviewHTML() {
     };
     const rows = plan.items.filter(i => i.status !== 'same');
     const gone = plan.items.filter(i => i.status === 'replace').map(i => formatSan(i.keptSan, analysis.color));
+    const orphans = _anOrphans(plan);
     const cell = (n, label, cls = '') => `<div><b class="${cls}">${n}</b><small>${label}</small></div>`;
     const busy = analysis.merging;
     return `<div class="ab-card ab-preview" role="region" aria-label="Aperçu de fusion">
@@ -679,13 +824,14 @@ function _anPreviewHTML() {
         <div class="ab-seg" role="radiogroup" aria-label="Lignes à fusionner">
             <button type="button" role="radio" aria-checked="${!m.all}" class="${m.all ? '' : 'is-on'}" data-action="analysisMergeScope" data-arg="line">Ligne affichée</button>
             <button type="button" role="radio" aria-checked="${m.all}" class="${m.all ? 'is-on' : ''}" data-action="analysisMergeScope" data-arg="all">Toutes les branches</button></div>
-        <div class="ab-sum">${cell(s.fresh, _pl(s.fresh, 'nouveau', 'nouveaux').replace(/^\d+ /, ''), 'is-new')}${s.replace ? cell(s.replace, 'remplace', 'is-err') : cell(s.conflict, s.conflict > 1 ? 'conflits' : 'conflit', 'is-warn')}${cell(s.same, s.same > 1 ? 'connus' : 'connu')}${cell(s.opp, s.opp > 1 ? 'adverses' : 'adverse', 'is-muted')}</div>
+        <div class="ab-sum">${cell(s.fresh, _pl(s.fresh, 'nouveau', 'nouveaux').replace(/^\d+ /, ''), 'is-new')}${s.replace ? cell(s.replace, 'remplace', 'is-err') : cell(s.conflict, s.conflict > 1 ? 'gardés' : 'gardé', 'is-warn')}${cell(s.same, s.same > 1 ? 'connus' : 'connu')}${cell(s.opp, s.opp > 1 ? 'adverses' : 'adverse', 'is-muted')}</div>
         <ul class="ab-plan">${rows.map(row).join('') || '<li class="ab-plan-empty">Rien de nouveau : vos coups de ces lignes sont déjà au répertoire.</li>'}</ul>
         <p class="ab-note">${gone.length ? `${ico('trash')}<span>${gone.join(', ')} ira à la corbeille (30 jours).</span>`
-                                         : '<span>Un conflit garde votre coup actuel et arrête la ligne, sauf si vous choisissez « Remplacer ».</span>'}</p>
+                                         : s.conflict ? '<span>Un coup gardé arrête la ligne : recochez « Remplacer » pour l’enregistrer.</span>' : ''}</p>
+        ${orphans.length ? `<label class="ab-switch ab-cascade"><input type="checkbox" role="switch" data-action="analysisToggleCascade"${m.cascade ? ' checked' : ''}><span class="ab-sw" aria-hidden="true"></span>Avec sa suite : ${_pl(orphans.length, 'coup qui n’est plus jouable', 'coups qui ne sont plus jouables')}</label>` : ''}
         <div class="ab-actions">
             <button type="button" class="btn" data-action="analysisCloseMerge">Retour</button>
-            <button type="button" class="btn btn-primary ab-confirm" id="an-confirm" data-action="analysisConfirmMerge"${s.writes && !busy ? '' : ' disabled'}${busy ? ' aria-busy="true"' : ''}${s.writes ? '' : ' title="Rien à ajouter"'}>${ico('check')}<span>Ajouter ${_pl(s.writes, 'coup', 'coups')}</span></button></div></div>`;
+            <button type="button" class="btn btn-primary ab-confirm" id="an-confirm" data-action="analysisConfirmMerge"${s.writes && !busy ? '' : ' disabled'}${busy ? ' aria-busy="true"' : ''}${s.writes ? '' : ' title="Rien à ajouter"'}>${ico('check')}<span>${_anVerb(s)} ${_pl(s.writes, 'coup', 'coups')}</span></button></div></div>`;
 }
 
 // Conflit choisi depuis l'arbre : sa ligne est surlignée et son interrupteur reçoit le focus.
@@ -700,7 +846,7 @@ function _anFocusConflict(box) {
 }
 
 function analysisOpenMerge(focus) {
-    analysis.merge = { all: true, replace: new Set(), focus: focus || null };
+    analysis.merge = { all: true, keep: new Set(), cascade: false, focus: focus || null };
     if (typeof setSheetOpen === 'function') setSheetOpen(true);
     setStatus('Aperçu de fusion', 'new', 'Rien n’est écrit avant la confirmation.');
     renderAnalysisPanel();
@@ -709,7 +855,7 @@ function analysisOpenMerge(focus) {
 function analysisCloseMerge() {
     analysis.merge = null;
     if (typeof setSheetOpen === 'function') setSheetOpen(false);
-    setStatus('Analyse', 'info', 'Jouez librement les deux camps : rien n’est enregistré tant que vous n’ajoutez pas au répertoire.');
+    _anRepStatus();
     renderAnalysisPanel();
 }
 
@@ -723,17 +869,19 @@ function analysisConfirmMerge() {
     if (btn) { btn.setAttribute('aria-busy', 'true'); btn.disabled = true; }
     const box = document.getElementById('analysis-panel');
     if (box) box.setAttribute('aria-busy', 'true');
-    setTimeout(() => { analysis.merging = false; _anWrite(plan); }, 0);
+    const orphans = analysis.merge.cascade ? _anOrphans(plan) : [];
+    setTimeout(() => { analysis.merging = false; _anWrite(plan, orphans); }, 0);
 }
 
-function _anWrite(plan) {
+function _anWrite(plan, orphans = []) {
     const added = [], todo = plan.items.filter(i => i.status === 'new' || i.status === 'replace');
     const replacedItems = todo.filter(i => i.status === 'replace'), replaced = replacedItems.map(i => i.key);
-    if (replaced.length && !trashEntries(replaced, 'remplacé depuis l’Analyse')) {
+    if (replaced.length && !trashEntries(replaced.concat(orphans), 'remplacé depuis l’Analyse')) {
         setStatus('Fusion impossible', 'err', 'La corbeille n’a pas pu accueillir les coups remplacés : rien n’a été modifié.');
         renderAnalysisPanel();
         return;
     }
+    orphans.forEach(k => { delete openingDB[k]; });
     todo.forEach(i => { openingDB[i.key] = newEntry(i.uci, i.san, i.path); added.push(i.key); });
     const oppAdded = plan.opp.filter(([k, u]) => recordOppReply(k, u));
     saveDB();
@@ -746,8 +894,8 @@ function _anWrite(plan) {
     analysis.resumed = false;
     _anClearDraft();
     if (typeof setSheetOpen === 'function') setSheetOpen(false);
-    setStatus(`${_pl(added.length, 'coup ajouté', 'coups ajoutés')} au répertoire`, 'new',
-        'À réviser dès la prochaine séance d’Entraînement.' + (replaced.length ? ' Les coups remplacés sont dans la corbeille.' : ''));
+    setStatus(`${_pl(added.length, 'coup enregistré', 'coups enregistrés')} au répertoire`, 'new',
+        'À réviser dès la prochaine séance d’Entraînement.' + (replaced.length ? ` Les coups remplacés${orphans.length ? ' et leur suite' : ''} sont dans la corbeille.` : ''));
     renderAnalysisPanel();
 }
 
@@ -767,18 +915,19 @@ function analysisUndoMerge() {
 }
 
 registerActions({
-    analysisGo, analysisUseLine, analysisPlayLine, analysisToggleEngine, discardAnalysis, analysisConfirmMerge, analysisUndoMerge,
+    analysisGo, analysisUseLine, analysisPlayLine, analysisEditMove, analysisToggleEngine, discardAnalysis, analysisConfirmMerge, analysisUndoMerge,
     analysisCloseMerge,
     analysisOpenMerge: () => analysisOpenMerge(),
     analysisOpenConflict: key => analysisOpenMerge(key),
     analysisMergeScope: arg => { if (analysis.merge) { analysis.merge.all = arg === 'all'; renderAnalysisPanel(); } },
     analysisToggleReplace: key => {
         if (!analysis.merge) return;
-        const r = analysis.merge.replace;
+        const r = analysis.merge.keep;
         if (r.has(key)) r.delete(key); else r.add(key);
         analysis.merge.focus = key;
         renderAnalysisPanel();
     },
+    analysisToggleCascade: () => { if (analysis.merge) { analysis.merge.cascade = !analysis.merge.cascade; renderAnalysisPanel(); } },
     analysisEngineSettings: () => { if (typeof showSettings === 'function') showSettings('moteur'); },
     analysisRetryEngine: () => { if (typeof Engine.reload === 'function') Engine.reload(); analysisSettingsChanged(); },
     analysisShowTrash: () => { if (typeof showTrash === 'function') showTrash(); }
@@ -803,11 +952,19 @@ GameModes.register('analysis', {
     onMove: (from, to, promo) => analysisMove(from, to, promo),      // brouillon : rien n'est vérifié ni enregistré
     onNavigate: () => analysisPositionChanged(),
     engineArrows: () => analysisArrowList(),
-    // Barre unique (R3) : au milieu, « Ajouter au répertoire » du brouillon (grisé quand rien n'est à ajouter).
+    // Barre unique (R3) : au milieu, « Ajouter (N) » du brouillon, puis dans l'aperçu la confirmation. Calculé sur le
+    // brouillon, jamais recopié d'un bouton du panneau (il disparaît quand l'aperçu s'ouvre).
     center: () => {
-        const add = document.querySelector('#analysis-panel .ab-add');
-        if (!add) return null;
-        const c = add.querySelector('.ab-count');
-        return { icon: 'git-merge', label: c ? `Ajouter (${c.textContent})` : 'Ajouter', soft: true, title: add.title || 'Ajouter au répertoire', disabled: add.disabled, run: () => add.click() };
+        if (analysis.start || (typeof WhatIf !== 'undefined' && WhatIf.active())) return null;
+        const opp = typeof oppSeen !== 'undefined' ? oppSeen : {};
+        if (analysis.merge) {
+            const s = analysisPlanSummary(_anPlan(), opp);
+            return { icon: 'check', label: `${_anVerb(s)} (${s.writes})`, title: s.writes ? `${_anVerb(s)} ${_pl(s.writes, 'coup', 'coups')} au répertoire` : 'Rien à ajouter',
+                     disabled: !s.writes || analysis.merging, run: analysisConfirmMerge };
+        }
+        const s = analysisPlanSummary(analysisMergePlan(_anLeaves(), analysis.color, openingDB), opp);
+        return { icon: 'git-merge', label: s.writes ? `${_anVerb(s)} (${s.writes})` : 'Ajouter', soft: true,
+                 title: s.writes ? `Voir l’aperçu : ${_pl(s.writes, 'coup', 'coups')} à enregistrer` : 'Rien à ajouter',
+                 disabled: !s.writes && !s.conflict, run: () => analysisOpenMerge() };
     }
 });

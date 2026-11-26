@@ -87,12 +87,12 @@ const finish = (pref, { erred = false, kind = null } = {}) => {
     return r;
 };
 
-t('fin d\'exercice « Après une erreur » : une réussite nette enchaîne (Rester ici possible), une erreur attend Suivant', () => {
-    let r = finish('error');
+t('fin d\'exercice « Après une réussite » : une réussite nette enchaîne (Rester ici possible), une erreur attend Suivant', () => {
+    let r = finish('clean');
     assert.strictEqual(r.timers, 1);
     assert.deepStrictEqual([...r.acts], ['Rester ici']);
     assert.strictEqual(r.pause.key, 'k1');
-    r = finish('error', { erred: true });
+    r = finish('clean', { erred: true });
     assert.strictEqual(r.timers, 0);
     assert.deepStrictEqual(r.acts, ['Suivant']);
 });
@@ -109,7 +109,7 @@ t('fin d\'exercice : « Toujours attendre », « Toujours enchaîner », et le c
 
 t('« Rester ici » annule l\'enchaînement et propose Suivant', () => {
     acts.length = 0;
-    ctx.appSettings.trainNext = 'error';
+    ctx.appSettings.trainNext = 'clean';
     trainingState.seq = { len: 1, done: 1, assisted: false };
     trainingState.drill = { erred: false, keys: ['k1'], answered: 'k1' };
     ctx._finishDrill();

@@ -75,7 +75,10 @@ const SYNCED_PREFS = {
     rhythm:     { ok: _oneOf(['soft', 'std', 'intense']), def: 'std' },
     freqWeight: { ok: _bool, def: true },
     trainSeen:  { ok: _bool, def: true },                                               // exercices limités aux positions vues en partie (hors Révision du jour)
-    trainNext:  { ok: _oneOf(['error', 'wait', 'auto']), def: 'error' },                // fin d'exercice : pause après une erreur, toujours, jamais
+    // Fin d'exercice (chantier « L'échiquier de Chays », 26 novembre 2026) : 'wait' attend toujours « Suivant » (défaut),
+    // 'clean' enchaîne après une réussite nette, 'auto' enchaîne toujours. L'ancien 'error' (l'ancien défaut, aussi écrit
+    // par l'interrupteur éteint) est lu 'wait' : l'interrupteur éteint enchaînait quand même après une réussite.
+    trainNext:  { ok: _oneOf(['wait', 'clean', 'auto']), def: 'wait', from: v => v === 'error' ? 'wait' : v },
     trainBites: { ok: _bool, def: true },                                               // séances en bouchées : pause toutes les 5 positions (training.js)
     notation:   { ok: _oneOf(['fr', 'en', 'fig']), def: 'fr' },
     backupReminder: { ok: _oneOf(['never', 'weekly', 'monthly']), def: 'weekly' },

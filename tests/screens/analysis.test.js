@@ -12,7 +12,7 @@ for (const f of [scriptPath('chessEngine.js'), scriptPath('modes.js'), scriptPat
     vm.runInContext(readVars(f), ctx, { filename: f });
 const run = s => vm.runInContext(s, ctx);
 const key = path => run(`Chess.key(Chess.replay(${JSON.stringify(path)}))`);
-const plan = (lines, color, db, replace = []) => run('(l, c, d, r) => analysisMergePlan(l, c, d, new Set(r))')(lines, color, db, replace);
+const plan = (lines, color, db, keep = []) => run('(l, c, d, r) => analysisMergePlan(l, c, d, new Set(r))')(lines, color, db, keep);
 
 const LINE = ['e2e4', 'c7c5', 'g1f3', 'd7d6', 'd2d4'];
 
@@ -24,17 +24,27 @@ t('fusion : mes coups nouveaux, coup déjà connu, coups adverses notés', () =>
     jeq(p.opp.map(o => o[1]), ['c7c5', 'd7d6']);
 });
 
-t('conflit : la réponse existante est gardée et la ligne s\'arrête', () => {
+t('coup différent du mien : il le remplace par défaut et la ligne continue (une seule réponse par position)', () => {
     const db = { [key([])]: { move: 'e2e4', san: 'e4' }, [key(['e2e4', 'c7c5'])]: { move: 'b1c3', san: 'Nc3' } };
     const p = plan([LINE], 'w', db);
-    jeq(p.items.map(i => i.san + ':' + i.status), ['e4:same', 'Nf3:conflict']);
+    jeq(p.items.map(i => i.san + ':' + i.status), ['e4:same', 'Nf3:replace', 'd4:new']);
     assert.strictEqual(p.items[1].keptSan, 'Nc3');
 });
 
-t('conflit avec « Remplacer » : la ligne continue', () => {
+t('« Remplacer » décoché : mon coup enregistré est gardé et la ligne s\'arrête', () => {
     const db = { [key(['e2e4', 'c7c5'])]: { move: 'b1c3', san: 'Nc3' } };
     const p = plan([LINE], 'w', db, [key(['e2e4', 'c7c5'])]);
-    jeq(p.items.map(i => i.san + ':' + i.status), ['e4:new', 'Nf3:replace', 'd4:new']);
+    jeq(p.items.map(i => i.san + ':' + i.status), ['e4:new', 'Nf3:conflict']);
+});
+
+t('dans le répertoire ou hors : premier coup qui n\'est pas le mien, ou coup adverse inconnu', () => {
+    const st = (path, db, opp) => run('(p, d, o) => analysisRepState(p, "w", d, o)')(path, db, opp || {});
+    const db = { [key([])]: { move: 'e2e4', san: 'e4' }, [key(['e2e4', 'c7c5'])]: { move: 'g1f3', san: 'Nf3' } };
+    assert.strictEqual(st(['e2e4', 'c7c5', 'g1f3'], db).out, -1, 'ma ligne : dans le répertoire');
+    assert.strictEqual(st(['e2e4', 'c7c5', 'b1c3'], db).out, 2, 'autre coup que le mien : sortie à ce coup');
+    assert.strictEqual(st(['e2e4', 'e7e5'], db).out, 1, 'coup adverse sans réponse : hors répertoire');
+    assert.strictEqual(st(['e2e4', 'e7e5'], db, { [key(['e2e4'])]: ['e7e5'] }).out, -1, 'coup adverse repéré : dans le répertoire');
+    assert.strictEqual(st([], db).out, -1);
 });
 
 t('toutes les branches : positions communes une seule fois, Noirs', () => {
@@ -63,7 +73,7 @@ function engineSim() {
     let fen = 'rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1';
     Object.assign(ctx, {
         gameMode: 'analysis', appSettings: { engineLines: 3, engineDepth: 30, engineTime: 0, cloudEval: false },
-        displayedFen: () => fen,
+        displayedFen: () => fen, _displayedPath: () => [], setStatus() {}, openingDB: {},
         setTimeout: fn => { timers.push(fn); return timers.length; }, clearTimeout: id => { if (id) timers[id - 1] = null; },
         document: { addEventListener() {}, getElementById: () => null, hidden: false }
     });

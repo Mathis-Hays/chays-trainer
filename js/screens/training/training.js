@@ -1180,8 +1180,8 @@ function _playOpponentReply(opp) {
 }
 
 // ─── FIN D'EXERCICE ───────────────────────────────────────────────────────────
-// Préférence trainNext : 'error' (défaut) enchaîne seul après une réussite nette et s'arrête après une erreur,
-// un indice ou la solution ; 'wait' s'arrête toujours ; 'auto' n'arrête jamais. Le contre-la-montre enchaîne toujours.
+// Préférence trainNext : 'wait' (défaut) s'arrête toujours ; 'clean' enchaîne seul après une réussite nette et s'arrête
+// après une erreur, un indice ou la solution ; 'auto' n'arrête jamais. Le contre-la-montre enchaîne toujours.
 // À l'arrêt : « Suivant » (barre d'état, Entrée, P, centre du dock), Analyser et Modifier le coup (outils du mode).
 const TRAIN_NEXT_MS = 1400;
 
@@ -1218,7 +1218,7 @@ function _holdChain() {
 // Enchaîne ou attend selon trainNext ; rappelée quand l'interrupteur « Enchaîner » change.
 function _afterDrill() {
     const pref = appSettings.trainNext;
-    if (pref === 'auto' || (pref === 'error' && !_drillSlipped())) {
+    if (pref === 'auto' || (pref === 'clean' && !_drillSlipped())) {
         _later(nextDrill, TRAIN_NEXT_MS);
         setStatusAction({ action: 'Rester ici', title: 'Ne pas enchaîner : rester sur cette position', run: trainingStay, ring: TRAIN_NEXT_MS, toggle: _chainToggle() });
         return;
@@ -1230,15 +1230,16 @@ function _offerNext() {
     setStatusAction({ action: 'Suivant', icon: 'skip-forward', title: 'Exercice suivant (Entrée)', run: () => nextDrill(), toggle: _chainToggle() });
 }
 
-// Interrupteur « Enchaîner » de la fin d'exercice (comme la case de Lichess) : allumé = trainNext 'auto',
-// éteint = 'error' (défaut). « Toujours attendre » ('wait') reste dans Paramètres › Entraînement › Exercice suivant ;
-// l'interrupteur y est éteint. Allumer à l'arrêt lance le décompte ; éteindre l'arrête si une réussite nette ne suffit pas.
+// Interrupteur « Enchaîner » de la fin d'exercice (comme la case de Lichess) : il dit ce qui se passe. Éteint =
+// trainNext 'wait' (défaut), rien ne passe seul ; allumé = 'clean', une réussite nette enchaîne. « Toujours enchaîner »
+// ('auto') reste dans Paramètres › Entraînement › Exercice suivant, l'interrupteur y est allumé. Allumer à l'arrêt
+// décide de nouveau (décompte après une réussite nette) ; éteindre arrête le décompte.
 function _chainToggle() {
-    return { label: 'Enchaîner', on: appSettings.trainNext === 'auto', title: 'Passer seul à l’exercice suivant, même après une erreur ou un indice', run: trainingChain };
+    return { label: 'Enchaîner', on: appSettings.trainNext !== 'wait', title: 'Passer seul à l’exercice suivant après une réussite nette', run: trainingChain };
 }
 
 function trainingChain(on) {
-    setPref('trainNext', on ? 'auto' : 'error');
+    setPref('trainNext', on ? 'clean' : 'wait');
     if (!trainingState.pause || trainingState.editing) return;
     trainingState.timers.forEach(clearTimeout);
     trainingState.timers = [];

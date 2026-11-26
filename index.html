@@ -514,8 +514,11 @@
                             <button class="btn btn-tool tb-flip" onclick="flipBoard()" title="Retourner l'échiquier (F)">
                                 <svg class="ico"><use href="#i-arrow-up-down"/></svg><span class="btn-label"><span class="desktop-only">Retourner</span><span class="mobile-only">Tourner</span></span>
                             </button>
+                            <button class="btn btn-tool" data-action="analysisEditMove" title="Corriger mon dernier coup : retour à la position d'avant, le prochain coup joué le remplace">
+                                <svg class="ico"><use href="#i-pencil"/></svg><span class="btn-label">Corriger</span>
+                            </button>
                             <button class="btn btn-tool" onclick="PositionEditor.fromAnalysis()" title="Poser une position : pièces à la main, FEN ou capture d'écran (⌘V)">
-                                <svg class="ico"><use href="#i-pencil"/></svg><span class="btn-label">Poser</span>
+                                <svg class="ico"><use href="#i-palette"/></svg><span class="btn-label">Poser</span>
                             </button>
                             <button class="btn btn-tool is-exit" onclick="quitAnalysis()" title="Revenir à Jouer ; le brouillon est gardé pour la session (Q)">
                                 <svg class="ico"><use href="#i-x"/></svg><span class="btn-label">Quitter</span>

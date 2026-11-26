@@ -1294,15 +1294,24 @@ Recadrer la photo</b>
 {0}/avatar-{1}.webp
 envoi refusé (
 La photo n’a pas pu être envoyée : vérifiez la connexion (et que le seau « avatars » existe, cf. supabase/schema.sql).
-Analyse
-Jouez librement : rien n’est enregistré sans « Ajouter au répertoire ». Quitter (Q) reprend l’entraînement.
-Brouillon de cette session repris. Rien n’est enregistré tant que vous n’ajoutez pas au répertoire.
-Jouez librement les deux camps : rien n’est enregistré tant que vous n’ajoutez pas au répertoire.
 Abandonner l’analyse ? Le brouillon ({0} coup{1}) sera effacé ; rien n’a été ajouté au répertoire.
 Analyse : {0}
 Ligne ajoutée au brouillon
+Elle remplace {0} dans le brouillon : une seule réponse par position.
 Elle apparaît dans l’arbre de l’analyse ; rien n’est encore au répertoire.
+Aucun de vos coups à corriger
+Jouez d’abord un coup de votre camp sur l’échiquier.
+Corriger {0}
+Jouez le coup qui le remplacera : sa suite quitte le brouillon, « Ajouter » l’enregistre au répertoire.
 {0}?fen={1}&multiPv={2}
+Dans le répertoire
+Hors répertoire depuis {0}
+Jouez librement : rien n’est enregistré sans « Ajouter au répertoire ». Quitter (Q) reprend l’entraînement.
+Jouez librement les deux camps : rien n’est enregistré tant que vous n’ajoutez pas au répertoire.
+{0} remplace {1} dans le brouillon : une seule réponse par position.
+Votre coup ici : {0} (flèche laiton).
+Votre coup enregistré ici : {0} (flèche laiton) ; en jouer un autre le remplacera.
+« Ajouter au répertoire » enregistre vos coups de cette ligne.
 {0} fils
 Calcul sur plusieurs fils (multi-thread).
 Calcul sur un seul fil : ce navigateur n’isole pas la page (Safari, par exemple).
@@ -1339,27 +1348,34 @@ Lancer
 Évaluation : {0}
 Évaluation indisponible
 déjà connu
+gardé
 nouveau coup, ajouté à la fusion
 déjà au répertoire, identique
-conflit : votre coup enregistré est gardé
-conflit : remplacera votre coup enregistré
+votre coup enregistré est gardé, ce coup ne sera pas ajouté
+remplacera votre coup enregistré
 Coups ajoutés
 Coups qui remplaceront les vôtres
-Conflits gardés
+gardés
+Vos coups enregistrés gardés : ces coups ne seront pas ajoutés
 Déjà au répertoire
 Aucun de vos coups à ajouter
 réponse adverse
 réponses adverses
 Rien à ajouter
-Voir l’aperçu : {0} à ajouter
-Voir l’aperçu : {0} à examiner
-Ajouter au répertoire
+Voir l’aperçu : {0} à enregistrer
+coup gardé
+coups gardés
+Voir l’aperçu : {0}
+{3} au répertoire
+Remplacer
+Ajouter
+Hors répertoire · {1}
 Effacer le brouillon et revenir à Jouer
 Abandonner
 Jouez les deux camps sur l’échiquier, ou recopiez une ligne du moteur avec « + ».
-<b>Brouillon</b>
-hors répertoire
+<b>Brouillon</b>{1}
 Effacer le brouillon
+<b>Brouillon</b>
 Ligne jouée depuis une position posée : elle ne peut pas rejoindre le répertoire, qui part du début.
 Modifier la position
 coup ajouté
@@ -1369,36 +1385,43 @@ coups ajoutés
 Corbeille
 Brouillon de la session repris · {1}
 Aucun coup
-ab-mv{0}{1}{2}
-Conflit avec votre coup enregistré : voir l’aperçu
-Conflit sur {2} : ouvrir l’aperçu de fusion
+ab-mv{0}{1}{2}{3}{4}
+, sortie du répertoire
+Remplace votre coup enregistré
+Votre coup enregistré est gardé
+{2} : voir l’aperçu
+{3} ({4}) : ouvrir l’aperçu de fusion
 vous : {0}
 remplace {0}
-Remplacer
 Rien de nouveau : vos coups de ces lignes sont déjà au répertoire.
 {1} ira à la corbeille (30 jours).
-Un conflit garde votre coup actuel et arrête la ligne, sauf si vous choisissez « Remplacer ».
+Un coup gardé arrête la ligne : recochez « Remplacer » pour l’enregistrer.
+coup qui n’est plus jouable
+coups qui ne sont plus jouables
+Avec sa suite : {1}
 aria-busy="true"
 title="Rien à ajouter"
 Aperçu de fusion
 Fermer l’aperçu
 Lignes à fusionner
+Ajouter au répertoire
 Ligne affichée
 Toutes les branches
-Ajouter {7}
 Rien n’est écrit avant la confirmation.
 remplacé depuis l’Analyse
 Fusion impossible
 La corbeille n’a pas pu accueillir les coups remplacés : rien n’a été modifié.
+coup enregistré
+coups enregistrés
 {0} au répertoire
 À réviser dès la prochaine séance d’Entraînement.
-Les coups remplacés sont dans la corbeille.
+et leur suite
+Les coups remplacés{0} sont dans la corbeille.
 Annulation impossible ici
 Un coup a été remplacé : restaurez-le depuis la corbeille.
 Ajout annulé
 Le répertoire est revenu à son état précédent ; le brouillon est conservé.
-Ajouter ({0})
-Ajouter
+{0} {1} au répertoire
 Et si…
 Vous jouez les Blancs ; le moteur répond à ~{0} Elo.
 Vous jouez les Noirs ; le moteur répond à ~{0} Elo.
@@ -1734,6 +1757,7 @@ Aujourd’hui
 Entraînement
 Progrès
 Analyser mes parties
+Analyse
 Importer
 la présentation
 Réviser, puis construire ses lignes en jouant
@@ -2100,9 +2124,9 @@ Positions vues en partie
 parties réelles jouées filtre lichess chess.com
 Points faibles, À découvrir, Ligne complète, Contre-la-montre et Mode libre ne tirent que les positions atteintes dans vos parties archivées. La Révision du jour reste entière. Sans assez de parties (moins de 5 positions), tout le répertoire.
 enchaîner automatiquement passage suivant pause
-Après une erreur : une réussite nette enchaîne seule, une erreur, un indice ou la solution laissent le temps d’analyser. Le contre-la-montre enchaîne toujours.
-Après une erreur
+Toujours attendre : « Suivant » passe à la position suivante. Après une réussite : une réussite nette enchaîne seule, une erreur, un indice ou la solution attendent. Le contre-la-montre enchaîne toujours.
 Toujours attendre
+Après une réussite
 Toujours enchaîner
 Séances en bouchées
 pause paquets cinq positions découper courte
@@ -2769,7 +2793,6 @@ Aucun coup adverse connu ici : ni dans le répertoire, ni dans vos parties.
 </i>repéré ou joué
 </i>sans réponse
 Repéré
-Dans le répertoire
 · {0} ici
 Réponses adverses{0}
 Joué {0} fois contre vous
@@ -2977,7 +3000,7 @@ Fin de la variante.
 Rester ici
 Ne pas enchaîner : rester sur cette position
 Enchaîner
-Passer seul à l’exercice suivant, même après une erreur ou un indice
+Passer seul à l’exercice suivant après une réussite nette
 Corriger ma réponse
 Jouez le coup qui remplacera {0}.
 Garder le coup actuel
@@ -3231,6 +3254,7 @@ Revoir
 Au hasard
 Une finale au hasard
 Commencer la finale à suivre
+Ajouter ({0})
 Brouillon
 Toutes les branches du brouillon
 Arbre
@@ -3413,6 +3437,7 @@ Recommencer l'exercice (N)
 Quitter l'exercice (Q)
 Analyser la position avec le moteur
 Ouvrir la position sur Lichess (nouvel onglet)
+Corriger mon dernier coup : retour à la position d'avant, le prochain coup joué le remplace
 Poser une position : pièces à la main, FEN ou capture d'écran (⌘V)
 Revenir à Jouer ; le brouillon est gardé pour la session (Q)
 Lire une capture d'écran d'échiquier (aussi : coller ⌘V ou déposer l'image)

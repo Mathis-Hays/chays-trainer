@@ -105,6 +105,14 @@ t('objectif du jour (chantier « Révision du jour ») : paliers 15, 30, 60 ; an
     assert.strictEqual(boot({}).run('appSettings.dailyGoal'), 30, 'nouvelle installation : Normal');
 });
 
+t('exercice suivant : « Toujours attendre » par défaut ; l\'ancien « error » (qui enchaînait interrupteur éteint) est lu « wait »', () => {
+    const next = v => boot({ chessTrainer_prefs: JSON.stringify({ trainNext: { v, at: 5 } }) }).run('appSettings.trainNext');
+    assert.strictEqual(boot({}).run('appSettings.trainNext'), 'wait');
+    assert.strictEqual(next('error'), 'wait');
+    assert.strictEqual(next('clean'), 'clean');
+    assert.strictEqual(next('auto'), 'auto');
+});
+
 t('mode : ancienne clé aux valeurs inversées convertie une fois, mode système', () => {
     const c = boot({ chessTrainer_theme: 'light' });                       // 'light' historique = thème sombre
     assert.strictEqual(c.run('themeMode()'), 'dark');

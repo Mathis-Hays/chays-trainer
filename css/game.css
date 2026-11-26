@@ -1234,3 +1234,12 @@ html.train-focus .tr-prog-bar.tr-tape { height: 4px; }
 .trr-resume small { color: var(--text-muted); font-size: 12.5px; }
 #game-screen { --tape-brass: var(--brand-brass-deep); }
 [data-theme="dark"] #game-screen { --tape-brass: var(--brand-brass); }
+
+/* ─── ANALYSE : DANS LE RÉPERTOIRE OU HORS (chantier « L'échiquier de Chays ») ───
+   Coups du brouillon hors répertoire soulignés en pointillé ; le premier porte un trait de sortie. */
+.ab-mv.is-out { text-decoration: underline dashed color-mix(in oklab, currentColor 45%, transparent); text-underline-offset: 4px; }
+.ab-mv.is-cur.is-out { text-decoration-color: currentColor; }
+.ab-mv.is-exit { position: relative; margin-left: 6px; }
+.ab-mv.is-exit::before { content: ""; position: absolute; left: -5px; top: 6px; bottom: 6px; width: 2px; border-radius: 1px; background: var(--brand-brass-deep); }
+[data-theme="dark"] .ab-mv.is-exit::before { background: var(--brand-brass); }
+.ab-cascade { margin: -4px 0 4px; }

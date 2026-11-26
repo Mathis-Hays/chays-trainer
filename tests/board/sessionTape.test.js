@@ -31,7 +31,7 @@ const tick = (ms = 120) => new Promise(r => setTimeout(r, ms));
         window.askConfirm = (msg, ok) => { window.__asked = msg; ok(); };
         window.askConfirmChoice = (msg, labels, cascade, solo) => { window.__asked = msg; solo(); };   // coups orphelins : garder les autres
         setPref('trainBites', false);
-        appSettings.trainNext = 'error';
+        appSettings.trainNext = 'clean';
     })()`);
     const ready = async () => {
         for (let k = 0; k < 60; k++) {
